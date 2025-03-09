@@ -24,7 +24,7 @@ class UndertoneTutorial extends StatelessWidget {
                     ),
                   );
                 },
-                child: const Text("Continue to Assessment"),
+                child: const Text("Proceed"),
               ),
             ],
           ),
