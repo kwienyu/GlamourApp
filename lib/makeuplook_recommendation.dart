@@ -1,99 +1,68 @@
 import 'package:flutter/material.dart';
+import 'camera.dart'; // Import your camera page
 
-class MakeupRecommendationPage extends StatelessWidget {
-  final String event;
+class MakeupLookRecommendationPage extends StatelessWidget {
+  final String makeupType;
 
-  const MakeupRecommendationPage({super.key, required this.event});
+  const MakeupLookRecommendationPage({super.key, required this.makeupType});
 
   @override
   Widget build(BuildContext context) {
-    List<String> makeupLooks = [];
-
-    // Define Makeup Looks based on Event
-    if (event == 'Casual') {
-      makeupLooks = [
-        'No-Makeup Look',
-        'Everyday Glow',
-        'Sun-Kissed Glow',
-      ];
-    } else if (event == 'Light') {
-      makeupLooks = [
-        'Dewy',
-        'Rosy Cheeks',
-        'Soft Glam',
-      ];
-    } else if (event == 'Heavy') {
-      makeupLooks = [
-        'Matte Look',
-        'Cut Crease Look',
-        'Glam Night Look',
-      ];
-    }
+    final Map<String, List<String>> makeupLooks = {
+      'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
+      'Casual': ['No-Makeup Look', 'Everyday Glow', 'Sun-Kissed Glow'],
+      'Heavy': ['Matte', 'Cut Crease', 'Glam Night Look'],
+    };
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$event Makeup Looks'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Select Your Makeup Look',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            // Generate Buttons Based on Makeup Looks
-            for (String look in makeupLooks)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Navigate to a Final Page if needed
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FinalPage(look: look),
-                      ),
-                    );
-                  },
-                  child: Text(look),
-                ),
-              ),
-          ],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Makeup Recommendations',
+          style: TextStyle(color: Colors.black),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-    );
-  }
-}
-
-class FinalPage extends StatelessWidget {
-  final String look;
-
-  const FinalPage({super.key, required this.look});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recommended Look'),
-      ),
-      body: Center(
+      backgroundColor: Colors.white,
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'You Selected: $look',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              'Recommended Makeup Looks for $makeupType',
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Go Back'),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: makeupLooks[makeupType]!.length,
+                itemBuilder: (context, index) {
+                  return Card(
+                    color: Colors.pink[50],
+                    child: ListTile(
+                      title: Text(
+                        makeupLooks[makeupType]![index],
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                      onTap: () {
+                        // Navigate to CameraPage after user clicks a look
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CameraPage(),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -101,3 +70,4 @@ class FinalPage extends StatelessWidget {
     );
   }
 }
+

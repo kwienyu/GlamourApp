@@ -20,7 +20,7 @@ class UndertoneTutorial extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const UndertoneSelectionPage(),
+                      builder: (context) => const SelectionPage(),
                     ),
                   );
                 },

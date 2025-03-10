@@ -1,171 +1,123 @@
 import 'package:flutter/material.dart';
+import 'makeuplook_recommendation.dart';
 
-void main() {
-  runApp(const GlamourApp());
-}
-
-class GlamourApp extends StatelessWidget {
-  const GlamourApp({super.key});
+class SelectionPage extends StatefulWidget {
+  const SelectionPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const UndertoneSelectionPage(),
-    );
-  }
+  State<SelectionPage> createState() => _SelectionPageState();
 }
 
-class UndertoneSelectionPage extends StatefulWidget {
-  const UndertoneSelectionPage({super.key});
-
-  @override
-  State<UndertoneSelectionPage> createState() => _UndertoneSelectionPageState();
-}
-
-class _UndertoneSelectionPageState extends State<UndertoneSelectionPage> {
-  String? selectedUndertone;
-  String? selectedEvent;
+class _SelectionPageState extends State<SelectionPage> {
+  String? selectedMakeupType;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Undertone & Event'),
-        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
+      backgroundColor: Colors.white,
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text(
-              'Select Your Undertone',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              "Kwien's Profile",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Serif',
+                color: Colors.black,
+              ),
             ),
-            const SizedBox(height: 10),
-            buildButton('Warm', selectedUndertone == 'Warm', () {
-              setState(() {
-                selectedUndertone = 'Warm';
-              });
-            }),
-            buildButton('Neutral', selectedUndertone == 'Neutral', () {
-              setState(() {
-                selectedUndertone = 'Neutral';
-              });
-            }),
-            buildButton('Cool', selectedUndertone == 'Cool', () {
-              setState(() {
-                selectedUndertone = 'Cool';
-              });
-            }),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
+
+            // Undertone Selection
             const Text(
-              'Select Makeup Event',
+              'Select Undertone',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            buildButton('Casual', selectedEvent == 'Casual', () {
-              setState(() {
-                selectedEvent = 'Casual';
-              });
-              showSnackbar(context, 'Casual Event');
-              navigateToRecommendationPage(context, 'Casual');
-            }),
-            buildButton('Light', selectedEvent == 'Light', () {
-              setState(() {
-                selectedEvent = 'Light';
-              });
-              showSnackbar(context, 'Light Event');
-              navigateToRecommendationPage(context, 'Light');
-            }),
-            buildButton('Heavy', selectedEvent == 'Heavy', () {
-              setState(() {
-                selectedEvent = 'Heavy';
-              });
-              showSnackbar(context, 'Heavy Event');
-              navigateToRecommendationPage(context, 'Heavy');
-            }),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildToggleButton('Warm'),
+                _buildToggleButton('Neutral'),
+                _buildToggleButton('Cool'),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            // Makeup Type Selection
+            const Text(
+              'Select Makeup Type',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildMakeupTypeButton(context, 'Light'),
+                _buildMakeupTypeButton(context, 'Casual'),
+                _buildMakeupTypeButton(context, 'Heavy'),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget buildButton(String text, bool isSelected, VoidCallback onPressed) {
+  // Pink button for undertone selection
+  Widget _buildToggleButton(String label) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? Colors.pinkAccent : Colors.grey[300],
+          backgroundColor: Colors.pink[100],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
-        onPressed: onPressed,
-        child: Text(text),
-      ),
-    );
-  }
-
-  void showSnackbar(BuildContext context, String event) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('You selected $event.'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void navigateToRecommendationPage(BuildContext context, String event) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MakeupRecommendationPage(
-          undertone: selectedUndertone ?? 'Not Selected',
-          event: event,
+        onPressed: () {},
+        child: Text(
+          label,
+          style: const TextStyle(color: Colors.black),
         ),
       ),
     );
   }
-}
 
-class MakeupRecommendationPage extends StatelessWidget {
-  final String undertone;
-  final String event;
-
-  const MakeupRecommendationPage({super.key, required this.undertone, required this.event});
-
-  @override
-  Widget build(BuildContext context) {
-    List<String> makeupLooks = [];
-
-    if (event == 'Casual') {
-      makeupLooks = ['No-Makeup Look', 'Everyday Glow', 'Sun-Kissed Glow'];
-    } else if (event == 'Light') {
-      makeupLooks = ['Dewy', 'Rosy Cheeks', 'Soft Glam'];
-    } else if (event == 'Heavy') {
-      makeupLooks = ['Matte Look', 'Cut Crease Look', 'Glam Night Look'];
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('$event Makeup Looks'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Undertone: $undertone',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 10),
-            for (String look in makeupLooks)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: ElevatedButton(
-                  onPressed: () {},
-                  child: Text(look),
-                ),
-              ),
-          ],
+  // Pink button for makeup type with navigation
+  Widget _buildMakeupTypeButton(BuildContext context, String type) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.pink[100],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  MakeupLookRecommendationPage(makeupType: type),
+            ),
+          );
+        },
+        child: Text(
+          type,
+          style: const TextStyle(color: Colors.black),
         ),
       ),
     );
