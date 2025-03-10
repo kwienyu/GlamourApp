@@ -12,17 +12,14 @@ class LoginScreen extends StatelessWidget {
         children: [
           // Background Gradient
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color.fromARGB(255, 219, 198, 210),
-                  Color.fromARGB(255, 235, 167, 189),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+            decoration: BoxDecoration(
+              image: DecorationImage(
+              image: AssetImage("assets/images/background_image.webp"),
+              fit: BoxFit.cover,
             ),
           ),
+        ),
+          
           // Content
           Center(
             child: Padding(

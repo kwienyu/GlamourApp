@@ -58,37 +58,6 @@ class ProfileSelection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-
-            // History Captured Photo
-            GestureDetector(
-              onTap: () {
-                // Navigate to the History Captured Photo page
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileSelection(),
-                  ),
-                );
-              },
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.history, size: 40),
-                      SizedBox(height: 10),
-                      Text("History Captured"),
-                    ],
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
