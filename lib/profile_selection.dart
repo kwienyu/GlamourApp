@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'undertone_tutorial.dart'; // ✅ Fixed the import
+import 'undertone_tutorial.dart'; 
 
 class ProfileSelection extends StatelessWidget {
-  const ProfileSelection({Key? key}) : super(key: key);
+  const ProfileSelection({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ AppBar Section
+      // AppBar Section
       appBar: AppBar(
         backgroundColor: Colors.pinkAccent,
         elevation: 0,
@@ -19,7 +19,7 @@ class ProfileSelection extends StatelessWidget {
         centerTitle: true,
       ),
 
-      // ✅ Drawer Section
+      // Drawer Section
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -46,12 +46,13 @@ class ProfileSelection extends StatelessWidget {
         ),
       ),
 
-      // ✅ Body Section
+      // Body Section
       body: Padding(
         padding: const EdgeInsets.only(top: 30),
         child: Column(
+
           children: [
-            // ✅ Greeting Text
+            // Greeting Text
             Text(
               'Hello👋',
               style: TextStyle(
@@ -70,14 +71,14 @@ class ProfileSelection extends StatelessWidget {
               ),
             ),
 
-            // ✅ Space Before Grid
+            // Space Before Grid
             SizedBox(height: 40),
 
-            // ✅ First Two Boxes (Your Profile & Add Profile)
+            // First Two Boxes (Your Profile & Add Profile)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ✅ Your Profile Box
+                // Your Profile Box
                 buildProfileButton(
                   context,
                   Icons.person,
@@ -85,7 +86,7 @@ class ProfileSelection extends StatelessWidget {
                   const UndertoneTutorial(),
                 ),
                 SizedBox(width: 30),
-                // ✅ Add Profile Box
+                // Add Profile Box
                 buildProfileButton(
                   context,
                   Icons.add,
@@ -95,13 +96,13 @@ class ProfileSelection extends StatelessWidget {
               ],
             ),
 
-            // ✅ Space Between Grid and Center Button
+            // Space Between Grid and Center Button
             SizedBox(height: 30),
 
-            // ✅ Centered "Recent Looks" Button Below Grid
+            // Centered "Recent Looks" Button Below Grid
             Center(
               child: SizedBox(
-                width: 170, // ✅ Fixed size for the button
+                width: 170, // Fixed size for the button
                 child: buildProfileButton(
                   context,
                   Icons.star,
@@ -115,8 +116,7 @@ class ProfileSelection extends StatelessWidget {
       ),
     );
   }
-
-  // ✅ Button Builder Function
+  // Button Builder Function
   Widget buildProfileButton(
       BuildContext context, IconData icon, String text, Widget route) {
     return GestureDetector(
@@ -127,7 +127,7 @@ class ProfileSelection extends StatelessWidget {
         );
       },
       child: Container(
-        width: 140, // ✅ Fixed square size
+        width: 140, //Fixed square size
         height: 140,
         decoration: BoxDecoration(
           color: Colors.pink[100],
