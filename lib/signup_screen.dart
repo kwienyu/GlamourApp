@@ -8,18 +8,18 @@ class SignUpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ API URL for user registration
+    // API URL for user registration
     String apiUrl = 'https://972e-2a09-bac5-4ff4-16d2-00-246-35.ngrok-free.app/api/register';
 
-    // ✅ Text Controllers for input fields
+    // Text Controllers for input fields
     TextEditingController fullNameController = TextEditingController();
     TextEditingController emailController = TextEditingController();
     TextEditingController passwordController = TextEditingController();
 
-    // ✅ Function to Sign Up User
+    // Function to Sign Up User
     Future<void> signUp() async {
       try {
-        // ✅ Make an HTTP POST request
+        // Make an HTTP POST request
         var response = await http.post(
           Uri.parse(apiUrl),
           headers: {
@@ -32,9 +32,9 @@ class SignUpScreen extends StatelessWidget {
           }),
         );
 
-        // ✅ Handle the response
+        // Handle the response
         if (response.statusCode == 201) {
-          // ✅ User registered successfully
+          // User registered successfully
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Account created successfully! Please log in.'),
@@ -42,14 +42,14 @@ class SignUpScreen extends StatelessWidget {
             ),
           );
 
-          // ✅ Navigate to Login Screen
+          // Navigate to Login Screen
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
         } 
         else if (response.statusCode == 409) {
-          // 🚨 If email already exists
+          // If email already exists
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Email already exists. Try another email.'),
@@ -58,7 +58,7 @@ class SignUpScreen extends StatelessWidget {
           );
         } 
         else {
-          // 🚨 Handle unexpected error
+          // Handle unexpected error
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Something went wrong. Please try again.'),
@@ -67,7 +67,7 @@ class SignUpScreen extends StatelessWidget {
           );
         }
       } catch (e) {
-        // 🚨 Handle network or server error
+        // Handle network or server error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
@@ -80,14 +80,14 @@ class SignUpScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // ✅ Background Color
+          // Background Color
           Container(
             decoration: const BoxDecoration(
               color: Colors.white,
             ),
           ),
 
-          // ✅ Main Content
+          // Main Content
           Center(
             child: SingleChildScrollView(
               child: Padding(
@@ -95,13 +95,13 @@ class SignUpScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // ✅ App Logo
+                    // App Logo
                     Image.asset(
                       'assets/glam_logo.png',
                       height: 105,
                     ),
 
-                    // ✅ Title
+                    // Title
                     const Text(
                       "Create an Account",
                       style: TextStyle(
@@ -113,7 +113,7 @@ class SignUpScreen extends StatelessWidget {
 
                     const SizedBox(height: 15),
 
-                    // ✅ Full Name Field
+                    // Full Name Field
                     TextField(
                       controller: fullNameController,
                       decoration: InputDecoration(
@@ -129,7 +129,7 @@ class SignUpScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // ✅ Email Field
+                    // Email Field
                     TextField(
                       controller: emailController,
                       decoration: InputDecoration(
@@ -145,7 +145,7 @@ class SignUpScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // ✅ Password Field
+                    // Password Field
                     TextField(
                       controller: passwordController,
                       obscureText: true,
@@ -162,7 +162,7 @@ class SignUpScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // ✅ Sign Up Button
+                    // Sign Up Button
                     ElevatedButton(
                       onPressed: () {
                         signUp();
@@ -182,7 +182,7 @@ class SignUpScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
 
-                    // ✅ Already have an account
+                    // Already have an account
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
