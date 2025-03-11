@@ -7,59 +7,80 @@ class ProfileSelection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile Selection")),
-      body: Center(
+      backgroundColor: Colors.white,
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Welcome, Kwien!",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              'Hi, Kwien 👋',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 20),
-            const Text("Select a Profile"),
-            const SizedBox(height: 20),
-
-            // Kwien's Profile
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UndertoneTutorial(),
+            // Profile Options
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UndertoneTutorial(),
+                        ),
+                      );
+                    },
+                    child: const ProfileCard(title: 'Your Profile', icon: Icons.person),
                   ),
-                );
-              },
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.pink.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(child: Text("Kwien's Profile")),
+                  const ProfileCard(title: 'Add Profile', icon: Icons.add),
+                  const ProfileCard(title: 'Recent Looks', icon: Icons.star),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-
-            // Add Profile
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/Makeup_look__History');
-              },
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(child: Text("Makeup look History")),
-              ),
-            ),
-            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class ProfileCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const ProfileCard({super.key, required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.pink.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 40,
+            color: Colors.pink,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
