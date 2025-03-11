@@ -45,7 +45,7 @@ class ProfileSelection extends StatelessWidget {
             // Add Profile
             GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context, '/add_profile');
+                Navigator.pushNamed(context, '/Makeup_look__History');
               },
               child: Container(
                 width: 200,
@@ -54,7 +54,7 @@ class ProfileSelection extends StatelessWidget {
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Center(child: Text("Add Profile")),
+                child: const Center(child: Text("Makeup look History")),
               ),
             ),
             const SizedBox(height: 20),
