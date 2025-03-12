@@ -69,7 +69,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
                         valueColor: AlwaysStoppedAnimation<Color>(Color.fromARGB(255, 237, 156, 190)),
                       )
                     : const Text(
-                            'Log In',
+                            'Proceed',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               color: Color.fromARGB(255, 243, 241, 242),
