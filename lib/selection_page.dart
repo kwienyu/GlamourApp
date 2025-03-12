@@ -10,6 +10,7 @@ class SelectionPage extends StatefulWidget {
 
 class _SelectionPageState extends State<SelectionPage> {
   String? selectedMakeupType;
+  String? selectedUndertone; // To store the selected undertone
 
   @override
   Widget build(BuildContext context) {
@@ -53,11 +54,24 @@ class _SelectionPageState extends State<SelectionPage> {
                 _buildToggleButton('Cool'),
               ],
             ),
+            const SizedBox(height: 10),
+
+            // Message for selected undertone
+            if (selectedUndertone != null)
+              Text(
+                "You selected: $selectedUndertone undertone",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.pink,
+                ),
+              ),
+
             const SizedBox(height: 30),
 
             // Makeup Type Selection
             const Text(
-              'Select Makeup Type',
+              'Select Makeup Events',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
@@ -75,18 +89,23 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  // Pink button for undertone selection
+  // Pink button for undertone selection with selection effect
   Widget _buildToggleButton(String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.pink[100],
+          backgroundColor:
+              selectedUndertone == label ? Colors.pink[400] : Colors.pink[100], // Darker when selected
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
         ),
-        onPressed: () {},
+        onPressed: () {
+          setState(() {
+            selectedUndertone = label; // Set selected undertone
+          });
+        },
         child: Text(
           label,
           style: const TextStyle(color: Colors.black),

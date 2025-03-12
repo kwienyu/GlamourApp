@@ -9,7 +9,7 @@ class SignUpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // API URL for user registration
-    String apiUrl = 'https://972e-2a09-bac5-4ff4-16d2-00-246-35.ngrok-free.app/api/register';
+    String apiUrl = 'https://04cf-2001-4456-ceb-6000-69f5-f485-6abc-5c93.ngrok-free.app/api/register';
 
     // Text Controllers for input fields
     TextEditingController fullNameController = TextEditingController();

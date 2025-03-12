@@ -4,67 +4,86 @@ import 'dart:convert';
 import 'profile_selection.dart';
 import 'signup_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    TextEditingController emailController = TextEditingController();
-    TextEditingController passwordController = TextEditingController();
+  _LoginScreenState createState() => _LoginScreenState();
+}
 
-    Future<void> loginUser(BuildContext context) async {
-      String apiUrl = 'https://972e-2a09-bac5-4ff4-16d2-00-246-35.ngrok-free.app/api/login';
+class _LoginScreenState extends State<LoginScreen> {
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  bool isLoading = false; // Added state for loading effect
 
-      try {
-        // Sending a POST request to the API with JSON Body
-        var response = await http.post(
-          Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'email': emailController.text,
-            'password': passwordController.text,
-          }),
+  Future<void> loginUser(BuildContext context) async {
+    setState(() {
+      isLoading = true; // Show loading effect
+    });
+
+    String apiUrl = 'https://04cf-2001-4456-ceb-6000-69f5-f485-6abc-5c93.ngrok-free.app/api/login';
+
+    try {
+      var response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': emailController.text,
+          'password': passwordController.text,
+        }),
+      );
+
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message']),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
 
-        // Handle the response
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
+        // Delay before navigating
+        Future.delayed(const Duration(seconds: 1), () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-          // If login is successful
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message']),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          // Navigate to Profile Selection Page
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const ProfileSelection()),
           );
-        } else {
-          // Show Error Message if login fails
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Invalid email or password. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        // Handle Connection Error (No Internet or Server Down)
+        });
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
+          const SnackBar(
+            content: Text('Invalid email or password. Please try again.'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      setState(() {
+        isLoading = false; // Hide loading effect
+      });
     }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Padding(
@@ -108,7 +127,7 @@ class LoginScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Sign In Button
+            // Sign In Button with Loading Effect
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 243, 133, 168),
@@ -117,13 +136,13 @@ class LoginScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              onPressed: () {
-                loginUser(context);
-              },
-              child: const Text(
-                'Sign In',
-                style: TextStyle(color: Colors.white),
-              ),
+              onPressed: isLoading ? null : () => loginUser(context), // Disable button when loading
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white) // Show loading spinner
+                  : const Text(
+                      'Sign In',
+                      style: TextStyle(color: Colors.white),
+                    ),
             ),
 
             const SizedBox(height: 20),
@@ -143,7 +162,7 @@ class LoginScreen extends StatelessWidget {
                   child: const Text(
                     'Sign Up',
                     style: TextStyle(
-                      color: Color.fromARGB(255, 244, 156, 183),
+                      color: Color.fromARGB(255, 244, 156, 183), 
                     ),
                   ),
                 ),
