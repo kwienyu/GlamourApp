@@ -64,7 +64,13 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _analyzeImage(File imageFile) async {
     var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
     request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-    request.fields['email'] = 'kwien@gmail.com'; // ✅ Added missing email field
+    request.fields['email'] = 'kwien@gmail.com';
+    request.fields['email'] = 'christhadanestan@gmail.com';
+    request.fields['email'] = 'miriam@gmail.com';
+    request.fields['email'] = 'ivan@gmail.com';
+    request.fields['email'] = 'ally@gmail.com';
+    request.fields['email'] = 'julus@gmail.com';
+    request.fields['email'] = 'tel@gmail.com';// ✅ Added missing email field
 
     try {
       var response = await request.send();
