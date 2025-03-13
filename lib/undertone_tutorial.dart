@@ -51,7 +51,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
                   ),
                 ),
                 const SizedBox(height: 5),
-                Image.asset('assets/undertone.png', width: 550, height: 545),
+                Image.asset('assets/undertone.png', width: 550, height: 550),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: 150,

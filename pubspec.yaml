@@ -39,6 +39,8 @@ dependencies:
   path_provider: ^2.1.5
   http: ^1.1.0
   fluttertoast: ^8.2.2 
+  firebase_auth: ^5.5.1
+  
 
   
 

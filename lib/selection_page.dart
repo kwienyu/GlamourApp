@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'makeuplook_recommendation.dart';
+import 'undertone_tutorial.dart'; // Import the tutorial page
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -16,13 +17,38 @@ class _SelectionPageState extends State<SelectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+  backgroundColor: Colors.pinkAccent,
+  elevation: 0,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back, color: Colors.black),
+    onPressed: () => Navigator.pop(context),
+  ),
+  title: Stack(
+    children: [
+      Align(
+        alignment: Alignment.center, // Center the logo
+        child: Image.asset(
+          'assets/glam_logo.png',
+          height: 40, // Adjust as needed
         ),
       ),
+    ],
+  ),
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.help_outline, color: Colors.black),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UndertoneTutorial(),
+          ),
+        );
+      },
+    ),
+  ],
+),
+
       backgroundColor: Colors.white,
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -95,8 +121,9 @@ class _SelectionPageState extends State<SelectionPage> {
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              selectedUndertone == label ? Colors.pink[400] : Colors.pink[100], // Darker when selected
+          backgroundColor: selectedUndertone == label
+              ? Colors.pink[400]
+              : Colors.pink[100], // Darker when selected
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

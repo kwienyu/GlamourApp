@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'undertone_tutorial.dart'; 
+import 'selection_page.dart';
 
 class ProfileSelection extends StatelessWidget {
   const ProfileSelection({super.key});
@@ -83,7 +84,7 @@ class ProfileSelection extends StatelessWidget {
                   context,
                   Icons.person,
                   "Your Profile",
-                  const UndertoneTutorial(),
+                  SelectionPage(),
                 ),
                 SizedBox(width: 30),
                 // Add Profile Box

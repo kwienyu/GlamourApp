@@ -9,7 +9,7 @@ class SignUpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // API URL for user registration
-    String apiUrl = 'https://04cf-2001-4456-ceb-6000-69f5-f485-6abc-5c93.ngrok-free.app/api/register';
+    String apiUrl = 'https://8f21-2001-4456-ceb-6000-3d6f-9fa5-3da8-9360.ngrok-free.app/api/register';
 
     // Text Controllers for input fields
     TextEditingController fullNameController = TextEditingController();
@@ -38,7 +38,7 @@ class SignUpScreen extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Account created successfully! Please log in.'),
-              backgroundColor: Colors.green,
+              backgroundColor: const Color.fromARGB(255, 241, 142, 217),
             ),
           );
 
