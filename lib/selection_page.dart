@@ -76,7 +76,7 @@ class _SelectionPageState extends State<SelectionPage> {
                     "Kwienny",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const Text("kwien@email.com", style: TextStyle(color: Color.fromARGB(255, 10, 10, 10))),
+                  const Text("kwien@gmail.com", style: TextStyle(color: Color.fromARGB(255, 10, 10, 10))),
                   const Text("09703734277", style: TextStyle(color: Color.fromARGB(255, 12, 12, 12))),
 
                   // Edit Profile Icon
