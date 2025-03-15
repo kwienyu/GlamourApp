@@ -93,7 +93,7 @@ class ProfileSelection extends StatelessWidget {
                     buildProfileButton(
                       context,
                       Icons.add,
-                      "Pre-Assessment",
+                      "Retest My Look",
                       const UndertoneTutorial(),
                     ),
                   ],
