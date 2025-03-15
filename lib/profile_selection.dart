@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'undertone_tutorial.dart'; 
+import 'undertone_tutorial.dart';
 import 'selection_page.dart';
 
 class ProfileSelection extends StatelessWidget {
@@ -48,75 +48,79 @@ class ProfileSelection extends StatelessWidget {
       ),
 
       // Body Section
-      body: Padding(
-        padding: const EdgeInsets.only(top: 30),
-        child: Column(
-
-          children: [
-            // Greeting Text
-            Text(
-              'Hello👋',
-              style: TextStyle(
-                fontSize: 25,
-                fontFamily: 'Serif',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 5),
-            Text(
-              'Welcome to glam-up!!',
-              style: TextStyle(
-                fontSize: 25,
-                fontFamily: 'Serif',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            // Space Before Grid
-            SizedBox(height: 40),
-
-            // First Two Boxes (Your Profile & Add Profile)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Your Profile Box
-                buildProfileButton(
-                  context,
-                  Icons.person,
-                  "Your Profile",
-                  SelectionPage(),
-                ),
-                SizedBox(width: 30),
-                // Add Profile Box
-                buildProfileButton(
-                  context,
-                  Icons.add,
-                  "Add Profile",
-                  const UndertoneTutorial(),
-                ),
-              ],
-            ),
-
-            // Space Between Grid and Center Button
-            SizedBox(height: 30),
-
-            // Centered "Recent Looks" Button Below Grid
-            Center(
-              child: SizedBox(
-                width: 170, // Fixed size for the button
-                child: buildProfileButton(
-                  context,
-                  Icons.star,
-                  "Recent Looks",
-                  const UndertoneTutorial(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Greeting Text
+              Text(
+                'Hello👋',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          ],
+              SizedBox(height: 5),
+              Text(
+                'Welcome to glam-up!!',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontFamily: 'Serif',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              SizedBox(height: 40),
+
+              // First Two Boxes (Your Profile & Add Profile)
+              SizedBox(
+                width: double.infinity, // Ensure Row fits properly
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Your Profile Box
+                    buildProfileButton(
+                      context,
+                      Icons.person,
+                      "Your Profile",
+                      SelectionPage(),
+                    ),
+                    SizedBox(width: 30),
+                    // Add Profile Box
+                    buildProfileButton(
+                      context,
+                      Icons.add,
+                      "Pre-Assessment",
+                      const UndertoneTutorial(),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 30),
+
+              // Centered "Recent Looks" Button Below Grid
+              Center(
+                child: SizedBox(
+                  width: 170, // Fixed size for the button
+                  child: buildProfileButton(
+                    context,
+                    Icons.star,
+                    "Recent Looks",
+                    const UndertoneTutorial(),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
   // Button Builder Function
   Widget buildProfileButton(
       BuildContext context, IconData icon, String text, Widget route) {
@@ -128,7 +132,7 @@ class ProfileSelection extends StatelessWidget {
         );
       },
       child: Container(
-        width: 140, //Fixed square size
+        width: 140, // Fixed square size
         height: 140,
         decoration: BoxDecoration(
           color: Colors.pink[100],

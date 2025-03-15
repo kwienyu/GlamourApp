@@ -22,7 +22,7 @@ class _CameraPageState extends State<CameraPage> {
   String? _faceShape;
   bool _isLoading = false;
 
-  final String apiUrl = 'https://8f21-2001-4456-ceb-6000-3d6f-9fa5-3da8-9360.ngrok-free.app/api/upload_image';
+  final String apiUrl = 'https://576c-131-226-113-101.ngrok-free.app/api/upload_image';
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _CameraPageState extends State<CameraPage> {
   void _initializeCamera() async {
     _cameras = await availableCameras();
     if (_cameras.isEmpty) {
-      print('❌ No cameras available');
+      print('No cameras available');
       return;
     }
     _cameraController = CameraController(
@@ -56,7 +56,7 @@ class _CameraPageState extends State<CameraPage> {
 
       await _analyzeImage(File(image.path));
     } catch (e) {
-      print('❌ Error capturing image: $e');
+      print('Error capturing image: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -70,21 +70,21 @@ class _CameraPageState extends State<CameraPage> {
     request.fields['email'] = 'ivan@gmail.com';
     request.fields['email'] = 'ally@gmail.com';
     request.fields['email'] = 'julus@gmail.com';
-    request.fields['email'] = 'tel@gmail.com';// ✅ Added missing email field
+    request.fields['email'] = 'tel@gmail.com';// Added missing email field
 
     try {
       var response = await request.send();
       var responseData = await response.stream.bytesToString();
 
-      print('📡 Response received: $responseData'); // ✅ Log full API response
+      print('📡 Response received: $responseData'); // og full API response
 
       if (response.statusCode == 200) {
         var jsonData;
         try {
           jsonData = json.decode(responseData);
-          print('✅ Parsed JSON: $jsonData'); // ✅ Log parsed JSON
+          print('✅ Parsed JSON: $jsonData'); // Log parsed JSON
         } catch (e) {
-          print('❌ Error parsing JSON: $e');
+          print('Error parsing JSON: $e');
           _showErrorDialog('Error processing server response.');
           return;
         }
@@ -94,26 +94,26 @@ class _CameraPageState extends State<CameraPage> {
             setState(() {
               _skinTone = jsonData['skin_tone'];
               _faceShape = jsonData['face_shape'];
-              _isLoading = false; // ✅ Ensure loading stops on success
+              _isLoading = false; //Ensure loading stops on success
             });
             _showResultDialog();
           } else {
-            print('⚠️ Missing expected keys: $jsonData');
+            print('Missing expected keys: $jsonData');
             _showErrorDialog('No results found. Please try again.');
           }
         } else {
-          print('⚠️ Unexpected API response format: $jsonData');
+          print('Unexpected API response format: $jsonData');
           _showErrorDialog('Unexpected response from the server.');
         }
       } else {
-        print('❌ Server error ${response.statusCode}: $responseData');
+        print('Server error ${response.statusCode}: $responseData');
         _showErrorDialog('Server error ${response.statusCode}. Please try again.');
       }
     } catch (e) {
-      print('❌ Error analyzing image: $e');
+      print(' Error analyzing image: $e');
       _showErrorDialog('Network error. Please check your connection.');
     } finally {
-      setState(() => _isLoading = false); // ✅ Ensure loading stops on failure
+      setState(() => _isLoading = false); // Ensure loading stops on failure
     }
   }
 
@@ -128,10 +128,10 @@ class _CameraPageState extends State<CameraPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('🎨 Skin Tone:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Skin Tone:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               Text(_skinTone ?? 'Unknown', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.brown)),
               SizedBox(height: 10),
-              Text('📏 Face Shape:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Face Shape:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               Text(_faceShape ?? 'Unknown', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
             ],
           ),
@@ -167,7 +167,7 @@ class _CameraPageState extends State<CameraPage> {
         _initializeCamera();
       });
     } else {
-      print('⚠️ No secondary camera available');
+      print('No secondary camera available');
     }
   }
 
@@ -185,7 +185,7 @@ class _CameraPageState extends State<CameraPage> {
         children: [
           Column(
             children: [
-              SizedBox(height: 40),
+              SizedBox(height: 90),
               Center(
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.9,
@@ -229,11 +229,23 @@ class _CameraPageState extends State<CameraPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
                     icon: _isLoading ? CircularProgressIndicator(color: Colors.white) : Icon(Icons.camera_alt),
-                    label: _isLoading ? Text('Analyzing...') : Text('Capture Look'),
+                    label: _isLoading ? Text('Analyzing...') : Text('Capture'),
                   ),
                 ],
               ),
             ],
+          ),
+          
+        // **Back Button**
+          Positioned(
+            top: 40,
+            left: 5,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.white, size: 30),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
           ),
         ],
       ),

@@ -1,86 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'profile_selection.dart';
-import 'signup_screen.dart';
+import 'profile_selection.dart'; // Import the ProfileSelection screen
+import 'signup_screen.dart';    // Import the SignUpScreen screen
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
-
-  @override
-  _LoginScreenState createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
-  bool isLoading = false; // Added state for loading effect
-
-  Future<void> loginUser(BuildContext context) async {
-    setState(() {
-      isLoading = true; // Show loading effect
-    });
-
-    String apiUrl = 'https://8f21-2001-4456-ceb-6000-3d6f-9fa5-3da8-9360.ngrok-free.app/api/login';
-
-    try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': emailController.text,
-          'password': passwordController.text,
-        }),
-      );
-
-      ScaffoldMessenger.of(context).clearSnackBars();
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message']),
-            backgroundColor: const Color.fromARGB(255, 238, 148, 195),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
-        // Delay before navigating
-        Future.delayed(const Duration(seconds: 1), () {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const ProfileSelection()),
-          );
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid email or password. Please try again.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      setState(() {
-        isLoading = false; // Hide loading effect
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,15 +15,15 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Logo
             Image.asset(
               'assets/glam_logo.png',
               height: 100,
             ),
-            const SizedBox(height: 20),
 
-            // Email Field
+            const SizedBox(height: 20),
+            // Email Address Input
             TextField(
-              controller: emailController,
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 prefixIcon: const Icon(Icons.email),
@@ -111,14 +34,13 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
 
             const SizedBox(height: 20),
-
-            // Password Field
+            // Password Input
             TextField(
-              controller: passwordController,
               obscureText: true,
               decoration: InputDecoration(
                 labelText: 'Password',
                 prefixIcon: const Icon(Icons.lock),
+                suffixIcon: const Icon(Icons.visibility),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -126,8 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
 
             const SizedBox(height: 20),
-
-            // Sign In Button with Loading Effect
+            // Sign In Button
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 243, 133, 168),
@@ -136,18 +57,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              onPressed: isLoading ? null : () => loginUser(context), // Disable button when loading
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white) // Show loading spinner
-                  : const Text(
-                      'Sign In',
-                      style: TextStyle(color: Colors.white),
-                    ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileSelection()),
+                );
+              },
+              child: const Text(
+                'Sign In',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
 
             const SizedBox(height: 20),
-
-            // Sign Up Button
+            // Sign Up Option
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -162,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text(
                     'Sign Up',
                     style: TextStyle(
-                      color: Color.fromARGB(255, 244, 156, 183), 
+                      color: Color.fromARGB(255, 244, 156, 183),
                     ),
                   ),
                 ),

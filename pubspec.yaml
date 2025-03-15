@@ -60,10 +60,14 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
+
   assets:
     - assets/undertone.png
     - assets/background_ui.webp
     - assets/glam_logo.png
+    - assets/ppf.png
+
+
 
     
     
