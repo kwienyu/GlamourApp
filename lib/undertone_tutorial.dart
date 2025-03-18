@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'makeuphub.dart';
+import 'camera.dart';
 
 class UndertoneTutorial extends StatefulWidget {
   const UndertoneTutorial({super.key});
@@ -21,7 +21,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
       if (mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => MakeupHubPage()),
+          MaterialPageRoute(builder: (context) => CameraPage()),
         );
         setState(() {
           _isLoading = false;

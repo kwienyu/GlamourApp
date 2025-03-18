@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'camera.dart';
+import 'customization.dart'; // Ensure this file exists and defines CustomizationPage.
 
 class MakeupHubPage extends StatefulWidget {
   const MakeupHubPage({super.key});
@@ -33,58 +33,36 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Text(
-              "Select Your Undertone",
-              style: TextStyle(fontSize: 18, fontFamily: 'Serif', fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            // Undertone Selection Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children:
-                  undertones.map((tone) => _buildUndertoneButton(tone)).toList(),
-            ),
-            const SizedBox(height: 20),
+            _buildSectionTitle("Select Undertone"),
+            _buildSegmentedControl(undertones, selectedUndertone, (value) {
+              setState(() => selectedUndertone = value);
+            }),
+            const SizedBox(height: 30),
 
             if (selectedUndertone != null)
               Text(
                 "You selected: $selectedUndertone undertone",
                 style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Serif',
-                    color: Color.fromARGB(255, 4, 4, 4)),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 12, 12, 12),
+                ),
               ),
-
-            const SizedBox(height: 30),
-            const Text("Select Makeup Type",
-                style: TextStyle(
-                    fontSize: 20,
-                    fontFamily: 'Serif',
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children:
-                  makeupLooks.keys.map((type) => _buildMakeupTypeButton(type)).toList(),
-            ),
             const SizedBox(height: 20),
 
-            if (selectedMakeupType != null) ...[
-              const Text(
-                "Choose Your Makeup Look",
-                style: TextStyle(
-                    fontSize: 18,
-                    fontFamily: 'Serif',
-                    fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
+            _buildSectionTitle("Select Makeup Type"),
+            _buildSegmentedControl(makeupLooks.keys.toList(), selectedMakeupType, (value) {
+              setState(() {
+                selectedMakeupType = value;
+                selectedMakeupLook = null;
+              });
+            }),
+            const SizedBox(height: 20),
+
+            if (selectedMakeupType != null && makeupLooks.containsKey(selectedMakeupType)) ...[
+              _buildSectionTitle("Choose Your Makeup Look"),
               Column(
-                children: makeupLooks[selectedMakeupType]!
-                    .map((look) => _buildMakeupLookButton(look))
-                    .toList(),
+                children: makeupLooks[selectedMakeupType]!.map((look) => _buildMakeupLookButton(look)).toList(),
               ),
             ],
           ],
@@ -93,61 +71,49 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
     );
   }
 
-  Widget _buildUndertoneButton(String tone) {
+  Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: ElevatedButton(
-        onPressed: () {
-          setState(() {
-            selectedUndertone = tone;
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: selectedUndertone == tone
-              ? const Color.fromARGB(255, 239, 123, 162)
-              : const Color.fromARGB(255, 241, 122, 185),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        ),
-        child: Text(
-          tone,
-          style: TextStyle(
-            color: selectedUndertone == tone
-                ? const Color.fromARGB(255, 237, 229, 232)
-                : Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  Widget _buildMakeupTypeButton(String type) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: ElevatedButton(
-        onPressed: () {
-          setState(() {
-            selectedMakeupType = type;
-            selectedMakeupLook = null; // Reset look selection
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: selectedMakeupType == type
-              ? const Color.fromARGB(255, 239, 135, 169)
-              : const Color.fromARGB(255, 243, 133, 186),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        ),
-        child: Text(
-          type,
-          style: TextStyle(
-            color: selectedMakeupType == type
-                ? const Color.fromARGB(255, 239, 233, 236)
-                : Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+  Widget _buildSegmentedControl(List<String> options, String? selectedValue, Function(String) onChanged) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.pink.shade100,
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: options.map((option) {
+          bool isSelected = selectedValue == option;
+          return GestureDetector(
+            onTap: () => onChanged(option),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.pinkAccent : Colors.pink.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                option,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : Colors.black,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -161,18 +127,16 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
             selectedMakeupLook = look;
           });
 
-          // Navigate to Camera Page
-          Navigator.push(
+          Navigator.push( 
             context,
-            MaterialPageRoute(builder: (context) => CameraPage()),
+            MaterialPageRoute(
+              builder: (context) => CustomizationPage(makeupLook: look), // Fixed navigation issue
+            ),
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: selectedMakeupLook == look
-              ? const Color.fromARGB(255, 241, 104, 150)
-              : const Color.fromARGB(255, 240, 146, 201),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          backgroundColor: Colors.pinkAccent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(vertical: 15),
         ),
         child: SizedBox(

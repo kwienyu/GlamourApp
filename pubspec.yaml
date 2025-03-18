@@ -66,6 +66,12 @@ flutter:
     - assets/background_ui.webp
     - assets/glam_logo.png
     - assets/ppf.png
+    - assets/oval.png
+    - assets/square.png
+    - assets/round.png
+    - assets/heart.png
+    - assets/facetest.webp
+
 
 
 

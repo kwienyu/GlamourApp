@@ -14,7 +14,7 @@ class ProfileSelection extends StatelessWidget {
         elevation: 0,
         title: Image.asset(
           'assets/glam_logo.png',
-          width: 200,
+          height: 60,
           fit: BoxFit.contain,
         ),
         centerTitle: true,

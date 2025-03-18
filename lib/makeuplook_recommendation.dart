@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'camera.dart';
 
 class MakeupLookRecommendationPage extends StatefulWidget {
+  const MakeupLookRecommendationPage({super.key});
+
+
   @override
   _MakeupLookRecommendationPageState createState() =>
       _MakeupLookRecommendationPageState();
