@@ -23,7 +23,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isLoading = false;
   bool _canProceed = false; // Added to track if the button should be enabled
 
-  final String apiUrl = 'https://6888-49-145-209-230.ngrok-free.app/api/upload_image';
+  final String apiUrl = 'https://1fb7-124-217-126-229.ngrok-free.app/api/upload_image';
 
   @override
   void initState() {

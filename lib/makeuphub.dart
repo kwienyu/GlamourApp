@@ -127,10 +127,11 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
             selectedMakeupLook = look;
           });
 
-          Navigator.push( 
+          // Navigate to CustomizationPage with the selected makeup look
+          Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CustomizationPage(makeupLook: look), // Fixed navigation issue
+              builder: (context) => CustomizationPage(makeupLook: look),
             ),
           );
         },

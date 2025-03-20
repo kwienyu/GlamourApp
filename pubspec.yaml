@@ -30,16 +30,23 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   carousel_slider: ^5.0.0
   camera: ^0.11.0
   path_provider: ^2.1.5
   http: ^1.1.0
-  fluttertoast: ^8.2.2 
+  fluttertoast: ^8.2.2
   firebase_auth: ^5.5.1
+  image_picker: ^1.0.4
+  image: ^4.5.3
+  
+  
+  
+
+
+ 
+  
+
   
 
   
@@ -71,6 +78,14 @@ flutter:
     - assets/round.png
     - assets/heart.png
     - assets/facetest.webp
+    - assets/icons8-foundation.png
+    - assets/icons8-concealer.png
+    - assets/icons8-contour.png
+    - assets/icons8-eyeshadow.png
+    - assets/icons8-blush-on.png
+    - assets/icons8-lipstick.png
+    - assets/icons8-sparkle.png
+
 
 
 
