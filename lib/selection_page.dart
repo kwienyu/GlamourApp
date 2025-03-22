@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'undertone.dart'; // Import the tutorial page
 import 'profile_selection.dart';
-// Import the makeup look recommendation page
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -20,9 +19,9 @@ class _SelectionPageState extends State<SelectionPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ProfileSelection()),
-              ),
+            context,
+            MaterialPageRoute(builder: (context) => ProfileSelection()),
+          ),
         ),
         title: Align(
           alignment: Alignment.center,
@@ -49,7 +48,7 @@ class _SelectionPageState extends State<SelectionPage> {
       body: Column(
         children: [
           const SizedBox(height: 20),
-          
+
           // Profile Section
           Container(
             width: 400,
@@ -72,8 +71,10 @@ class _SelectionPageState extends State<SelectionPage> {
                   "Kwienny",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                const Text("kwien@gmail.com", style: TextStyle(color: Color.fromARGB(255, 10, 10, 10))),
-                const Text("09703734277", style: TextStyle(color: Color.fromARGB(255, 12, 12, 12))),
+                const Text("kwien@gmail.com",
+                    style: TextStyle(color: Color.fromARGB(255, 10, 10, 10))),
+                const Text("09703734277",
+                    style: TextStyle(color: Color.fromARGB(255, 12, 12, 12))),
 
                 // Edit Profile Icon
                 IconButton(
@@ -89,16 +90,17 @@ class _SelectionPageState extends State<SelectionPage> {
           const SizedBox(height: 30),
 
           // Tab Bar Section
-          DefaultTabController(
-            length: 4,
-            child: Expanded(
+          Expanded(
+            child: DefaultTabController(
+              length: 4,
               child: Column(
                 children: [
                   TabBar(
                     labelColor: Colors.pinkAccent,
                     unselectedLabelColor: Colors.black,
                     indicatorColor: Colors.pinkAccent,
-                    tabs: [
+                    isScrollable: true, // Allows tabs to scroll and prevents text cutoff
+                    tabs: const [
                       Tab(text: "Face Shapes"),
                       Tab(text: "Skin Tone"),
                       Tab(text: "Makeup Looks"),
@@ -108,10 +110,33 @@ class _SelectionPageState extends State<SelectionPage> {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        _buildImageCarousel(['assets/oval.png', 'assets/round.png', 'assets/square.png', 'assets/heart.png']),
-                        _buildImageCarousel(['assets/skin1.png', 'assets/skin2.png']),
-                        _buildImageCarousel(['assets/look1.png', 'assets/look2.png']),
-                        _buildImageCarousel(['assets/shade1.png', 'assets/shade2.png']),
+                        _buildImageCarousel([
+                          'assets/oval.png',
+                          'assets/round.png',
+                          'assets/square.png',
+                          'assets/heart.png'
+                        ]),
+                        _buildImageCarousel([
+                          'assets/skin1.png',
+                          'assets/skin2.png'
+                        ]),
+                        _buildImageCarousel([
+                          'assets/makeup1.jpg',
+                          'assets/makeup2.jpg',
+                          'assets/makeup3.jpg',
+                          'assets/makeup4.jpg',
+                          'assets/makeup5.jpg',
+                          'assets/makeup6.jpg',
+                          'assets/makeup7.jpg',
+                          'assets/makeup8.jpg',
+                          'assets/makeup9.jpg',
+                          'assets/makeup10.jpg',
+                          'assets/makeup11.jpg'
+                        ]),
+                        _buildImageCarousel([
+                          'assets/shade1.png',
+                          'assets/shade2.png'
+                        ]),
                       ],
                     ),
                   ),
@@ -147,4 +172,3 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 }
-

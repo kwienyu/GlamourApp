@@ -3,7 +3,7 @@ import 'package:camera/camera.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'makeuphub.dart';
+import 'glamvault.dart'; // Import GlamVaultPage
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -23,7 +23,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isLoading = false;
   bool _canProceed = false; // Added to track if the button should be enabled
 
-  final String apiUrl = 'https://1fb7-124-217-126-229.ngrok-free.app/api/upload_image';
+  final String apiUrl = 'https://ef1e-104-28-194-106.ngrok-free.app/api/upload_image';
 
   @override
   void initState() {
@@ -140,11 +140,11 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _proceedToNextPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MakeupHubPage()), // Replace with actual page
-    );
-  }
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => GlamVaultPage()), // Navigate to GlamVaultPage
+  );
+}
 
   @override
 Widget build(BuildContext context) {

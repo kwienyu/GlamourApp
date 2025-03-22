@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
 import 'undertone_tutorial.dart';
 import 'selection_page.dart';
+import 'glamvault.dart';
 
-class ProfileSelection extends StatelessWidget {
+class ProfileSelection extends StatefulWidget {
   const ProfileSelection({super.key});
+
+  @override
+  _ProfileSelectionState createState() => _ProfileSelectionState();
+}
+
+class _ProfileSelectionState extends State<ProfileSelection> {
+  int _selectedIndex = 0;
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar Section
       appBar: AppBar(
         backgroundColor: Colors.pinkAccent,
         elevation: 0,
@@ -19,8 +32,6 @@ class ProfileSelection extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-
-      // Drawer Section
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -46,15 +57,12 @@ class ProfileSelection extends StatelessWidget {
           ],
         ),
       ),
-
-      // Body Section
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.only(top: 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Greeting Text
               Text(
                 'Hello👋',
                 style: TextStyle(
@@ -72,16 +80,12 @@ class ProfileSelection extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               SizedBox(height: 40),
-
-              // First Two Boxes (Your Profile & Add Profile)
               SizedBox(
-                width: double.infinity, // Ensure Row fits properly
+                width: double.infinity,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Your Profile Box
                     buildProfileButton(
                       context,
                       Icons.person,
@@ -89,7 +93,6 @@ class ProfileSelection extends StatelessWidget {
                       SelectionPage(),
                     ),
                     SizedBox(width: 30),
-                    // Add Profile Box
                     buildProfileButton(
                       context,
                       Icons.add,
@@ -99,18 +102,15 @@ class ProfileSelection extends StatelessWidget {
                   ],
                 ),
               ),
-
               SizedBox(height: 30),
-
-              // Centered "Recent Looks" Button Below Grid
               Center(
                 child: SizedBox(
-                  width: 170, // Fixed size for the button
+                  width: 170,
                   child: buildProfileButton(
                     context,
                     Icons.star,
-                    "Recent Looks",
-                    const UndertoneTutorial(),
+                    "Glam Vault",
+                    GlamVaultPage(),
                   ),
                 ),
               ),
@@ -118,10 +118,44 @@ class ProfileSelection extends StatelessWidget {
           ),
         ),
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.pinkAccent,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        items: [
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/home_icon.jpg', width: 30, height: 30),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blue.shade100,
+                border: Border.all(color: Colors.blue, width: 2),
+              ),
+              child: IconButton(
+                icon: Image.asset('assets/face_2.gif', width: 65, height: 65),
+                onPressed: () {
+                  // Implement Face Cam functionality here
+                },
+              ),
+            ),
+            label: "Makeup Artist",
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset('assets/account.png', width: 30, height: 30),
+            label: "Profile",
+          ),
+        ],
+      ),
     );
   }
 
-  // Button Builder Function
   Widget buildProfileButton(
       BuildContext context, IconData icon, String text, Widget route) {
     return GestureDetector(
@@ -132,7 +166,7 @@ class ProfileSelection extends StatelessWidget {
         );
       },
       child: Container(
-        width: 140, // Fixed square size
+        width: 140,
         height: 140,
         decoration: BoxDecoration(
           color: Colors.pink[100],

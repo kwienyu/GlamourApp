@@ -39,18 +39,10 @@ dependencies:
   firebase_auth: ^5.5.1
   image_picker: ^1.0.4
   image: ^4.5.3
+  lucide_icons: ^0.243.0
   
   
   
-
-
- 
-  
-
-  
-
-  
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -85,6 +77,25 @@ flutter:
     - assets/icons8-blush-on.png
     - assets/icons8-lipstick.png
     - assets/icons8-sparkle.png
+    - assets/makeup1.jpg
+    - assets/makeup2.jpg
+    - assets/makeup3.jpg
+    - assets/makeup3.jpg
+    - assets/makeup4.jpg
+    - assets/makeup5.jpg
+    - assets/makeup6.jpg
+    - assets/makeup7.jpg
+    - assets/makeup8.jpg
+    - assets/makeup9.jpg
+    - assets/makeup10.jpg
+    - assets/makeup11.jpg
+    - assets/home_icon.jpg
+    - assets/account.png
+    - assets/face_2.gif
+
+
+
+
 
 
 
