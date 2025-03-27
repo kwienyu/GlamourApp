@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'undertone.dart'; // Import the tutorial page
+import 'makeup_guide.dart'; // Import the tutorial page
 import 'profile_selection.dart';
 
 class SelectionPage extends StatefulWidget {
@@ -37,7 +37,7 @@ class _SelectionPageState extends State<SelectionPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const UndertoneTutorial(),
+                  builder: (context) => const MakeupGuide(),
                 ),
               );
             },

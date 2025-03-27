@@ -3,7 +3,7 @@ import 'package:camera/camera.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'glamvault.dart'; // Import GlamVaultPage
+import 'makeuphub.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -23,7 +23,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isLoading = false;
   bool _canProceed = false; // Added to track if the button should be enabled
 
-  final String apiUrl = 'https://ef1e-104-28-194-106.ngrok-free.app/api/upload_image';
+  final String apiUrl = 'https://glam.ivancarl.com/api/upload_image';
 
   @override
   void initState() {
@@ -67,42 +67,46 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _analyzeImage(File imageFile) async {
-    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-    request.fields['email'] = 'ivan@gmail.com';
+  var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
-    try {
-      var response = await request.send();
-      var responseData = await response.stream.bytesToString();
+  // Attach the image file
+  request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
 
-      print('Response Status Code: ${response.statusCode}');
-      print('Response Body: $responseData');
+  // Attach additional data if required
+  request.fields['email'] = 'ivan@gmail.com'; // Adjust if needed
 
-      if (response.statusCode == 200) {
-        var jsonData = json.decode(responseData);
+  try {
+    var response = await request.send();
+    var responseData = await response.stream.bytesToString();
 
-        if (jsonData is Map<String, dynamic> &&
-            jsonData.containsKey('skin_tone') &&
-            jsonData.containsKey('face_shape')) {
-          setState(() {
-            _skinTone = jsonData['skin_tone'];
-            _faceShape = jsonData['face_shape'];
-            _isLoading = false;
-            _canProceed = true; // Enable "Proceed" button when results are ready
-          });
-        } else {
-          _showErrorDialog('No results found. Please try again.');
-        }
+    print('Response Status Code: ${response.statusCode}');
+    print('Response Body: $responseData');
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(responseData);
+
+      if (jsonData is Map<String, dynamic> &&
+          jsonData.containsKey('skin_tone') &&
+          jsonData.containsKey('face_shape')) {
+        setState(() {
+          _skinTone = jsonData['skin_tone'];
+          _faceShape = jsonData['face_shape'];
+          _isLoading = false;
+          _canProceed = true; // Enable "Proceed" button when results are ready
+        });
       } else {
-        _showErrorDialog('Server error ${response.statusCode}. Check API.');
+        _showErrorDialog('No results found. Please try again.');
       }
-    } catch (e) {
-      print('Network error: $e');
-      _showErrorDialog('Network error. Please check your connection.');
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      _showErrorDialog('Server error ${response.statusCode}. Check API.');
     }
+  } catch (e) {
+    print('Network error: $e');
+    _showErrorDialog('Network error. Please check your connection.');
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
   void _switchCamera() async {
     if (_cameras.length > 1) {
@@ -140,11 +144,11 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _proceedToNextPage() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => GlamVaultPage()), // Navigate to GlamVaultPage
-  );
-}
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => MakeupHubPage()), // Replace with actual page
+    );
+  }
 
   @override
 Widget build(BuildContext context) {

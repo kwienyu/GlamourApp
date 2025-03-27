@@ -96,7 +96,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                     buildProfileButton(
                       context,
                       Icons.add,
-                      "Retest My Look",
+                      "Test My Look",
                       const UndertoneTutorial(),
                     ),
                   ],

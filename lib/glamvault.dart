@@ -4,6 +4,8 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 
 class GlamVaultPage extends StatefulWidget {
+  const GlamVaultPage({super.key});
+
   
   @override
   _GlamVaultPageState createState() => _GlamVaultPageState();
