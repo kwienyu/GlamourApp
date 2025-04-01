@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'undertone_tutorial.dart';
 import 'selection_page.dart';
 import 'glamvault.dart';
+import 'camera.dart';
 
 class ProfileSelection extends StatefulWidget {
   const ProfileSelection({super.key});
@@ -142,6 +143,10 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 icon: Image.asset('assets/face_2.gif', width: 65, height: 65),
                 onPressed: () {
                   // Implement Face Cam functionality here
+                   Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CameraPage()),
+                );
                 },
               ),
             ),

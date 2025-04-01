@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart'; // Needed for debug settings
-import 'login_screen.dart';
+import 'glamvault.dart';
+//import 'facemesh.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,7 @@ void main() {
   runApp(const GlamourApp());
 }
 
+
 class GlamourApp extends StatelessWidget {
   const GlamourApp({super.key});
 
@@ -22,9 +24,20 @@ class GlamourApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LoginScreen(),
+      home: GlamVaultPage(),
     );
   }
-}
+} 
 
+/*
+class GlamourApp extends StatelessWidget {
+  const GlamourApp({super.key});
 
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: MyApp(), // Replace with your FaceMesh page
+    );
+  }
+}*/
