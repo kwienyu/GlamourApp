@@ -1,15 +1,86 @@
 import 'package:flutter/material.dart';
-import 'makeup_guide.dart'; // Import the tutorial page
+import 'makeup_guide.dart';
 import 'profile_selection.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SelectionPage extends StatefulWidget {
-  const SelectionPage({super.key});
+  final String? skinTone;
+  final String? faceShape;
+
+  const SelectionPage({super.key, this.skinTone, this.faceShape});
 
   @override
   _SelectionPageState createState() => _SelectionPageState();
 }
 
 class _SelectionPageState extends State<SelectionPage> {
+  String? name;
+  String? faceShape;
+  String? skinTone;
+  String? profilePic;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileData();
+  }
+
+  Future<void> _fetchProfileData() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userid = prefs.getString('user_id');
+
+  if (userid == null) {
+    setState(() {
+      name = 'Guest';
+      faceShape = 'Unknown';
+      skinTone = 'Unknown';
+      profilePic = null;
+    });
+    return;
+  }
+
+  try {
+    final response = await http.get(
+      Uri.parse('https://glam.ivancarl.com/api/user-profile?user_id=$userid'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    print('API Response Code: ${response.statusCode}');
+    print('API Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('Decoded Data: $data');
+
+      setState(() {
+        name = data['name'] ?? "Unknown";
+        faceShape = data['face_shape'] ?? "Not Available";
+        skinTone = data['skin_tone'] ?? "Not Available";
+        profilePic = data['profile_pic'];
+      });
+
+      print('Updated State -> Face Shape: $faceShape, Skin Tone: $skinTone');
+    } else {
+      print('Error: Received status code ${response.statusCode}');
+      setState(() {
+        name = 'Error fetching data';
+        faceShape = 'Error fetching data';
+        skinTone = 'Error fetching data';
+      });
+    }
+  } catch (e) {
+    print('Exception: $e');
+    setState(() {
+      name = 'Error fetching data';
+      faceShape = 'Error fetching data';
+      skinTone = 'Error fetching data';
+    });
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,106 +116,79 @@ class _SelectionPageState extends State<SelectionPage> {
         ],
       ),
       backgroundColor: Colors.grey[100],
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
-
-          // Profile Section
-          Container(
-            width: 400,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 247, 205, 227),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 10),
-              ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 50,
+              backgroundImage: profilePic != null
+                  ? MemoryImage(base64Decode(profilePic!))
+                  : const AssetImage('assets/ppf.png') as ImageProvider,
             ),
-            child: Column(
-              children: [
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundImage: AssetImage('assets/ppf.png'),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  "Kwienny",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const Text("kwien@gmail.com",
-                    style: TextStyle(color: Color.fromARGB(255, 10, 10, 10))),
-                const Text("09703734277",
-                    style: TextStyle(color: Color.fromARGB(255, 12, 12, 12))),
+            const SizedBox(height: 10),
+            Container(
+  width: double.infinity,
+  padding: const EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: const Color.fromARGB(255, 247, 205, 227),
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(
+      color: Colors.pinkAccent,
+      width: 4,
+    ),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        name ?? "Loading...",
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      Text("Face Shape: ${faceShape ?? "Loading..."}"),
+      Text("Skin Tone: ${skinTone ?? "Loading..."}"),
+    ],
+  ),
+),
 
-                // Edit Profile Icon
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.pinkAccent),
-                  onPressed: () {
-                    // Implement profile edit functionality
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 30),
-
-          // Tab Bar Section
-          Expanded(
-            child: DefaultTabController(
-              length: 4,
-              child: Column(
-                children: [
-                  TabBar(
-                    labelColor: Colors.pinkAccent,
-                    unselectedLabelColor: Colors.black,
-                    indicatorColor: Colors.pinkAccent,
-                    isScrollable: true, // Allows tabs to scroll and prevents text cutoff
-                    tabs: const [
-                      Tab(text: "Face Shapes"),
-                      Tab(text: "Skin Tone"),
-                      Tab(text: "Makeup Looks"),
-                      Tab(text: "Makeup Shades"),
-                    ],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _buildImageCarousel([
-                          'assets/oval.png',
-                          'assets/round.png',
-                          'assets/square.png',
-                          'assets/heart.png'
-                        ]),
-                        _buildImageCarousel([
-                          'assets/skin1.png',
-                          'assets/skin2.png'
-                        ]),
-                        _buildImageCarousel([
-                          'assets/makeup1.jpg',
-                          'assets/makeup2.jpg',
-                          'assets/makeup3.jpg',
-                          'assets/makeup4.jpg',
-                          'assets/makeup5.jpg',
-                          'assets/makeup6.jpg',
-                          'assets/makeup7.jpg',
-                          'assets/makeup8.jpg',
-                          'assets/makeup9.jpg',
-                          'assets/makeup10.jpg',
-                          'assets/makeup11.jpg'
-                        ]),
-                        _buildImageCarousel([
-                          'assets/shade1.png',
-                          'assets/shade2.png'
-                        ]),
+            const SizedBox(height: 30),
+            Expanded(
+              child: DefaultTabController(
+                length: 4,
+                child: Column(
+                  children: [
+                    TabBar(
+                      labelColor: Colors.pinkAccent,
+                      unselectedLabelColor: Colors.black,
+                      indicatorColor: Colors.pinkAccent,
+                      isScrollable: true,
+                      tabs: const [
+                        Tab(text: "Face Shapes"),
+                        Tab(text: "Skin Tone"),
+                        Tab(text: "Makeup Looks"),
+                        Tab(text: "Makeup Shades"),
                       ],
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _buildImageCarousel(['assets/oval.png', 'assets/round.png', 'assets/square.png', 'assets/heart.png']),
+                          _buildImageCarousel(['assets/skin1.png', 'assets/skin2.png']),
+                          _buildImageCarousel([
+                            'assets/makeup1.jpg', 'assets/makeup2.jpg', 'assets/makeup3.jpg', 'assets/makeup4.jpg',
+                            'assets/makeup5.jpg', 'assets/makeup6.jpg', 'assets/makeup7.jpg', 'assets/makeup8.jpg',
+                            'assets/makeup9.jpg', 'assets/makeup10.jpg', 'assets/makeup11.jpg'
+                          ]),
+                          _buildImageCarousel(['assets/shade1.png', 'assets/shade2.png']),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

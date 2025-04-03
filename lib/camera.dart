@@ -5,6 +5,17 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'makeuphub.dart';
 
+// UserProfile class to store the profile data
+class UserProfile {
+  static String? skinTone;
+  static String? faceShape;
+
+  static void setProfile(String? skinTone, String? faceShape) {
+    UserProfile.skinTone = skinTone;
+    UserProfile.faceShape = faceShape;
+  }
+}
+
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
 
@@ -21,7 +32,7 @@ class _CameraPageState extends State<CameraPage> {
   String? _skinTone;
   String? _faceShape;
   bool _isLoading = false;
-  bool _canProceed = false; // Added to track if the button should be enabled
+  bool _canProceed = false;
 
   final String apiUrl = 'https://glam.ivancarl.com/api/upload_image';
 
@@ -56,7 +67,7 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         _imageFile = image;
         _isLoading = true;
-        _canProceed = false; // Disable "Proceed" when capturing a new image
+        _canProceed = false;
       });
 
       await _analyzeImage(File(image.path));
@@ -67,46 +78,40 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _analyzeImage(File imageFile) async {
-  var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
-  // Attach the image file
-  request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+    request.fields['email'] = 'ivan@gmail.com';
 
-  // Attach additional data if required
-  request.fields['email'] = 'ivan@gmail.com'; // Adjust if needed
+    try {
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
 
-  try {
-    var response = await request.send();
-    var responseData = await response.stream.bytesToString();
+      if (response.statusCode == 200) {
+        var jsonData = json.decode(responseData);
 
-    print('Response Status Code: ${response.statusCode}');
-    print('Response Body: $responseData');
-
-    if (response.statusCode == 200) {
-      var jsonData = json.decode(responseData);
-
-      if (jsonData is Map<String, dynamic> &&
-          jsonData.containsKey('skin_tone') &&
-          jsonData.containsKey('face_shape')) {
-        setState(() {
-          _skinTone = jsonData['skin_tone'];
-          _faceShape = jsonData['face_shape'];
-          _isLoading = false;
-          _canProceed = true; // Enable "Proceed" button when results are ready
-        });
+        if (jsonData is Map<String, dynamic> &&
+            jsonData.containsKey('skin_tone') &&
+            jsonData.containsKey('face_shape')) {
+          setState(() {
+            _skinTone = jsonData['skin_tone'];
+            _faceShape = jsonData['face_shape'];
+            _isLoading = false;
+            _canProceed = true;
+          });
+        } else {
+          _showErrorDialog('No results found. Please try again.');
+        }
       } else {
-        _showErrorDialog('No results found. Please try again.');
+        _showErrorDialog('Server error ${response.statusCode}. Check API.');
       }
-    } else {
-      _showErrorDialog('Server error ${response.statusCode}. Check API.');
+    } catch (e) {
+      print('Network error: $e');
+      _showErrorDialog('Network error. Please check your connection.');
+    } finally {
+      setState(() => _isLoading = false);
     }
-  } catch (e) {
-    print('Network error: $e');
-    _showErrorDialog('Network error. Please check your connection.');
-  } finally {
-    setState(() => _isLoading = false);
   }
-}
 
   void _switchCamera() async {
     if (_cameras.length > 1) {
@@ -143,127 +148,149 @@ class _CameraPageState extends State<CameraPage> {
     );
   }
 
-  void _proceedToNextPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MakeupHubPage()), // Replace with actual page
+  // New method for handling the alert before saving and redirecting
+  void _handleProceed() {
+    // Show alert dialog before saving
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm'),
+        content: const Text('Your result will be saved to your profile.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Save the result to the profile
+              UserProfile.setProfile(_skinTone, _faceShape);
+
+              // Close the dialog
+              Navigator.pop(context);
+
+              // Navigate to the Makeup Hub page
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MakeupHubPage()),
+              );
+            },
+            child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Close the dialog without doing anything
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Colors.black,
-    body: SafeArea(
-      child: SingleChildScrollView( // Prevents bottom overflow
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Prevents unnecessary expansion
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-
-            Center(
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.9,
-                height: MediaQuery.of(context).size.height * 0.6, // Prevents large overflow
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: _imageFile == null
-                      ? FutureBuilder<void>(
-                          future: _initializeControllerFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.done) {
-                              return CameraPreview(_cameraController);
-                            } else if (snapshot.hasError) {
-                              return const Center(
-                                child: Text(
-                                  'Error loading camera',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              );
-                            } else {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-                          },
-                        )
-                      : Image.file(File(_imageFile!.path), fit: BoxFit.cover),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-            ),
-            const SizedBox(height: 15),
-
-            Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 20),
-  child: Container(
-    width: MediaQuery.of(context).size.width * 0.9,
-    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-    decoration: BoxDecoration(
-      color: Colors.black.withOpacity(0.7),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Column(
-      children: [
-        Text(
-          _skinTone == null && _faceShape == null
-              ? 'Click capture to scan your face'
-              : 'Skin Tone: $_skinTone\nFace Shape: $_faceShape',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 20, color: Colors.white),
-        ),
-      ],
-    ),
-  ),
-),
-
-
-            const SizedBox(height: 10),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: _imageFile == null
+                        ? FutureBuilder<void>( 
+                            future: _initializeControllerFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.done) {
+                                return CameraPreview(_cameraController);
+                              } else if (snapshot.hasError) {
+                                return const Center(
+                                  child: Text('Error loading camera', style: TextStyle(color: Colors.white)),
+                                );
+                              } else {
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                            },
+                          )
+                        : Image.file(File(_imageFile!.path), fit: BoxFit.cover),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 30),
-                        onPressed: _switchCamera,
-                      ),
-                      const SizedBox(width: 25),
-                      ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _takePicture,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.pink[300],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        ),
-                        icon: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.camera_alt),
-                        label: _isLoading ? const Text('Analyzing...') : const Text('Capture'),
+                      Text(
+                        _skinTone == null && _faceShape == null
+                            ? 'Click capture to scan your face'
+                            : 'Skin Tone: $_skinTone\nFace Shape: $_faceShape',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 20, color: Colors.white),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: _canProceed ? _proceedToNextPage : null,
-                    child: const Text('Proceed'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 30),
+                          onPressed: _switchCamera,
+                        ),
+                        const SizedBox(width: 25),
+                        ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _takePicture,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.pink[300],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          ),
+                          icon: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.camera_alt),
+                          label: _isLoading ? const Text('Analyzing...') : const Text('Capture'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: _canProceed ? _handleProceed : null, // Call the new method
+                      child: const Text('Proceed'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

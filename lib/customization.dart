@@ -1,15 +1,23 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 class CustomizationPage extends StatefulWidget {
-  final String makeupLook;
+  final String imagePath;
+  final String? selectedMakeupType;
+  final String? selectedMakeupLook;
 
-  const CustomizationPage({super.key, required this.makeupLook});
+  const CustomizationPage({
+    super.key,
+    required this.imagePath,
+    required this.selectedMakeupType,
+    required this.selectedMakeupLook,
+  });
 
   @override
-  _MakeupCustomizeState createState() => _MakeupCustomizeState();
+  _CustomizationPageState createState() => _CustomizationPageState();
 }
 
-class _MakeupCustomizeState extends State<CustomizationPage> {
+class _CustomizationPageState extends State<CustomizationPage> {
   String? selectedProduct;
   bool showMakeupProducts = false;
   bool showShades = false;
@@ -67,13 +75,15 @@ class _MakeupCustomizeState extends State<CustomizationPage> {
 
           return Stack(
             children: [
+              // Display captured image from the camera
               Positioned.fill(
-                child: Image.asset(
-                  'assets/facetest.webp',
+                child: Image(
+                  image: FileImage(File(widget.imagePath)), // Use FileImage for dynamic image
                   fit: BoxFit.cover,
                 ),
               ),
 
+              // Overlays for selected makeup shades
               if (selectedFoundationShade != null)
                 makeupOverlay(selectedFoundationShade!, imageWidth * 0.3, imageHeight * 0.4, imageWidth * 0.4, imageHeight * 0.4, 0.5),
 
@@ -154,44 +164,11 @@ class _MakeupCustomizeState extends State<CustomizationPage> {
                               ),
                               padding: EdgeInsets.all(8),
                               child: Image.asset(
-                                productIcons[product] ?? 'assets/icons8-foundation.png',
+                                productIcons[product]!,
                                 width: 40,
                                 height: 40,
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-              if (showShades && selectedProduct != null)
-                Positioned(
-                  right: 10,
-                  top: 140,
-                  child: Column(
-                    children: makeupShades[selectedProduct]!.map((shade) {
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (selectedProduct == 'Lipstick') selectedLipstickShade = shade;
-                            if (selectedProduct == 'Foundation') selectedFoundationShade = shade;
-                            if (selectedProduct == 'Concealer') selectedConcealerShade = shade;
-                            if (selectedProduct == 'Contour') selectedContourShade = shade;
-                            if (selectedProduct == 'Eyeshadow') selectedEyeshadowShade = shade;
-                            if (selectedProduct == 'Blush') selectedBlushShade = shade;
-                            if (selectedProduct == 'Highlighter') selectedHighlighterShade = shade;
-                          });
-                        },
-                        child: Container(
-                          width: 35,
-                          height: 35,
-                          margin: const EdgeInsets.symmetric(vertical: 5),
-                          decoration: BoxDecoration(
-                            color: shade,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
                           ),
                         ),
                       );
@@ -212,7 +189,7 @@ class _MakeupCustomizeState extends State<CustomizationPage> {
                   child: Column(
                     children: [
                       Text(
-                        widget.makeupLook,
+                        widget.selectedMakeupLook ?? 'No look selected',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Row(
@@ -236,7 +213,7 @@ class _MakeupCustomizeState extends State<CustomizationPage> {
                           SizedBox(width: 10),
                           ElevatedButton(
                             onPressed: () {
-                              print("Makeup look '${widget.makeupLook}' saved!");
+                              print("Makeup look '${widget.selectedMakeupLook}' saved!");
                             },
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                             child: Text("Save Look"),

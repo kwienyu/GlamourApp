@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'customization.dart'; // Ensure this file exists and defines CustomizationPage.
+// Ensure this file exists and defines CustomizationPage.
+// Import camera page (assuming you've already implemented face tracking and camera integration)
+import 'camera2.dart';  // Make sure this file contains the camera functionality for face tracking.
 
 class MakeupHubPage extends StatefulWidget {
   const MakeupHubPage({super.key});
@@ -127,13 +129,22 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
             selectedMakeupLook = look;
           });
 
-          // Navigate to CustomizationPage with the selected makeup look
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CustomizationPage(makeupLook: look),
-            ),
-          );
+          if (selectedUndertone != null && selectedMakeupType != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CameraPage(
+                  selectedUndertone: selectedUndertone!,
+                  selectedMakeupType: selectedMakeupType!,
+                  selectedMakeupLook: selectedMakeupLook!,
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Please select undertone and makeup type first.")),
+            );
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.pinkAccent,

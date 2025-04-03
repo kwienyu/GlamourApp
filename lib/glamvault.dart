@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mediapipe/flutter_mediapipe.dart';
 import 'package:flutter_mediapipe/gen/landmark.pb.dart';
-import 'dart:developer' as developer;
 
 class GlamVaultPage extends StatefulWidget {
   const GlamVaultPage({super.key});
@@ -43,7 +42,7 @@ class _GlamVaultPageState extends State<GlamVaultPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Glam Vault')),
+      appBar: AppBar(title: Text('Face Mesh')),
       body: Stack(
         children: [
           NativeView(
@@ -68,17 +67,35 @@ class FaceMeshPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
-      ..color = const Color.fromARGB(58, 0, 204, 255)
-      ..strokeWidth = 1
+      ..color = const Color.fromARGB(255, 111, 234, 111)
+      ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
-    for (var landmark in landmarks) {
-      final Offset position = Offset(
-        landmark.x * size.width,
-        landmark.y * size.height
+    if (landmarks.isEmpty) return;
+
+    final Path path = Path();
+    final List<int> faceOutlineIndices = [
+      10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379,
+      378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127,
+      162, 21, 54, 103, 67, 109
+    ];
+
+    for (int i = 0; i < faceOutlineIndices.length; i++) {
+      int index = faceOutlineIndices[i];
+      if (index >= landmarks.length) continue;
+      Offset position = Offset(
+        landmarks[index].x * size.width,
+        landmarks[index].y * size.height,
       );
-      canvas.drawCircle(position, 0.5, paint);
+      if (i == 0) {
+        path.moveTo(position.dx, position.dy);
+      } else {
+        path.lineTo(position.dx, position.dy);
+      }
     }
+    path.close(); // Ensure the path is closed properly
+    
+    canvas.drawPath(path, paint);
   }
 
   @override

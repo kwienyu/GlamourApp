@@ -11,78 +11,111 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  // API URL for user registration
   final String apiUrl = 'https://glam.ivancarl.com/api/register';
 
   // Text Controllers for input fields
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController dobController = TextEditingController(); // DOB Controller
 
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
   Future<void> signUp() async {
-  try {
-    var response = await http.post(
-      Uri.parse(apiUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': fullNameController.text.trim(),
-        'email': emailController.text.trim(),
-        'password': passwordController.text.trim(),
-      }),
-    );
-
-    print("Response Status Code: ${response.statusCode}");
-    print("Response Body: ${response.body}");
-
-    if (response.statusCode == 201) {
+    // Validate fields before making API request
+    if (fullNameController.text.trim().isEmpty ||
+        emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty ||
+        dobController.text.trim().isEmpty) {
       _scaffoldMessengerKey.currentState?.showSnackBar(
         const SnackBar(
-          content: Text('Account created successfully! Please log in.'),
-          backgroundColor: Colors.green,
+          content: Text('All fields are required.'),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
 
-      Future.delayed(const Duration(seconds: 1), () {
+    // Validate email format
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(emailController.text.trim())) {
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text('Enter a valid email address.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Ensure DOB format is correct (YYYY-MM-DD)
+    RegExp dobPattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+    if (!dobPattern.hasMatch(dobController.text.trim())) {
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text('Date of Birth must be in YYYY-MM-DD format.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      var response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': fullNameController.text.trim(),
+          'email': emailController.text.trim(),
+          'password': passwordController.text.trim(),
+          'date_of_birth': dobController.text.trim(), // Fixed field name
+        }),
+      );
+
+      print("Response Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
+      var responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        _scaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Please log in.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        await Future.delayed(const Duration(seconds: 2));
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
-      });
-    } else if (response.statusCode == 409) {
-      _scaffoldMessengerKey.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text('Email already exists. Try another email.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } else {
+      } else {
+        String errorMsg = responseData['message'] ?? 'An error occurred';
+        _scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMsg'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print("Exception: $e");
       _scaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(
-          content: Text('Error: ${response.body}'),
+          content: Text('Network Error: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
-  } catch (e) {
-    print("Exception: $e");
-    _scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text('Network Error: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
-
 
   @override
   void dispose() {
     fullNameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    dobController.dispose();
     super.dispose();
   }
 
@@ -138,6 +171,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           fillColor: Colors.white,
                           hintText: "Email Address",
                           prefixIcon: const Icon(Icons.email),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: dobController, // DOB text field
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: "Date of Birth (YYYY-MM-DD)",
+                          prefixIcon: const Icon(Icons.calendar_today),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
