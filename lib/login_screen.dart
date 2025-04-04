@@ -5,6 +5,7 @@ import 'profile_selection.dart';
 import 'signup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  bool isLoading = false;
+  bool isLoading = false; // Added state for loading effect
 
   Future<void> loginUser(BuildContext context) async {
   setState(() {
@@ -24,10 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String apiUrl = 'https://glam.ivancarl.com/api/login';
 
-  // Ensure email is in a standard format (trim + lowercase)
-  String email = emailController.text.trim().toLowerCase();
-  String password = passwordController.text.trim();
-
   try {
     var response = await http.post(
       Uri.parse(apiUrl),
@@ -35,57 +32,43 @@ class _LoginScreenState extends State<LoginScreen> {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'email': email,
-        'password': password,
+        'email': emailController.text,
+        'password': passwordController.text,
       }),
     );
 
-    // Print response for debugging
-    print("Response: ${response.statusCode} - ${response.body}");
-
     ScaffoldMessenger.of(context).clearSnackBars();
+    var responseData = jsonDecode(response.body);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-
-      // Ensure the response contains expected fields
-      if (data.containsKey('user_id') && data.containsKey('email')) {
+      if (response.statusCode == 200) {
+        // ✅ Save user_id and email to SharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_email', data['email']);
-        await prefs.setString('user_name', data['name']);
-        await prefs.setInt('user_id', data['user_id']);
+        await prefs.setString('user_id', responseData['user_id'].toString());
+        await prefs.setString('user_email', responseData['email']);
+        print("✅ Saved user_id: ${responseData['user_id']}, email: ${responseData['email']}");
 
-        print("✅ User ID: ${data['user_id']}, Name: ${data['name']}, Email: ${data['email']}");
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Welcome, ${data["name"]}!'),
-            backgroundColor: const Color.fromARGB(255, 238, 148, 195),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(responseData['message']),
+      backgroundColor: const Color.fromARGB(255, 238, 148, 195),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
 
-        Future.delayed(const Duration(seconds: 1), () {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const ProfileSelection()),
-          );
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unexpected API response format.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } else {
-      var errorMsg = jsonDecode(response.body)['message'] ?? 'Invalid email or password';
+  // Navigate after slight delay
+  Future.delayed(const Duration(seconds: 1), () {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfileSelection()),
+    );
+  });
+}
+ else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
+        const SnackBar(
+          content: Text('Invalid email or password. Please try again.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -95,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Network Error: $e'),
+        content: Text('Error: $e'),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ),
@@ -107,7 +90,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,8 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Image.asset('assets/glam_logo.png', height: 100),
+            Image.asset(
+              'assets/glam_logo.png',
+              height: 100,
+            ),
             const SizedBox(height: 20),
+
+            // Email Field
             TextField(
               controller: emailController,
               decoration: InputDecoration(
@@ -130,7 +117,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 20),
+
+            // Password Field
             TextField(
               controller: passwordController,
               obscureText: true,
@@ -142,7 +132,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 20),
+
+            // Sign In Button with Loading Effect
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 243, 133, 168),
@@ -151,15 +144,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              onPressed: isLoading ? null : () => loginUser(context),
+              onPressed: isLoading ? null : () => loginUser(context), // Disable button when loading
               child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const CircularProgressIndicator(color: Colors.white) // Show loading spinner
                   : const Text(
                       'Log in',
                       style: TextStyle(color: Colors.white),
                     ),
             ),
+
             const SizedBox(height: 20),
+
+            // Sign Up Button
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -174,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text(
                     'Register',
                     style: TextStyle(
-                      color: Color.fromARGB(255, 244, 156, 183),
+                      color: Color.fromARGB(255, 244, 156, 183), 
                     ),
                   ),
                 ),

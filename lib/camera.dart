@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'makeuphub.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // UserProfile class to store the profile data
 class UserProfile {
@@ -78,40 +79,58 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _analyzeImage(File imageFile) async {
-    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+  var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
-    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-    request.fields['email'] = 'ivan@gmail.com';
+  // Attach the image
+  request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
 
-    try {
-      var response = await request.send();
-      var responseData = await response.stream.bytesToString();
+  // Retrieve email from SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final email = prefs.getString('email');
 
-      if (response.statusCode == 200) {
-        var jsonData = json.decode(responseData);
-
-        if (jsonData is Map<String, dynamic> &&
-            jsonData.containsKey('skin_tone') &&
-            jsonData.containsKey('face_shape')) {
-          setState(() {
-            _skinTone = jsonData['skin_tone'];
-            _faceShape = jsonData['face_shape'];
-            _isLoading = false;
-            _canProceed = true;
-          });
-        } else {
-          _showErrorDialog('No results found. Please try again.');
-        }
-      } else {
-        _showErrorDialog('Server error ${response.statusCode}. Check API.');
-      }
-    } catch (e) {
-      print('Network error: $e');
-      _showErrorDialog('Network error. Please check your connection.');
-    } finally {
-      setState(() => _isLoading = false);
-    }
+  if (email == null || email.trim().isEmpty) {
+    _showErrorDialog('No email found in storage. Please log in again.');
+    setState(() => _isLoading = false);
+    return;
   }
+
+  final normalizedEmail = email.trim().toLowerCase();
+  request.fields['email'] = normalizedEmail;
+
+  print("📧 Sending email: $normalizedEmail");
+
+  try {
+    var response = await request.send();
+    var responseData = await response.stream.bytesToString();
+
+    print('Response Status Code: ${response.statusCode}');
+    print('Response Body: $responseData');
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(responseData);
+
+      if (jsonData is Map<String, dynamic> &&
+          jsonData.containsKey('skin_tone') &&
+          jsonData.containsKey('face_shape')) {
+        setState(() {
+          _skinTone = jsonData['skin_tone'];
+          _faceShape = jsonData['face_shape'];
+          _canProceed = true;
+        });
+      } else {
+        _showErrorDialog('No results found. Please try again.');
+      }
+    } else {
+      _showErrorDialog('Server error ${response.statusCode}. ${responseData}');
+    }
+  } catch (e) {
+    print('❌ Network error: $e');
+    _showErrorDialog('Network error. Please check your connection.');
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
+
 
   void _switchCamera() async {
     if (_cameras.length > 1) {
@@ -147,6 +166,42 @@ class _CameraPageState extends State<CameraPage> {
       ),
     );
   }
+
+  Future<void> saveProfileData(String faceShape, String skinTone) async {
+  final prefs = await SharedPreferences.getInstance();
+  final userId = prefs.getString('user_id');
+
+  if (userId == null) {
+    print("❌ Error: User ID is null");
+    return;
+  }
+
+  String apiUrl = "https://glam.ivancarl.com/api/user-profile";
+
+  try {
+    final response = await http.post(
+      Uri.parse(apiUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': userId,
+        'face_shape': faceShape,
+        'skin_tone': skinTone,
+      }),
+    );
+
+    print("📢 Response Code: ${response.statusCode}");
+    print("📢 Response Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      print("✅ Data saved successfully");
+    } else {
+      print("❌ Failed to save data: ${response.body}");
+    }
+  } catch (e) {
+    print("❌ Exception: $e");
+  }
+}
+
 
   // New method for handling the alert before saving and redirecting
   void _handleProceed() {

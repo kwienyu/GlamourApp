@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart'; // Import the LoginScreen
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -77,13 +78,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       var responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 201) {
-        _scaffoldMessengerKey.currentState?.showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Please log in.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+     if (response.statusCode == 201) {
+      // ✅ Save email in SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('email', emailController.text.trim());
+
+      _scaffoldMessengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text('Account created successfully! Please log in.'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
         await Future.delayed(const Duration(seconds: 2));
         Navigator.pushReplacement(
@@ -182,7 +187,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white,
-                          hintText: "Date of Birth (YYYY-MM-DD)",
+                          hintText: "(YYYY-MM-DD)",
                           prefixIcon: const Icon(Icons.calendar_today),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
