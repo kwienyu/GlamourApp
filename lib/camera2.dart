@@ -2,7 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart';
-import 'customization.dart';  // Import your customization page
+import 'customization.dart';  
 
 class CameraPage extends StatefulWidget {
   final String selectedUndertone;
@@ -23,7 +23,7 @@ class CameraPage extends StatefulWidget {
 class _CameraPageState extends State<CameraPage> {
   CameraController? _controller;
   late Future<void> _initializeControllerFuture;
-  String? _imagePath;  // To store the captured image path
+  String? _imagePath;  
 
   @override
   void initState() {
@@ -43,7 +43,7 @@ class _CameraPageState extends State<CameraPage> {
       await _controller!.initialize();
 
       if (mounted) {
-        setState(() {}); // Ensure UI updates after initialization
+        setState(() {}); 
       }
     } catch (e) {
       print("Error initializing camera: $e");
@@ -114,7 +114,7 @@ class _CameraPageState extends State<CameraPage> {
           ),
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.2), // Semi-transparent overlay for better visibility
+              color: Colors.black.withOpacity(0.2), 
             ),
           ),
           Positioned(

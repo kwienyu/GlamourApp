@@ -22,7 +22,7 @@ class _SelectionPageState extends State<SelectionPage> {
   String? name;
   String? faceShape;
   String? skinTone;
-  dynamic profilePic; // Can be Uint8List or String (URL)
+  dynamic profilePic;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -76,25 +76,27 @@ class _SelectionPageState extends State<SelectionPage> {
         headers: {'Content-Type': 'application/json'},
       );
 
+       print('API Response Code: ${response.statusCode}');
+      print('API Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('Decoded Data: $data');
+
 
         String? imageUrl;
-if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
-  String imagePath = data['profile_pic'];
+        if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
+          String imagePath = data['profile_pic'];
 
-  // Try to decode from base64 if necessary
-  try {
-    final decodedPath = utf8.decode(base64.decode(imagePath));
-    imageUrl = 'https://glam.ivancarl.com/$decodedPath';
-  } catch (e) {
-    // If it's not base64-encoded, use as is
-    imageUrl = 'https://glam.ivancarl.com/$imagePath';
-  }
+          try {
+            final decodedPath = utf8.decode(base64.decode(imagePath));
+            imageUrl = 'https://glam.ivancarl.com/$decodedPath';
+          } catch (e) {
+            imageUrl = 'https://glam.ivancarl.com/$imagePath';
+          }
 
-  await prefs.setString('profile_pic', imageUrl);
-}
-
+          await prefs.setString('profile_pic', imageUrl);
+        }
 
         setState(() {
           name = data['name'] ?? "Unknown";
@@ -102,14 +104,29 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
           skinTone = data['skin_tone'] ?? "Not Available";
           profilePic = imageUrl;
         });
+
+        print('Updated State -> Face Shape: $faceShape, Skin Tone: $skinTone');
+
       } else {
-        _setErrorState();
+        print('Error: Received status code ${response.statusCode}');
+        setState(() {
+          name = 'Error fetching data';
+          faceShape = 'Error fetching data';
+          skinTone = 'Error fetching data';
+        });
+
       }
     } catch (e) {
-      debugPrint("Error fetching profile data: $e");
-      _setErrorState();
+      print('Exception: $e');
+      setState(() {
+        name = 'Error fetching data';
+        faceShape = 'Error fetching data';
+        skinTone = 'Error fetching data';
+      });
     }
   }
+
+
 
   void _setErrorState() {
     setState(() {
@@ -161,7 +178,7 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully'),
-         backgroundColor: const Color.fromARGB(255, 238, 148, 195),
+         backgroundColor: Color.fromARGB(255, 238, 148, 195),
         ),
       );
       await Future.delayed(const Duration(seconds: 2));
@@ -169,19 +186,19 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to update profile'),
-         backgroundColor: const Color.fromARGB(255, 238, 148, 195),
+         backgroundColor: Color.fromARGB(255, 238, 148, 195),
         ),
-        
       );
     }
   }
 
   void _showEditProfileDialog() {
     File? tempImage = _newProfilePic;
+    Uint8List? tempImageBytes;
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(builder: (context, setStateDialog) {
           return AlertDialog(
             title: const Text('Edit Profile'),
@@ -191,8 +208,8 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey.shade300,
-                  backgroundImage: _newProfilePic != null
-                      ? FileImage(_newProfilePic!)
+                  backgroundImage: tempImage != null
+                      ? FileImage(tempImage!)
                       : (profilePic != null
                           ? (profilePic is Uint8List
                               ? MemoryImage(profilePic!)
@@ -210,18 +227,10 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
                     if (pickedFile != null) {
                       File imageFile = File(pickedFile.path);
                       Uint8List imageBytes = await imageFile.readAsBytes();
-                      String base64Image = "data:image/jpeg;base64,${base64Encode(imageBytes)}";
-
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('profile_pic', base64Image);
-
-                      setState(() {
-                        _newProfilePic = imageFile;
-                        profilePic = imageBytes;
-                      });
 
                       setStateDialog(() {
                         tempImage = imageFile;
+                        tempImageBytes = imageBytes;
                       });
                     }
                   },
@@ -231,13 +240,28 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(context), 
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  _updateProfile();
-                  Navigator.pop(context);
+                onPressed: () async {
+                  if (tempImage != null && tempImageBytes != null) {
+                    final prefs = await SharedPreferences.getInstance();
+                    String base64Image = "data:image/jpeg;base64,${base64Encode(tempImageBytes!)}";
+                    await prefs.setString('profile_pic', base64Image);
+
+                    setState(() {
+                      _newProfilePic = tempImage;
+                      profilePic = tempImageBytes;
+                    });
+                  }
+
+                  await _updateProfile();
+                  Future.delayed(const Duration(seconds: 1), () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.of(context).pop(); 
+                    }
+                  });
                 },
                 child: const Text('Save'),
               ),
@@ -283,10 +307,11 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
         children: [
           Positioned(
             top: 110,
-            left: 0,
-            right: 0,
+            left: MediaQuery.of(context).size.width * 0.02,
+            right: MediaQuery.of(context).size.width * 0.02,
             child: Container(
               height: 550,
+              width: MediaQuery.of(context).size.width * 0.9,
               decoration: const BoxDecoration(
                 color: Color.fromARGB(255, 239, 156, 207),
                 borderRadius: BorderRadius.only(
@@ -317,23 +342,23 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
             ),
           ),
           Positioned(
-            top: 170,
+            top: 165,
             child: Container(
               width: MediaQuery.of(context).size.width * 0.9,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color.fromARGB(255, 247, 205, 227),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color.fromARGB(255, 247, 205, 227), width: 4),
+                border: Border.all(color: const Color.fromARGB(255, 247, 205, 227), width: 3),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(name ?? "Loading...", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 3),
                   Text("Face Shape: ${faceShape ?? "Loading..."}", textAlign: TextAlign.center),
                   Text("Skin Tone: ${skinTone ?? "Loading..."}", textAlign: TextAlign.center),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 2),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
                     onPressed: _showEditProfileDialog,
@@ -344,7 +369,7 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
             ),
           ),
           Positioned(
-            top: 320,
+            top: 300,
             left: 0,
             right: 0,
             child: DefaultTabController(
@@ -362,14 +387,29 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
                       Tab(text: "Makeup Looks"),
                     ],
                   ),
-                  SizedBox(
-                    height: 350,
-                    child: TabBarView(
-                      children: [
-                        _buildImageCarousel(['assets/oval.png', 'assets/round.png', 'assets/square.png', 'assets/heart.png']),
-                        _buildImageCarousel(['assets/skin1.png', 'assets/skin2.png']),
-                        _buildImageCarousel(['assets/makeup1.jpg', 'assets/makeup2.jpg']),
-                      ],
+                  const SizedBox(height: 5),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 0),
+                    child: SizedBox(
+                      height: 320,
+                      child: TabBarView(
+                        children: [
+                          _buildImageCarousel([
+                            'assets/oval.png',
+                            'assets/round.png',
+                            'assets/square.png',
+                            'assets/heart.png'
+                          ]),
+                          _buildImageCarousel([
+                            'assets/skin1.png',
+                            'assets/skin2.png',
+                          ]),
+                          _buildImageCarousel([
+                            'assets/makeup1.jpg',
+                            'assets/makeup2.jpg',
+                          ]),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -382,17 +422,43 @@ if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
   }
 
   Widget _buildImageCarousel(List<String> imagePaths) {
-    return ListView(
-      scrollDirection: Axis.horizontal,
-      children: imagePaths.map((path) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Image.asset(path, width: 150, height: 150, fit: BoxFit.cover),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          color: const Color.fromARGB(255, 239, 156, 207),
+          child: PageView.builder(
+            itemCount: imagePaths.length,
+            controller: PageController(viewportFraction: 1.0),
+            itemBuilder: (context, index) {
+              return Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.70,
+                  height: MediaQuery.of(context).size.width * 0.8,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      imagePaths[index],
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 }

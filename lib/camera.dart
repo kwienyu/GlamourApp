@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'makeuphub.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// UserProfile class to store the profile data
+
 class UserProfile {
   static String? skinTone;
   static String? faceShape;
@@ -84,7 +84,6 @@ class _CameraPageState extends State<CameraPage> {
   // Attach the image
   request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
 
-  // Retrieve email from SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   final email = prefs.getString('email');
 
@@ -121,10 +120,10 @@ class _CameraPageState extends State<CameraPage> {
         _showErrorDialog('No results found. Please try again.');
       }
     } else {
-      _showErrorDialog('Server error ${response.statusCode}. ${responseData}');
+      _showErrorDialog('Server error ${response.statusCode}. $responseData');
     }
   } catch (e) {
-    print('❌ Network error: $e');
+    print('Network error: $e');
     _showErrorDialog('Network error. Please check your connection.');
   } finally {
     setState(() => _isLoading = false);
@@ -172,7 +171,7 @@ class _CameraPageState extends State<CameraPage> {
   final userId = prefs.getString('user_id');
 
   if (userId == null) {
-    print("❌ Error: User ID is null");
+    print("Error: User ID is null");
     return;
   }
 
@@ -189,23 +188,22 @@ class _CameraPageState extends State<CameraPage> {
       }),
     );
 
-    print("📢 Response Code: ${response.statusCode}");
-    print("📢 Response Body: ${response.body}");
+    print("Response Code: ${response.statusCode}");
+    print("Response Body: ${response.body}");
 
     if (response.statusCode == 200) {
-      print("✅ Data saved successfully");
+      print("Data saved successfully");
     } else {
-      print("❌ Failed to save data: ${response.body}");
+      print("Failed to save data: ${response.body}");
     }
   } catch (e) {
-    print("❌ Exception: $e");
+    print("Exception: $e");
   }
 }
 
 
   // New method for handling the alert before saving and redirecting
   void _handleProceed() {
-    // Show alert dialog before saving
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -214,13 +212,9 @@ class _CameraPageState extends State<CameraPage> {
         actions: [
           TextButton(
             onPressed: () {
-              // Save the result to the profile
-              UserProfile.setProfile(_skinTone, _faceShape);
-
-              // Close the dialog
+              
+              UserProfile.setProfile(_skinTone, _faceShape);    
               Navigator.pop(context);
-
-              // Navigate to the Makeup Hub page
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => MakeupHubPage()),
@@ -230,7 +224,6 @@ class _CameraPageState extends State<CameraPage> {
           ),
           TextButton(
             onPressed: () {
-              // Close the dialog without doing anything
               Navigator.pop(context);
             },
             child: const Text('Cancel'),
@@ -336,7 +329,7 @@ class _CameraPageState extends State<CameraPage> {
                     ),
                     const SizedBox(height: 10),
                     ElevatedButton(
-                      onPressed: _canProceed ? _handleProceed : null, // Call the new method
+                      onPressed: _canProceed ? _handleProceed : null, 
                       child: const Text('Proceed'),
                     ),
                   ],
