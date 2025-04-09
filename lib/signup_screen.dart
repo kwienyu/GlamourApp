@@ -130,18 +130,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
       key: _scaffoldMessengerKey,
       child: Scaffold(
         body: Stack(
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
-            ),
-            Center(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    Positioned.fill(
+      child: Image.asset(
+        'assets/fadebg.jpg',
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+      ),
+    ),
+
+             Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
                         'assets/glam_logo.png',
@@ -160,7 +163,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         controller: fullNameController,
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: Colors.white.withOpacity(0.4),
                           hintText: "Full Name",
                           prefixIcon: const Icon(Icons.person),
                           border: OutlineInputBorder(
@@ -173,22 +176,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         controller: emailController,
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: Colors.white.withOpacity(0.4),
                           hintText: "Email Address",
                           prefixIcon: const Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: dobController, // DOB text field
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          hintText: "(YYYY-MM-DD)",
-                          prefixIcon: const Icon(Icons.calendar_today),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -200,9 +190,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         obscureText: true,
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: Colors.white.withOpacity(0.4),
                           hintText: "Password",
                           prefixIcon: const Icon(Icons.lock),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: dobController, // DOB text field
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.4),
+                          hintText: "(YYYY-MM-DD)",
+                          prefixIcon: const Icon(Icons.calendar_today),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -214,7 +217,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           signUp();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.pinkAccent,
+                          backgroundColor: Color.fromARGB(97, 237, 78, 176),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 40,
                             vertical: 15,

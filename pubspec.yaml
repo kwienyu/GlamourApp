@@ -60,7 +60,7 @@ flutter:
     - assets/background_ui.webp
     - assets/glam_logo.png
     - assets/ppf.png
-    - assets/oval.png
+    - assets/oval1.png
     - assets/square.png
     - assets/round.png
     - assets/heart.png
@@ -90,4 +90,10 @@ flutter:
     - assets/makeup_faceshapes.jpg
     - assets/guide_lips.jpg
     - assets/eyeshadow.jpg
+    - assets/mestiza1.jpg
+    - assets/morena.jpg
+    - assets/chinita.jpg
+    - assets/media.jpg
+    - assets/fadebg.jpg
+   
     
