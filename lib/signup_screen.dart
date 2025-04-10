@@ -133,7 +133,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   children: [
     Positioned.fill(
       child: Image.asset(
-        'assets/fadebg.jpg',
+        'assets/fadebg_mobile_portrait.jpg',
         fit: BoxFit.cover,
         alignment: Alignment.center,
       ),
@@ -147,7 +147,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/glam_logo.png',
+                        'assets/glamour.png',
                         height: 105,
                       ),
                       const Text(
@@ -217,7 +217,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           signUp();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(97, 237, 78, 176),
+                          backgroundColor: const Color.fromARGB(255, 246, 67, 126).withOpacity(0.4),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 40,
                             vertical: 15,
@@ -245,7 +245,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: const Text(
                               'Log In',
                               style: TextStyle(
-                                color: Color.fromARGB(255, 244, 156, 183),
+                                color: Color.fromARGB(255, 243, 229, 233),
                               ),
                             ),
                           ),

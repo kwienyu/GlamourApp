@@ -3,6 +3,7 @@ import 'undertone_tutorial.dart';
 import 'selection_page.dart';
 import 'camera.dart';
 import 'glamvault.dart';
+import 'makeup_guide.dart';
 
 class ProfileSelection extends StatefulWidget {
   const ProfileSelection({super.key});
@@ -12,27 +13,40 @@ class ProfileSelection extends StatefulWidget {
 }
 
 class _ProfileSelectionState extends State<ProfileSelection> {
-  int _selectedIndex = 0;
+  int selectedIndex = 0;
 
   void _onItemTapped(int index) {
     setState(() {
-      _selectedIndex = index;
+      selectedIndex = index;
     });
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.pinkAccent,
-        elevation: 0,
-        title: Image.asset(
-          'assets/glam_logo.png',
-          height: 60,
-          fit: BoxFit.contain,
-        ),
-        centerTitle: true,
-      ),
+  backgroundColor: Colors.pinkAccent,
+  elevation: 0,
+  title: Image.asset(
+    'assets/glam_logo.png',
+    height: 60,
+    fit: BoxFit.contain,
+  ),
+  centerTitle: true,
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.help_outline, color: Colors.black),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MakeupGuide()),
+        );
+      },
+    ),
+  ],
+),
+
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -63,7 +77,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   height: double.infinity,
   decoration: BoxDecoration(
     image: DecorationImage(
-      image: AssetImage("assets/media.jpg"),
+      image: AssetImage("assets/fadebg_mobile_portrait.jpg"),
       fit: BoxFit.cover,
     ),
   ),
@@ -126,7 +140,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 shape: BoxShape.circle,
                 color: const Color.fromARGB(255, 239, 168, 192),
                 border: Border.all(
-                  color: Colors.pinkAccent,
+                  color: const Color.fromARGB(255, 247, 129, 168),
                   width: 4,
                 ),
               ),
@@ -154,7 +168,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           BottomAppBar(
             shape: const CircularNotchedRectangle(),
             notchMargin: 8.0,
-            color: Colors.white,
+            color:  const Color.fromARGB(255, 239, 193, 208),
             child: SizedBox(
               height: 70,
               child: Row(
@@ -168,8 +182,8 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Image.asset('assets/home_icon.jpg', width: 30, height: 30),
-                          const SizedBox(height: 4),
+                          Image.asset('assets/homeicon.png', width: 30, height: 30),
+                          const SizedBox(height: 6),
                           const Text("Home", style: TextStyle(fontSize: 12)),
                         ],
                       ),
@@ -213,7 +227,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       height: 130,
       margin: EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 245, 110, 173).withOpacity(0.4), // 👈 makes it semi-transparent
+        color: const Color.fromARGB(255, 244, 112, 156).withOpacity(0.4), // 👈 makes it semi-transparent
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(

@@ -25,10 +25,10 @@ class _SelectionPageState extends State<SelectionPage> {
   String? skinTone;
   dynamic profilePic;
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _dobController = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController dobController = TextEditingController();
   File? _newProfilePic;
 
   @override
@@ -117,7 +117,7 @@ class _SelectionPageState extends State<SelectionPage> {
     });
   }
 
-  Future<void> _pickProfileImage() async {
+  Future<void> pickProfileImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
@@ -248,32 +248,107 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  Widget _buildImageCarousel(List<String> imagePaths) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 60.0, left: 15.0, right: 15.0),
-      child: PageView.builder(
-        itemCount: imagePaths.length,
-        controller: PageController(viewportFraction: 1.0),
-        itemBuilder: (context, index) {
-          return Center(
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.80,
-              child: AspectRatio(
-                aspectRatio: 4 / 4,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    imagePaths[index],
-                    fit: BoxFit.contain,
+Widget _buildImageCarousel(List<String> imagePaths) {
+  final PageController pageController = PageController();
+  final ValueNotifier<int> currentPage = ValueNotifier<int>(0);
+
+  return Padding(
+    padding: const EdgeInsets.only(top: 60.0, left: 15.0, right: 15.0), // Adjust the top padding to move the image down
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Adjusted SizedBox height to make image larger
+        Flexible(
+          child: SizedBox(
+            height: 400, // Increased height to make image slightly bigger
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PageView.builder(
+                  controller: pageController,
+                  itemCount: imagePaths.length,
+                  onPageChanged: (index) {
+                    currentPage.value = index;
+                  },
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: AspectRatio(
+                        aspectRatio: 1.2, // Adjusted aspect ratio for a slightly taller image
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            imagePaths[index],
+                            fit: BoxFit.contain, // You can change to BoxFit.cover if needed
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Arrows for navigation
+                Positioned(
+                  left: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                    onPressed: () {
+                      int prev = currentPage.value - 1;
+                      if (prev >= 0) {
+                        pageController.animateToPage(
+                          prev,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                        );
+                      }
+                    },
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.black),
+                    onPressed: () {
+                      int next = currentPage.value + 1;
+                      if (next < imagePaths.length) {
+                        pageController.animateToPage(
+                          next,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20), // Extra space after the carousel before indicators
+        ValueListenableBuilder<int>(
+          valueListenable: currentPage,
+          builder: (context, value, _) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                imagePaths.length,
+                (index) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: value == index ? Colors.pinkAccent : Colors.grey.shade400,
                   ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -288,22 +363,15 @@ class _SelectionPageState extends State<SelectionPage> {
             MaterialPageRoute(builder: (context) => ProfileSelection()),
           ),
         ),
-        title: Align(
-          alignment: Alignment.center,
-          child: Image.asset('assets/glam_logo.png', height: 60),
+        title: Transform.translate(
+        offset: Offset(-10, 1), // Adjust this value to move left or right
+        child: Image.asset(
+          'assets/glam_logo.png',
+          height: 60,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MakeupGuide()),
-              );
-            },
-          ),
-        ],
       ),
+      ),
+      
       floatingActionButton: Transform.translate(
         offset: const Offset(0, 17),
         child: Column(
@@ -344,7 +412,7 @@ class _SelectionPageState extends State<SelectionPage> {
           BottomAppBar(
             shape: const CircularNotchedRectangle(),
             notchMargin: 8.0,
-            color: Colors.white,
+            color: const Color.fromARGB(255, 243, 137, 172),
             child: SizedBox(
               height: 70,
               child: Row(
@@ -356,8 +424,8 @@ class _SelectionPageState extends State<SelectionPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Image.asset('assets/home_icon.jpg', width: 30, height: 30),
-                          const SizedBox(height: 4),
+                          Image.asset('assets/homeicon.png', width: 30, height: 30),
+                          const SizedBox(height: 6),
                           const Text("Home", style: TextStyle(fontSize: 12)),
                         ],
                       ),
@@ -386,7 +454,7 @@ class _SelectionPageState extends State<SelectionPage> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/media.jpg', fit: BoxFit.cover),
+            child: Image.asset('assets/fadebg_mobile_portrait.jpg', fit: BoxFit.cover),
           ),
           SingleChildScrollView(
             child: Stack(
@@ -400,7 +468,7 @@ class _SelectionPageState extends State<SelectionPage> {
                     width: MediaQuery.of(context).size.width * 0.9,
                     height: MediaQuery.of(context).size.height * 1.1,
                     decoration: const BoxDecoration(
-                      color: Color.fromARGB(95, 240, 98, 186), // <-- Changed 255 to 100 for transparency
+                      color: Color.fromARGB(95, 238, 146, 203), // <-- Changed 255 to 100 for transparency
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(40),
                         topRight: Radius.circular(40),
@@ -465,7 +533,7 @@ class _SelectionPageState extends State<SelectionPage> {
                       child: Column(
                         children: [
                           TabBar(
-                            labelColor: Colors.pinkAccent,
+                            labelColor: const Color.fromARGB(255, 238, 210, 219),
                             unselectedLabelColor: Colors.black,
                             indicatorColor: Colors.pinkAccent,
                             isScrollable: true,
@@ -490,7 +558,7 @@ class _SelectionPageState extends State<SelectionPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 100),
+                          const SizedBox(height: 95),
                         ],
                       ),
                     ),
@@ -505,30 +573,4 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 }
 
-// Place this inside the _SelectionPageState class, at the end but before the last curly brace
-Widget buildImageCarousel(List<String> imagePaths) {
-  return Padding(
-    padding: const EdgeInsets.only(top: 60.0, left: 15.0, right: 15.0),
-    child: PageView.builder(
-      itemCount: imagePaths.length,
-      controller: PageController(viewportFraction: 1.0),
-      itemBuilder: (context, index) {
-        return Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.80,
-            child: AspectRatio(
-              aspectRatio: 4 / 4,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  imagePaths[index],
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    ),
-  );
-}
+

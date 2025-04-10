@@ -98,7 +98,7 @@ Widget build(BuildContext context) {
         // Background Image
         Positioned.fill(
           child: Image.asset(
-            'assets/fadebg.jpg',
+            'assets/fadebg_mobile_portrait.jpg',
             fit: BoxFit.cover,
           ),
         ),
@@ -110,7 +110,7 @@ Widget build(BuildContext context) {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Image.asset(
-                'assets/glam_logo.png',
+                'assets/glamour.png',
                 height: 100,
               ),
               const SizedBox(height: 20),
@@ -143,7 +143,7 @@ Widget build(BuildContext context) {
               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromARGB(97, 237, 78, 176),
+                  backgroundColor:  const Color.fromARGB(255, 246, 67, 126).withOpacity(0.4),
                   padding: const EdgeInsets.symmetric(
                             horizontal: 40,
                             vertical: 15,
@@ -164,7 +164,7 @@ Widget build(BuildContext context) {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?"),
+                  const Text("Don't have an account?"), 
                   TextButton(
                     onPressed: () {
                       Navigator.push(
@@ -175,7 +175,7 @@ Widget build(BuildContext context) {
                     child: const Text(
                       'Register',
                       style: TextStyle(
-                        color: Color.fromARGB(255, 244, 156, 183),
+                        color: Color.fromARGB(255, 243, 229, 233),
                       ),
                     ),
                   ),
