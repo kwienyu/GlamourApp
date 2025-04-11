@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'makeup_guide.dart';
 import 'profile_selection.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -438,7 +437,7 @@ Widget _buildImageCarousel(List<String> imagePaths) {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Image.asset('assets/account.png', width: 30, height: 30),
+                          Image.asset('assets/profile.png', width: 30, height: 30),
                           const SizedBox(height: 4),
                           const Text("Profile", style: TextStyle(fontSize: 12)),
                         ],
@@ -453,9 +452,6 @@ Widget _buildImageCarousel(List<String> imagePaths) {
       ),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset('assets/fadebg_mobile_portrait.jpg', fit: BoxFit.cover),
-          ),
           SingleChildScrollView(
             child: Stack(
               alignment: Alignment.topCenter,
@@ -498,42 +494,59 @@ Widget _buildImageCarousel(List<String> imagePaths) {
                     ),
                     const SizedBox(height: 10),
                     Container(
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Color.fromARGB(100, 239, 156, 207), // <-- Changed 255 to 100 for transparency,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color.fromARGB(255, 247, 205, 227), width: 3),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(name ?? "Loading...",
-                              style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center),
-                          const SizedBox(height: 3),
-                          Text("Face Shape: ${faceShape ?? "Loading..."}", textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
-                          ),
-                          Text("Skin Tone: ${skinTone ?? "Loading..."}", textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
-                          ),
-                          const SizedBox(height: 2),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
-                            onPressed: _showEditProfileDialog,
-                            child: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
-                          ),
-                        ],
-                      ),
-                    ),
+  width: MediaQuery.of(context).size.width * 0.9,
+  padding: const EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(
+      color: const Color.fromARGB(255, 247, 205, 227),
+      width: 3,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Color.fromARGB(95, 238, 146, 203).withOpacity(0.2), // Light pink shadow
+        spreadRadius: 2,
+        blurRadius: 10,
+        offset: const Offset(0, 4), // changes position of shadow
+      ),
+    ],
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text(
+        name ?? "Loading...",
+        style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 3),
+      Text(
+        "Face Shape: ${faceShape ?? "Loading..."}",
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
+      ),
+      Text(
+        "Skin Tone: ${skinTone ?? "Loading..."}",
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
+      ),
+      const SizedBox(height: 2),
+      ElevatedButton(
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
+        onPressed: _showEditProfileDialog,
+        child: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
+      ),
+    ],
+  ),
+),
+
                     const SizedBox(height: 2),
                     DefaultTabController(
                       length: 3,
                       child: Column(
                         children: [
                           TabBar(
-                            labelColor: const Color.fromARGB(255, 238, 210, 219),
+                            labelColor: const Color.fromARGB(255, 244, 85, 135),
                             unselectedLabelColor: Colors.black,
                             indicatorColor: Colors.pinkAccent,
                             isScrollable: true,

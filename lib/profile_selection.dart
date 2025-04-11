@@ -21,32 +21,30 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     });
   }
 
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-  backgroundColor: Colors.pinkAccent,
-  elevation: 0,
-  title: Image.asset(
-    'assets/glam_logo.png',
-    height: 60,
-    fit: BoxFit.contain,
-  ),
-  centerTitle: true,
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.help_outline, color: Colors.black),
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MakeupGuide()),
-        );
-      },
-    ),
-  ],
-),
-
+        backgroundColor: Colors.pinkAccent,
+        elevation: 0,
+        title: Image.asset(
+          'assets/glam_logo.png',
+          height: 60,
+          fit: BoxFit.contain,
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MakeupGuide()),
+              );
+            },
+          ),
+        ],
+      ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -72,61 +70,78 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           ],
         ),
       ),
-      body: Container(
-  width: double.infinity,
-  height: double.infinity,
-  decoration: BoxDecoration(
-    image: DecorationImage(
-      image: AssetImage("assets/fadebg_mobile_portrait.jpg"),
-      fit: BoxFit.cover,
+      body: Stack(
+  children: [
+    // Pink curved background
+    ClipPath(
+      clipper: TopCurveClipper(),
+      child: Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.pinkAccent,
+        ),
+      ),
     ),
-  ),
-  child: SingleChildScrollView(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30),
+
+    // Main Content
+    SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(height: 20),
-          Text(
-            'Hello👋',
-            style: TextStyle(
-              fontSize: 28,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 10),
-          Text(
-            'Welcome to glam-up!!',
-            style: TextStyle(
-              fontSize: 24,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 50),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              buildProfileButton(context, Icons.person, "Your Profile", SelectionPage()),
-              buildProfileButton(context, Icons.add, "Test My Look", const UndertoneTutorial()),
-            ],
-          ),
-          SizedBox(height: 30),
+          SizedBox(height: 40), // Top spacing for curve visibility
+
+          // ⬆️ Text content ABOVE the curve visually
           Center(
-            child: buildProfileButton(context, Icons.star, "Glam Vault", GlamVaultPage()),
+            child: Column(
+              children: [
+                Text(
+                  'Hello👋',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'Welcome to glam-up!!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 80), // Add space between curve and cards
+
+          // ⬇️ Three cards/buttons below the curve
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    buildProfileButton(context, Icons.person, "Your Profile", SelectionPage()),
+                    buildProfileButton(context, Icons.add, "Test My Look", const UndertoneTutorial()),
+                  ],
+                ),
+                SizedBox(height: 30),
+                Center(
+                  child: buildProfileButton(context, Icons.star, "Glam Vault", GlamVaultPage()),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     ),
-  ),
+  ],
 ),
-
-
-
       // ⬇️ Custom FAB and BottomAppBar starts here ⬇️
       floatingActionButton: Transform.translate(
         offset: const Offset(0, 17),
@@ -140,7 +155,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 shape: BoxShape.circle,
                 color: const Color.fromARGB(255, 239, 168, 192),
                 border: Border.all(
-                  color: const Color.fromARGB(255, 247, 129, 168),
+                  color: Colors.pinkAccent,
                   width: 4,
                 ),
               ),
@@ -168,7 +183,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           BottomAppBar(
             shape: const CircularNotchedRectangle(),
             notchMargin: 8.0,
-            color:  const Color.fromARGB(255, 239, 193, 208),
+            color: const Color.fromARGB(255, 243, 137, 172),
             child: SizedBox(
               height: 70,
               child: Row(
@@ -198,7 +213,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Image.asset('assets/account.png', width: 30, height: 30),
+                          Image.asset('assets/profile.png', width: 30, height: 30),
                           const SizedBox(height: 4),
                           const Text("Profile", style: TextStyle(fontSize: 12)),
                         ],
@@ -215,48 +230,75 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   }
 
   Widget buildProfileButton(BuildContext context, IconData icon, String text, Widget route) {
-  return GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => route),
-      );
-    },
-    child: Container(
-      width: 130,
-      height: 130,
-      margin: EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 244, 112, 156).withOpacity(0.4), // 👈 makes it semi-transparent
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: Colors.pink[800],
-            size: 32,
-          ),
-          SizedBox(height: 10),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => route),
+        );
+      },
+      child: Container(
+        width: 130,
+        height: 130,
+        margin: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 244, 112, 156).withOpacity(0.4),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 5,
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: Colors.pink[800],
+              size: 32,
+            ),
+            SizedBox(height: 10),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
+
+// ✅ ADD THIS AT THE END OF THE FILE
+class TopCurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+
+    // Start from top-left and curve slightly downward (higher than before)
+    path.lineTo(0, size.height - 100);
+
+    // Adjusted cubic curve:
+    path.cubicTo(
+      size.width * 0.2, size.height - 20,      // slight curve down near left (raised more)
+      size.width * 0.5, size.height - 140,     // peak at center (same)
+      size.width, size.height,                 // curve down more at right side
+    );
+
+    path.lineTo(size.width, 0); // Top-right
+    path.lineTo(0, 0);          // Back to top-left
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
