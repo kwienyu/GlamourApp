@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-// Ensure this file exists and defines CustomizationPage.
-// Import camera page (assuming you've already implemented face tracking and camera integration)
-import 'camera2.dart';  // Make sure this file contains the camera functionality for face tracking.
+import 'camera2.dart'; // Make sure this file contains the camera functionality for face tracking.
+import 'undertone_tutorial.dart'; // Your Undertone Tutorial Page.
 
 class MakeupHubPage extends StatefulWidget {
   const MakeupHubPage({super.key});
@@ -31,62 +30,101 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
       ),
       backgroundColor: const Color.fromARGB(255, 245, 244, 244),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _buildSectionTitle("Select Undertone"),
-            _buildSegmentedControl(undertones, selectedUndertone, (value) {
-              setState(() => selectedUndertone = value);
-            }),
-            const SizedBox(height: 30),
-
-            if (selectedUndertone != null)
-              Text(
-                "You selected: $selectedUndertone undertone",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 12, 12, 12),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20.0, left: 10.0), // Adjusted padding
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.topLeft,
+                child: const Text(
+                  "Note: click (i) for identifying your undertone.",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            const SizedBox(height: 20),
-
-            _buildSectionTitle("Select Makeup Type"),
-            _buildSegmentedControl(makeupLooks.keys.toList(), selectedMakeupType, (value) {
-              setState(() {
-                selectedMakeupType = value;
-                selectedMakeupLook = null;
-              });
-            }),
-            const SizedBox(height: 20),
-
-            if (selectedMakeupType != null && makeupLooks.containsKey(selectedMakeupType)) ...[
-              _buildSectionTitle("Choose Your Makeup Look"),
-              Column(
-                children: makeupLooks[selectedMakeupType]!.map((look) => _buildMakeupLookButton(look)).toList(),
+              const SizedBox(height: 50),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildSectionTitle("Select Undertone"),
+                  const SizedBox(width: 5),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const UndertoneTutorial()),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: Colors.pinkAccent,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
+              _buildSegmentedControl(undertones, selectedUndertone, (value) {
+                setState(() => selectedUndertone = value);
+              }),
+              const SizedBox(height: 20),
+              if (selectedUndertone != null)
+                Text(
+                  "You selected: $selectedUndertone undertone",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 12, 12, 12),
+                  ),
+                ),
+              const SizedBox(height: 30),
+              _buildSectionTitle("Select Makeup Type"),
+              _buildSegmentedControl(makeupLooks.keys.toList(), selectedMakeupType, (value) {
+                if (selectedUndertone == null) {
+                  // Show snackbar if undertone is not selected
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Please select your undertone first."),
+                      backgroundColor: Colors.pinkAccent,
+                    ),
+                  );
+                } else {
+                  // Allow selecting makeup type if undertone is already selected
+                  setState(() {
+                    selectedMakeupType = value;
+                    selectedMakeupLook = null;
+                  });
+                }
+              }),
+              const SizedBox(height: 20),
+              if (selectedUndertone != null && selectedMakeupType != null && makeupLooks.containsKey(selectedMakeupType)) ...[
+                _buildSectionTitle("Choose Your Makeup Look"),
+                Column(
+                  children: makeupLooks[selectedMakeupType]!.map((look) => _buildMakeupLookButton(look)).toList(),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
       ),
     );
   }
 
-  Widget _buildSegmentedControl(List<String> options, String? selectedValue, Function(String) onChanged) {
+ Widget _buildSegmentedControl(List<String> options, String? selectedValue, Function(String) onChanged) {
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
@@ -164,3 +202,5 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
     );
   }
 }
+
+

@@ -86,7 +86,6 @@ flutter:
     - assets/makeup11.jpg
     - assets/homeicon.png
     - assets/account.png
-    - assets/face_2.gif
     - assets/makeup_faceshapes.jpg
     - assets/guide_lips.jpg
     - assets/eyeshadow.jpg
@@ -96,6 +95,8 @@ flutter:
     - assets/media.jpg
     - assets/glamour.png
     - assets/profile.png
+    - assets/facscan_icon.gif
+    - assets/homeg.png
     
   
    

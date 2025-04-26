@@ -144,88 +144,90 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 ),
       // ⬇️ Custom FAB and BottomAppBar starts here ⬇️
       floatingActionButton: Transform.translate(
-        offset: const Offset(0, 17),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+  offset: const Offset(0, 17),
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        height: 80,
+        width: 80,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color.fromARGB(255, 239, 168, 192),
+          border: Border.all(
+            color: Colors.pinkAccent,
+            width: 4,
+          ),
+        ),
+        child: FloatingActionButton(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => CameraPage()),
+            );
+          },
+          child: Image.asset('assets/facscan_icon.gif', width: 60, height: 60),
+        ),
+      ),
+      const SizedBox(height: 10),
+      const Text("Makeup Artist", style: TextStyle(fontSize: 12)),
+    ],
+  ),
+),
+  floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+bottomNavigationBar: Stack(
+  alignment: Alignment.bottomCenter,
+  children: [
+    BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8.0,
+      color: const Color.fromARGB(255, 243, 137, 172),
+      child: SizedBox(
+        height: 70,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Container(
-              height: 80,
-              width: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color.fromARGB(255, 239, 168, 192),
-                border: Border.all(
-                  color: Colors.pinkAccent,
-                  width: 4,
+            Expanded(
+              child: Transform.translate(
+                 offset: const Offset(-30, 0), // ✅ Move Home slightly to left
+                child: InkWell(
+                  onTap: () {},
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/homeg.png', width: 35, height: 35),
+                      const SizedBox(height: 6),
+                      const Text("Home", style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
                 ),
               ),
-              child: FloatingActionButton(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => CameraPage()),
-                  );
-                },
-                child: Image.asset('assets/face_2.gif', width: 50, height: 50),
+            ),
+            const SizedBox(width: 60),
+            Expanded(
+              child: Transform.translate(
+                offset: const Offset(30, 0), // Move Profile slightly to right
+                child: InkWell(
+                  onTap: () {},
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/profile.png', width: 35, height: 35),
+                      const SizedBox(height: 4),
+                      const Text("Profile", style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            const Text("Makeup Artist", style: TextStyle(fontSize: 12)),
           ],
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          BottomAppBar(
-            shape: const CircularNotchedRectangle(),
-            notchMargin: 8.0,
-            color: const Color.fromARGB(255, 243, 137, 172),
-            child: SizedBox(
-              height: 70,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        _onItemTapped(0); // Home
-                      },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset('assets/homeicon.png', width: 30, height: 30),
-                          const SizedBox(height: 6),
-                          const Text("Home", style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 60), // Space for FAB
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        _onItemTapped(2); // Profile
-                      },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset('assets/profile.png', width: 30, height: 30),
-                          const SizedBox(height: 4),
-                          const Text("Profile", style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    ),
+  ],
+),
     );
   }
 

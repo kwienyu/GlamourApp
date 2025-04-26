@@ -35,7 +35,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isLoading = false;
   bool _canProceed = false;
 
-  final String apiUrl = 'https://glam.ivancarl.com/api/upload_image';
+  final String apiUrl = 'https://glamouraika.com/api/upload_image';
 
   @override
   void initState() {
@@ -175,7 +175,7 @@ class _CameraPageState extends State<CameraPage> {
     return;
   }
 
-  String apiUrl = "https://glam.ivancarl.com/api/user-profile";
+  String apiUrl = "https://glamouraika.com/api/user-profile";
 
   try {
     final response = await http.post(

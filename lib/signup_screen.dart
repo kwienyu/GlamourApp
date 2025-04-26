@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart'; // Import the LoginScreen
+import 'login_screen.dart'; // Import your LoginScreen
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,19 +12,20 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final String apiUrl = 'https://glam.ivancarl.com/api/register';
+  final String apiUrl = 'https://glamouraika.com/api/register';
 
-  // Text Controllers for input fields
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController dobController = TextEditingController(); // DOB Controller
+  final TextEditingController dobController = TextEditingController();
 
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
+  bool isLoading = false;
+  bool _obscurePassword = true;
+
   Future<void> signUp() async {
-    // Validate fields before making API request
     if (fullNameController.text.trim().isEmpty ||
         emailController.text.trim().isEmpty ||
         passwordController.text.trim().isEmpty ||
@@ -38,7 +39,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // Validate email format
     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(emailController.text.trim())) {
       _scaffoldMessengerKey.currentState?.showSnackBar(
         const SnackBar(
@@ -49,7 +49,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // Ensure DOB format is correct (YYYY-MM-DD)
     RegExp dobPattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
     if (!dobPattern.hasMatch(dobController.text.trim())) {
       _scaffoldMessengerKey.currentState?.showSnackBar(
@@ -61,6 +60,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
+    setState(() {
+      isLoading = true;
+    });
+
     try {
       var response = await http.post(
         Uri.parse(apiUrl),
@@ -69,7 +72,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           'name': fullNameController.text.trim(),
           'email': emailController.text.trim(),
           'password': passwordController.text.trim(),
-          'date_of_birth': dobController.text.trim(), // Fixed field name
+          'date_of_birth': dobController.text.trim(),
         }),
       );
 
@@ -78,17 +81,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       var responseData = jsonDecode(response.body);
 
-     if (response.statusCode == 201) {
-      // ✅ Save email in SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('email', emailController.text.trim());
+      if (response.statusCode == 201) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('email', emailController.text.trim());
 
-      _scaffoldMessengerKey.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully! Please log in.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        _scaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text('Account created successfully! Please log in.'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
         await Future.delayed(const Duration(seconds: 2));
         Navigator.pushReplacement(
@@ -112,6 +114,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -130,21 +136,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
       key: _scaffoldMessengerKey,
       child: Scaffold(
         body: Stack(
-  children: [
-    Positioned.fill(
-      child: Image.asset(
-        'assets/fadebg_mobile_portrait.jpg',
-        fit: BoxFit.cover,
-        alignment: Alignment.center,
-      ),
-    ),
-
-             Center(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Center(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
                         'assets/glamour.png',
@@ -187,7 +185,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 20),
                       TextField(
                         controller: passwordController,
-                        obscureText: true,
+                        obscureText: _obscurePassword,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white.withOpacity(0.4),
@@ -196,11 +194,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
                       TextField(
-                        controller: dobController, // DOB text field
+                        controller: dobController,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white.withOpacity(0.4),
@@ -213,20 +221,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {
-                          signUp();
-                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromARGB(255, 246, 67, 126).withOpacity(0.4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 15,
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        child: const Text(
-                          "Sign Up",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                        onPressed: isLoading ? null : signUp,
+                        child: isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                'Sign Up',
+                                style: TextStyle(color: Colors.white),
+                              ),
                       ),
                       const SizedBox(height: 20),
                       Row(
@@ -245,7 +253,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: const Text(
                               'Log In',
                               style: TextStyle(
-                                color: Color.fromARGB(255, 243, 229, 233),
+                                color: Color.fromARGB(255, 241, 125, 158),
                               ),
                             ),
                           ),
