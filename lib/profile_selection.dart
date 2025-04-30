@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'undertone_tutorial.dart';
 import 'selection_page.dart';
 import 'camera.dart';
 import 'glamvault.dart';
@@ -15,7 +14,7 @@ class ProfileSelection extends StatefulWidget {
 class _ProfileSelectionState extends State<ProfileSelection> {
   int selectedIndex = 0;
 
-  void _onItemTapped(int index) {
+  void onItemTapped(int index) {
     setState(() {
       selectedIndex = index;
     });
@@ -127,7 +126,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     buildProfileButton(context, Icons.person, "Your Profile", SelectionPage()),
-                    buildProfileButton(context, Icons.add, "Test My Look", const UndertoneTutorial()),
+                    buildProfileButton(context, Icons.add, "Test My Look", const CameraPage()),
                   ],
                 ),
                 SizedBox(height: 30),
@@ -183,7 +182,7 @@ bottomNavigationBar: Stack(
     BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,
-      color: const Color.fromARGB(255, 243, 137, 172),
+      color: const Color.fromARGB(255, 245, 153, 185),
       child: SizedBox(
         height: 70,
         child: Row(
@@ -244,7 +243,7 @@ bottomNavigationBar: Stack(
         height: 130,
         margin: EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 244, 112, 156).withOpacity(0.4),
+          color: const Color.fromARGB(255, 243, 149, 180),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(

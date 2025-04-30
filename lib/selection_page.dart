@@ -22,19 +22,42 @@ class _SelectionPageState extends State<SelectionPage> {
   String? name;
   String? faceShape;
   String? skinTone;
+  File? _newProfilePic;
   dynamic profilePic;
+  ImageProvider? image;
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
-  File? _newProfilePic;
+
+  ImageProvider<Object>? getProfileImageProvider() {
+    try {
+      if (_newProfilePic != null) {
+        return FileImage(_newProfilePic!);
+      } else if (profilePic is Uint8List && (profilePic as Uint8List).isNotEmpty) {
+        return MemoryImage(profilePic as Uint8List);
+      }
+    } catch (e) {
+      print("Image provider error: $e");
+    }
+    return null;
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadCachedProfilePic();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchProfileData());
+    _loadCachedProfilePic(); // load image first
+    _fetchProfileData(); // then fetch updated data
+  }
+
+  void _setErrorState() {
+    setState(() {
+      name = 'Error fetching data';
+      faceShape = 'Error';
+      skinTone = 'Error';
+      profilePic = null;
+    });
   }
 
   Future<void> _loadCachedProfilePic() async {
@@ -43,12 +66,21 @@ class _SelectionPageState extends State<SelectionPage> {
 
     if (cachedImage != null && cachedImage.isNotEmpty && cachedImage != "null") {
       try {
-        if (cachedImage.startsWith('http')) {
-          setState(() => profilePic = cachedImage);
+        String base64Str = cachedImage;
+        if (base64Str.startsWith('data:image')) {
+          base64Str = base64Str.split(',').last;
+        }
+
+        print("Raw profile_pic base64 length: ${base64Str.length}");
+
+        Uint8List imageBytes = base64Decode(base64Str);
+
+        if (imageBytes.isNotEmpty) {
+          setState(() {
+            profilePic = imageBytes;
+          });
         } else {
-          final base64Str = cachedImage.split(',').last;
-          Uint8List imageBytes = base64Decode(base64Str);
-          setState(() => profilePic = imageBytes);
+          debugPrint("Error: Decoded image bytes are empty");
         }
       } catch (e) {
         debugPrint("Error loading cached image: $e");
@@ -79,25 +111,43 @@ class _SelectionPageState extends State<SelectionPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        String? imageUrl;
-        if (data['profile_pic'] != null && data['profile_pic'].toString().isNotEmpty) {
-          String imagePath = data['profile_pic'];
+        Uint8List? imageBytes;
+try {
+  String? base64Str = data['profile_pic'];
 
-          try {
-            final decodedPath = utf8.decode(base64.decode(imagePath));
-            imageUrl = 'https://glamouraika.com/$decodedPath';
-          } catch (e) {
-            imageUrl = 'https://glamouraika.com/$imagePath';
-          }
+  if (base64Str != null && base64Str.isNotEmpty) {
+    if (base64Str.startsWith('data:image')) {
+      base64Str = base64Str.split(',').last;
+    }
 
-          await prefs.setString('profile_pic', imageUrl);
-        }
+    // Validate base64 string length and characters
+    if (base64Str.trim().length % 4 == 0 && RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(base64Str)) {
+      imageBytes = base64Decode(base64Str);
+      if (imageBytes.isNotEmpty) {
+        profilePic = imageBytes;
+        await prefs.setString('profile_pic', "data:image/jpeg;base64,${base64Encode(imageBytes)}");
+      } else {
+        debugPrint("Decoded image is empty.");
+        profilePic = null;
+      }
+    } else {
+      debugPrint("Invalid base64 format.");
+      profilePic = null;
+    }
+  } else {
+    debugPrint("profile_pic string is empty.");
+    profilePic = null;
+  }
+} catch (e) {
+  debugPrint("Exception decoding base64: $e");
+  profilePic = null;
+}
 
         setState(() {
           name = data['name'] ?? "Unknown";
           faceShape = data['face_shape'] ?? "Not Available";
           skinTone = data['skin_tone'] ?? "Not Available";
-          profilePic = imageUrl;
+          profilePic = imageBytes;
         });
       } else {
         _setErrorState();
@@ -105,15 +155,6 @@ class _SelectionPageState extends State<SelectionPage> {
     } catch (e) {
       _setErrorState();
     }
-  }
-
-  void _setErrorState() {
-    setState(() {
-      name = 'Error fetching data';
-      faceShape = 'Error';
-      skinTone = 'Error';
-      profilePic = null;
-    });
   }
 
   Future<void> pickProfileImage() async {
@@ -371,7 +412,7 @@ Widget _buildImageCarousel(List<String> imagePaths) {
       ),
       ),
       
-     floatingActionButton: Transform.translate(
+      floatingActionButton: Transform.translate(
   offset: const Offset(0, 17),
   child: Column(
     mainAxisSize: MainAxisSize.min,
@@ -381,9 +422,9 @@ Widget _buildImageCarousel(List<String> imagePaths) {
         width: 80,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color.fromARGB(255, 239, 168, 192),
+          color: Color.fromARGB(95, 237, 91, 181),
           border: Border.all(
-            color: Colors.pinkAccent,
+            color: const Color.fromARGB(255, 255, 73, 134),
             width: 4,
           ),
         ),
@@ -411,7 +452,8 @@ bottomNavigationBar: Stack(
     BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,
-      color: const Color.fromARGB(255, 243, 137, 172),
+      color:  const Color.fromARGB(255, 245, 153, 185),
+
       child: SizedBox(
         height: 70,
         child: Row(
@@ -419,7 +461,7 @@ bottomNavigationBar: Stack(
           children: [
             Expanded(
               child: Transform.translate(
-                 offset: const Offset(-30, 0), // Move Home slightly to left
+                 offset: const Offset(-30, 0), // ✅ Move Home slightly to left
                 child: InkWell(
                   onTap: () {},
                   child: Column(
@@ -454,8 +496,7 @@ bottomNavigationBar: Stack(
         ),
       ),
     ),
-  ],
-),
+  ]),
 
       body: Stack(
         children: [
@@ -471,7 +512,7 @@ bottomNavigationBar: Stack(
                     width: MediaQuery.of(context).size.width * 0.9,
                     height: MediaQuery.of(context).size.height * 1.1,
                     decoration: const BoxDecoration(
-                      color: Color.fromARGB(95, 238, 146, 203), // <-- Changed 255 to 100 for transparency
+                      color: Color.fromARGB(95, 239, 216, 230), // <-- Changed 255 to 100 for transparency
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(40),
                         topRight: Radius.circular(40),
@@ -482,7 +523,8 @@ bottomNavigationBar: Stack(
                 Column(
                   children: [
                     const SizedBox(height: 50),
-                    CircleAvatar(
+                    
+CircleAvatar(
                       radius: 55,
                       backgroundColor: const Color.fromARGB(255, 239, 79, 165),
                       child: CircleAvatar(
@@ -499,6 +541,7 @@ bottomNavigationBar: Stack(
                             : null,
                       ),
                     ),
+
                     const SizedBox(height: 10),
                     Container(
   width: MediaQuery.of(context).size.width * 0.9,
@@ -547,7 +590,7 @@ bottomNavigationBar: Stack(
   ),
 ),
 
-  const SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     DefaultTabController(
                       length: 3,
                       child: Column(
@@ -592,5 +635,7 @@ bottomNavigationBar: Stack(
     );
   }
 }
+
+
 
 
