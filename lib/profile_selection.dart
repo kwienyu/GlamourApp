@@ -13,12 +13,28 @@ class ProfileSelection extends StatefulWidget {
 
 class _ProfileSelectionState extends State<ProfileSelection> {
   int selectedIndex = 0;
+  bool _showBubble = true;
 
   void onItemTapped(int index) {
     setState(() {
       selectedIndex = index;
     });
   }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Hide the bubble after 3 seconds
+    Future.delayed(Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showBubble = false;
+        });
+      }
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +145,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                     buildProfileButton(context, Icons.add, "Test My Look", const CameraPage()),
                   ],
                 ),
-                SizedBox(height: 30),
+                SizedBox(height: 10),
                 Center(
                   child: buildProfileButton(context, Icons.star, "Glam Vault", GlamVaultPage()),
                 ),
@@ -141,15 +157,33 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     ),
   ],
 ),
-      // ⬇️ Custom FAB and BottomAppBar starts here ⬇️
-      floatingActionButton: Transform.translate(
-  offset: const Offset(0, 17),
+floatingActionButton: Padding(
+  padding: const EdgeInsets.only(bottom: 30), // Align with Glam Vault
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [
+      if (_showBubble)
+        CustomPaint(
+          painter: BubbleWithTailPainter(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: const Text(
+              "Make-up Artist",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+      const SizedBox(height: 6),
+
+      // Larger circular button
       Container(
-        height: 80,
-        width: 80,
+        height: 100, // Increased from 80
+        width: 100,  // Increased from 80
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: const Color.fromARGB(255, 239, 168, 192),
@@ -167,67 +201,16 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               MaterialPageRoute(builder: (context) => CameraPage()),
             );
           },
-          child: Image.asset('assets/facscan_icon.gif', width: 60, height: 60),
+          child: Image.asset('assets/facscan_icon.gif', width: 80, height: 80), // Increased from 60
         ),
       ),
-      const SizedBox(height: 10),
-      const Text("Makeup Artist", style: TextStyle(fontSize: 12)),
     ],
   ),
 ),
-  floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-bottomNavigationBar: Stack(
-  alignment: Alignment.bottomCenter,
-  children: [
-    BottomAppBar(
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8.0,
-      color: const Color.fromARGB(255, 245, 153, 185),
-      child: SizedBox(
-        height: 70,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Expanded(
-              child: Transform.translate(
-                 offset: const Offset(-30, 0), // ✅ Move Home slightly to left
-                child: InkWell(
-                  onTap: () {},
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/homeg.png', width: 35, height: 35),
-                      const SizedBox(height: 6),
-                      const Text("Home", style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 60),
-            Expanded(
-              child: Transform.translate(
-                offset: const Offset(30, 0), // Move Profile slightly to right
-                child: InkWell(
-                  onTap: () {},
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/profile.png', width: 35, height: 35),
-                      const SizedBox(height: 4),
-                      const Text("Profile", style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  ],
-),
+floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
     );
+    }
   }
 
   Widget buildProfileButton(BuildContext context, IconData icon, String text, Widget route) {
@@ -275,7 +258,7 @@ bottomNavigationBar: Stack(
       ),
     );
   }
-}
+
 
 // ✅ ADD THIS AT THE END OF THE FILE
 class TopCurveClipper extends CustomClipper<Path> {
@@ -302,4 +285,47 @@ class TopCurveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class BubbleWithTailPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fillPaint = Paint()
+      ..color = Colors.pink[100]!
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = Colors.pinkAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final radius = 12.0;
+    final bubbleRect = RRect.fromLTRBR(
+      0,
+      0,
+      size.width,
+      size.height - 10,
+      Radius.circular(radius),
+    );
+
+    final bubblePath = Path()..addRRect(bubbleRect);
+
+    // Tail of the bubble
+    final tailPath = Path()
+      ..moveTo(size.width / 2 - 6, size.height - 10)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width / 2 + 6, size.height - 10)
+      ..close();
+
+    // Draw fill
+    canvas.drawPath(bubblePath, fillPaint);
+    canvas.drawPath(tailPath, fillPaint);
+
+    // Draw border
+    canvas.drawPath(bubblePath, strokePaint);
+    canvas.drawPath(tailPath, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

@@ -25,6 +25,8 @@ class _SelectionPageState extends State<SelectionPage> {
   File? _newProfilePic;
   dynamic profilePic;
   ImageProvider? image;
+  bool _showBubble = true;
+
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -43,20 +45,28 @@ class _SelectionPageState extends State<SelectionPage> {
     }
     return null;
   }
+  
+
+
+bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCachedProfilePic(); // load image first
-    _fetchProfileData(); // then fetch updated data
-  }
+    _loadCachedProfilePic(); 
+    _fetchProfileData().then((_){
+      setState(() {
+        isLoading = false;
+      });
+    });
 
-  void _setErrorState() {
-    setState(() {
-      name = 'Error fetching data';
-      faceShape = 'Error';
-      skinTone = 'Error';
-      profilePic = null;
+//makeup artist text
+    Future.delayed(Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showBubble = false;
+        });
+      }
     });
   }
 
@@ -88,74 +98,65 @@ class _SelectionPageState extends State<SelectionPage> {
     }
   }
 
-  Future<void> _fetchProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userid = prefs.getString('user_id');
-
-    if (userid == null) {
-      setState(() {
-        name = 'Guest';
-        faceShape = 'Unknown';
-        skinTone = 'Unknown';
-        profilePic = null;
-      });
-      return;
-    }
-
-    try {
-      final response = await http.get(
-        Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        Uint8List? imageBytes;
-try {
-  String? base64Str = data['profile_pic'];
-
-  if (base64Str != null && base64Str.isNotEmpty) {
-    if (base64Str.startsWith('data:image')) {
-      base64Str = base64Str.split(',').last;
-    }
-
-    // Validate base64 string length and characters
-    if (base64Str.trim().length % 4 == 0 && RegExp(r'^[A-Za-z0-9+/=]+$').hasMatch(base64Str)) {
-      imageBytes = base64Decode(base64Str);
-      if (imageBytes.isNotEmpty) {
-        profilePic = imageBytes;
-        await prefs.setString('profile_pic', "data:image/jpeg;base64,${base64Encode(imageBytes)}");
-      } else {
-        debugPrint("Decoded image is empty.");
-        profilePic = null;
-      }
-    } else {
-      debugPrint("Invalid base64 format.");
-      profilePic = null;
-    }
-  } else {
-    debugPrint("profile_pic string is empty.");
+void _setErrorState() {
+  setState(() {
+    name = 'Guest';
+    faceShape = 'Unknown';
+    skinTone = 'Unknown';
     profilePic = null;
-  }
-} catch (e) {
-  debugPrint("Exception decoding base64: $e");
-  profilePic = null;
+  });
 }
 
-        setState(() {
-          name = data['name'] ?? "Unknown";
-          faceShape = data['face_shape'] ?? "Not Available";
-          skinTone = data['skin_tone'] ?? "Not Available";
-          profilePic = imageBytes;
-        });
-      } else {
-        _setErrorState();
+Future<void> _fetchProfileData() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userid = prefs.getString('user_id');
+
+  if (userid == null || userid.isEmpty) {
+    debugPrint('No user ID found in shared preferences.');
+    _setErrorState();
+    return;
+  }
+
+  final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
+  debugPrint('Fetching profile from: $uri');
+
+  try {
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      String? base64Image = data['profile_pic'];
+      Uint8List? imageBytes;
+
+      if (base64Image != null && base64Image.isNotEmpty) {
+        try {
+          if (base64Image.startsWith('data:image')) {
+            base64Image = base64Image.split(',').last;
+          }
+          imageBytes = base64Decode(base64Image);
+          await prefs.setString('user_profile_base64', base64Image);
+        } catch (e) {
+          debugPrint("Image decoding error: $e");
+          imageBytes = null;
+        }
       }
-    } catch (e) {
+
+      setState(() {
+        name = data['name'] ?? "Unknown";
+        faceShape = data['face_shape'] ?? "Not Available";
+        skinTone = data['skin_tone'] ?? "Not Available";
+        profilePic = imageBytes;
+      });
+    } else {
+      debugPrint('API returned status: ${response.statusCode}');
       _setErrorState();
     }
+  } catch (e) {
+    debugPrint('HTTP error: $e');
+    _setErrorState();
   }
+}
 
   Future<void> pickProfileImage() async {
     final picker = ImagePicker();
@@ -207,6 +208,7 @@ try {
       );
     }
   }
+  
 
   void _showEditProfileDialog() {
     File? tempImage = _newProfilePic;
@@ -293,14 +295,13 @@ Widget _buildImageCarousel(List<String> imagePaths) {
   final ValueNotifier<int> currentPage = ValueNotifier<int>(0);
 
   return Padding(
-    padding: const EdgeInsets.only(top: 60.0, left: 15.0, right: 15.0), // Adjust the top padding to move the image down
+    padding: const EdgeInsets.only(top: 60.0, left: 15.0, right: 15.0), 
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Adjusted SizedBox height to make image larger
         Flexible(
           child: SizedBox(
-            height: 400, // Increased height to make image slightly bigger
+            height: 400, 
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -314,19 +315,18 @@ Widget _buildImageCarousel(List<String> imagePaths) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: AspectRatio(
-                        aspectRatio: 1.2, // Adjusted aspect ratio for a slightly taller image
+                        aspectRatio: 1.2, 
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: Image.asset(
                             imagePaths[index],
-                            fit: BoxFit.contain, // You can change to BoxFit.cover if needed
+                            fit: BoxFit.contain, 
                           ),
                         ),
                       ),
                     );
                   },
                 ),
-                // Arrows for navigation
                 Positioned(
                   left: 0,
                   child: IconButton(
@@ -363,7 +363,7 @@ Widget _buildImageCarousel(List<String> imagePaths) {
             ),
           ),
         ),
-        const SizedBox(height: 20), // Extra space after the carousel before indicators
+        const SizedBox(height: 20), 
         ValueListenableBuilder<int>(
           valueListenable: currentPage,
           builder: (context, value, _) {
@@ -389,7 +389,6 @@ Widget _buildImageCarousel(List<String> imagePaths) {
   );
 }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -398,13 +397,15 @@ Widget _buildImageCarousel(List<String> imagePaths) {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => ProfileSelection()),
-          ),
-        ),
+          onPressed: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => ProfileSelection()),
+  );
+},
+),
         title: Transform.translate(
-        offset: Offset(-10, 1), // Adjust this value to move left or right
+        offset: Offset(-10, 1), 
         child: Image.asset(
           'assets/glam_logo.png',
           height: 60,
@@ -412,19 +413,38 @@ Widget _buildImageCarousel(List<String> imagePaths) {
       ),
       ),
       
-      floatingActionButton: Transform.translate(
-  offset: const Offset(0, 17),
+      floatingActionButton: Padding(
+  padding: const EdgeInsets.only(bottom: 30), 
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [
+      if (_showBubble)
+        CustomPaint(
+          painter: BubbleWithTailPainter(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: const Text(
+              "Make-up Artist",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+      const SizedBox(height: 6),
+
+      // Larger circular button
       Container(
-        height: 80,
-        width: 80,
+        height: 100, 
+        width: 100,  
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Color.fromARGB(95, 237, 91, 181),
+          color: const Color.fromARGB(255, 239, 168, 192),
           border: Border.all(
-            color: const Color.fromARGB(255, 255, 73, 134),
+            color: Colors.pinkAccent,
             width: 4,
           ),
         ),
@@ -437,66 +457,14 @@ Widget _buildImageCarousel(List<String> imagePaths) {
               MaterialPageRoute(builder: (context) => CameraPage()),
             );
           },
-          child: Image.asset('assets/facscan_icon.gif', width: 60, height: 60),
+          child: Image.asset('assets/facscan_icon.gif', width: 80, height: 80), 
         ),
       ),
-      const SizedBox(height: 10),
-      const Text("Makeup Artist", style: TextStyle(fontSize: 12)),
     ],
   ),
 ),
-  floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-bottomNavigationBar: Stack(
-  alignment: Alignment.bottomCenter,
-  children: [
-    BottomAppBar(
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8.0,
-      color:  const Color.fromARGB(255, 245, 153, 185),
+floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      child: SizedBox(
-        height: 70,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Expanded(
-              child: Transform.translate(
-                 offset: const Offset(-30, 0), // ✅ Move Home slightly to left
-                child: InkWell(
-                  onTap: () {},
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/homeg.png', width: 35, height: 35),
-                      const SizedBox(height: 6),
-                      const Text("Home", style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 60),
-            Expanded(
-              child: Transform.translate(
-                offset: const Offset(30, 0), // Move Profile slightly to right
-                child: InkWell(
-                  onTap: () {},
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/profile.png', width: 35, height: 35),
-                      const SizedBox(height: 4),
-                      const Text("Profile", style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  ]),
 
       body: Stack(
         children: [
@@ -522,9 +490,8 @@ bottomNavigationBar: Stack(
                 ),
                 Column(
                   children: [
-                    const SizedBox(height: 50),
-                    
-CircleAvatar(
+                    const SizedBox(height: 50),            
+          CircleAvatar(
                       radius: 55,
                       backgroundColor: const Color.fromARGB(255, 239, 79, 165),
                       child: CircleAvatar(
@@ -554,10 +521,10 @@ CircleAvatar(
     ),
     boxShadow: [
       BoxShadow(
-        color: Color.fromARGB(95, 238, 146, 203).withOpacity(0.2), // Light pink shadow
+        color: Color.fromARGB(95, 238, 146, 203).withOpacity(0.2), 
         spreadRadius: 2,
         blurRadius: 10,
-        offset: const Offset(0, 4), // changes position of shadow
+        offset: const Offset(0, 4), 
       ),
     ],
   ),
@@ -590,12 +557,12 @@ CircleAvatar(
   ),
 ),
 
-                    const SizedBox(height: 2),
-                    DefaultTabController(
-                      length: 3,
-                      child: Column(
-                        children: [
-                          TabBar(
+  const SizedBox(height: 2),
+        DefaultTabController(
+            length: 3,
+            child: Column(
+            children: [
+                      TabBar(
                             labelColor: const Color.fromARGB(255, 244, 85, 135),
                             unselectedLabelColor: Colors.black,
                             indicatorColor: Colors.pinkAccent,
