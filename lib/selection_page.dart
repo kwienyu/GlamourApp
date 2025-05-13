@@ -464,8 +464,6 @@ Widget _buildImageCarousel(List<String> imagePaths) {
   ),
 ),
 floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
-
       body: Stack(
         children: [
           SingleChildScrollView(

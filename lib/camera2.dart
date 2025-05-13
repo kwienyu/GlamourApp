@@ -6,6 +6,9 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'customization.dart';
 
 class CameraPage extends StatefulWidget {
@@ -13,7 +16,8 @@ class CameraPage extends StatefulWidget {
   final String selectedMakeupType;
   final String selectedMakeupLook;
   final String userId;
-  final String? skinTone; // Added skinTone parameter
+  final String? skinTone;
+  final Map<String, dynamic>? recommendationData;
 
   const CameraPage({
     super.key,
@@ -21,7 +25,8 @@ class CameraPage extends StatefulWidget {
     required this.selectedMakeupType,
     required this.selectedMakeupLook,
     required this.userId,
-    this.skinTone, // Added as optional parameter
+    this.skinTone,
+    this.recommendationData,
   });
 
   @override
@@ -35,7 +40,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isFaceDetected = false;
   bool _isInsideFrame = false;
   bool _isUsingFrontCamera = true;
-
+  bool _isProcessing = false;
   Timer? _detectionSimulationTimer;
 
   @override
@@ -44,9 +49,8 @@ class _CameraPageState extends State<CameraPage> {
     _initializeControllerFuture = _initializeCamera();
     _startSimulatedFaceDetection();
     
-    // Optional: Log the skin tone if it's provided
-    if (widget.skinTone != null) {
-      print('User skin tone: ${widget.skinTone}');
+    if (widget.recommendationData != null) {
+      print('API Recommendation Data: ${widget.recommendationData}');
     }
   }
 
@@ -97,10 +101,12 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   bool get _isReadyForCapture =>
-      _isFaceDetected && _isInsideFrame;
+      _isFaceDetected && _isInsideFrame && !_isProcessing;
 
   Future<void> _takePicture(BuildContext context) async {
     try {
+      setState(() => _isProcessing = true);
+      
       await _initializeControllerFuture;
       if (_controller == null || !_controller!.value.isInitialized) return;
 
@@ -113,26 +119,76 @@ class _CameraPageState extends State<CameraPage> {
 
       setState(() => _imagePath = imagePath);
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CustomizationPage(
-            imagePath: imagePath,
-            selectedMakeupType: widget.selectedMakeupType,
-            selectedMakeupLook: widget.selectedMakeupLook,
-            userId: widget.userId,  
-            undertone: widget.selectedUndertone,
-            skinTone: widget.skinTone, // Pass skinTone to CustomizationPage
-          ),
-        ),
-      );
+     if (widget.recommendationData != null) {
+  _navigateToCustomization(context, imagePath);
+} else {
+  await _fetchRecommendationData(imagePath, context);
+}
     } catch (e) {
       print("Capture error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to capture image.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to capture image.")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
+
+  Future<void> _fetchRecommendationData(String imagePath, BuildContext context) async {
+  try {
+    final response = await http.post(
+      Uri.parse('https://glamouraika.com/api/recommendation'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': widget.userId,
+        'undertone': widget.selectedUndertone,
+        'makeup_type': widget.selectedMakeupType,
+        'makeup_look': widget.selectedMakeupLook,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      if (mounted) {
+        _navigateToCustomization(context, imagePath, recommendationData: responseData);
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("API Error: ${response.body}")),
+        );
+        _navigateToCustomization(context, imagePath);
+      }
+    }
+  } catch (e) {
+    print("API call error: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't fetch recommendations")),
+      );
+      _navigateToCustomization(context, imagePath);
+    }
+  }
+}
+
+void _navigateToCustomization(BuildContext context, String imagePath, {Map<String, dynamic>? recommendationData}) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CustomizationPage(
+        imagePath: imagePath,
+        selectedMakeupType: widget.selectedMakeupType,
+        selectedMakeupLook: widget.selectedMakeupLook,
+        userId: widget.userId,
+        undertone: widget.selectedUndertone,
+        skinTone: widget.skinTone,
+        recommendationData: recommendationData ?? widget.recommendationData,
+      ),
+    ),
+  );
+}
 
   @override
   void dispose() {
@@ -162,69 +218,74 @@ class _CameraPageState extends State<CameraPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<void>(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done || _controller == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Stack(
+        children: [
+          FutureBuilder<void>(
+            future: _initializeControllerFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done || _controller == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              CameraPreview(_controller!),
-
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: DashedOvalPainter(
-                    showGreen: _isReadyForCapture,
-                  ),
-                ),
-              ),
-
-              Positioned(
-                top: 60,
-                left: 20,
-                right: 20,
-                child: Text(
-                  "Capture your face",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
-              Positioned(
-                bottom: 70,
-                left: 20,
-                child: IconButton(
-                  icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 36),
-                  onPressed: _switchCamera,
-                ),
-              ),
-
-              Positioned(
-                bottom: 50,
-                left: 0,
-                right: 0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildTipChip("✓ Look straight"),
-                        const SizedBox(width: 8),
-                        _buildTipChip("✓ Good lighting"),
-                      ],
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  CameraPreview(_controller!),
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: DashedOvalPainter(
+                        showGreen: _isReadyForCapture,
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    _buildTipChip("✓ Face inside frame"),
-                    const SizedBox(height: 20),
+                  ),
+                ],
+              );
+            },
+          ),
+          Positioned(
+            top: 60,
+            left: 20,
+            right: 20,
+            child: Text(
+              "Capture your face",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Positioned(
+            bottom: 70,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 36),
+              onPressed: _isProcessing ? null : _switchCamera,
+            ),
+          ),
+          Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildTipChip("✓ Look straight"),
+                    const SizedBox(width: 8),
+                    _buildTipChip("✓ Good lighting"),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                _buildTipChip("✓ Face inside frame"),
+                const SizedBox(height: 20),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -248,12 +309,18 @@ class _CameraPageState extends State<CameraPage> {
                         ),
                       ),
                     ),
+                    if (_isProcessing)
+                      const Positioned.fill(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                        ),
+                      ),
                   ],
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

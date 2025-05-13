@@ -217,7 +217,8 @@ class _CameraPageState extends State<CameraPage> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => MakeupHubPage()),
+                MaterialPageRoute(builder: (context) => MakeupHubPage(skinTone: _skinTone,
+                )),
               );
             },
             child: const Text('OK'),

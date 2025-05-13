@@ -145,7 +145,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/glamour.png',
+                        'assets/glam_logo.png',
                         height: 105,
                       ),
                       const Text(

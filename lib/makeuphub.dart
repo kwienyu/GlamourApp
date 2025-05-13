@@ -6,8 +6,10 @@ import 'camera2.dart';
 import 'undertone_tutorial.dart'; 
 
 class MakeupHubPage extends StatefulWidget {
-  const MakeupHubPage({super.key});
+  const MakeupHubPage({super.key, this.skinTone});
 
+  final String? skinTone; 
+  
   @override
   _MakeupHubPageState createState() => _MakeupHubPageState();
 }
@@ -16,12 +18,12 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
   String? selectedUndertone;
   String? selectedMakeupType;
   String? selectedMakeupLook;
-  String? userSkinTone; // To store the user's skin tone
-  bool isLoadingSkinTone = false; // Loading state for skin tone fetch
+  String? userSkinTone;
+  bool isLoadingSkinTone = false;
 
   final List<String> undertones = ["Warm", "Neutral", "Cool"];
   final Map<String, List<String>> makeupLooks = {
-    'Casual': ['No Makeup', 'Everyday Glow', 'Sun-Kissed Glow'],
+    'Casual': ['No-Makeup', 'Everyday Glow', 'Sun-Kissed Glow'],
     'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
     'Heavy': ['Matte', 'Cut Crease', 'Glam Night'],
   };
@@ -29,7 +31,10 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
   @override
   void initState() {
     super.initState();
-    _fetchUserSkinTone(); // Fetch skin tone when the widget initializes
+    userSkinTone = widget.skinTone;
+    if (userSkinTone == null) {
+      _fetchUserSkinTone();
+    }
   }
 
   Future<void> _fetchUserSkinTone() async {
@@ -49,7 +54,6 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
           final responseData = json.decode(response.body);
           setState(() {
             userSkinTone = responseData['skin_tone'];
-            // If we have skin tone data, we can pre-select the undertone if it matches
             if (userSkinTone != null && undertones.contains(userSkinTone)) {
               selectedUndertone = userSkinTone;
             }
@@ -227,77 +231,90 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
             selectedMakeupLook = look;
           });
 
-          print("Selected Values:");
-          print("- Undertone: $selectedUndertone");
-          print("- Makeup Type: $selectedMakeupType");
-          print("- Makeup Look: $look");
-          print("- Skin Tone: $userSkinTone"); // Added skin tone to debug prints
+          // Debug print for selected values
+  print("Selected Values:");
+  print("- Undertone: $selectedUndertone");
+  print("- Makeup Type: $selectedMakeupType");
+  print("- Makeup Look: $look");
+  print("- Skin Tone: $userSkinTone");
+  
 
           if (selectedUndertone != null && selectedMakeupType != null) {
             try {
               final userId = await getUserId();
-              print("User ID from SharedPreferences: $userId");
-
               if (userId != null) {
+                // Create request body matching API requirements
                 final requestBody = {
-                  'user_id': userId,  
+                  'user_id': userId,
                   'undertone': selectedUndertone,
                   'makeup_type': selectedMakeupType,
                   'makeup_look': look,
-                  'skin_tone': userSkinTone, // Include skin tone in the request
+                  'skin_tone' : userSkinTone,
                 };
                 print("Request Payload: ${jsonEncode(requestBody)}");
 
+
+                // Make API call to recommendation endpoint
                 final response = await http.post(
-                  Uri.parse('https://glamouraika.com/api/recommendation'), 
+                  Uri.parse('https://glamouraika.com/api/recommendation'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode(requestBody),
                 );
+                    // Debug print for full response
+        print("API Response:");
+        print("- Status Code: ${response.statusCode}");
+        print("- Body: ${response.body}");
+        print("- Headers: ${response.headers}");
 
-                print("API Response:");
-                print("- Status Code: ${response.statusCode}");
-                print("- Body: ${response.body}");
-                print("- Headers: ${response.headers}");
-
+                // Handle API response
                 if (response.statusCode == 200) {
                   final responseData = json.decode(response.body);
-                  print("Response Data: $responseData");
-                  
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CameraPage(
-                        selectedUndertone: selectedUndertone!,
-                        selectedMakeupType: selectedMakeupType!,
-                        selectedMakeupLook: selectedMakeupLook!,
-                        userId: userId,
-                        skinTone: userSkinTone, // Pass skin tone to CameraPage
+                  if (responseData['success'] == true) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CameraPage(
+                          selectedUndertone: selectedUndertone!,
+                          selectedMakeupType: selectedMakeupType!,
+                          selectedMakeupLook: selectedMakeupLook!,
+                          userId: userId,
+                          skinTone: userSkinTone,
+                          recommendationData: responseData, // Pass the API response data
+                        ),
                       ),
-                    ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(responseData['message'] ?? 'Request failed')),
+                    );
+                  }
+                } else if (response.statusCode == 400) {
+                  final errorData = json.decode(response.body);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(errorData['message'] ?? 'Invalid request')),
+                  );
+                } else if (response.statusCode == 404) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('User not found')),
                   );
                 } else {
-                  print("Error Response: ${response.body}");
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Failed to save selection to the server.")),
+                    const SnackBar(content: Text('Server error')),
                   );
                 }
               } else {
-                print("Error: User ID is null");
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("User ID not found. Please log in again.")),
+                  const SnackBar(content: Text('User ID not found')),
                 );
               }
-            } catch (e, stackTrace) {
-              print("Exception caught: $e");
-              print("Stack trace: $stackTrace");
+            } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("API error: $e")),
+                SnackBar(content: Text('Error: ${e.toString()}')),
               );
             }
           } else {
-            print("Error: Undertone or Makeup Type not selected");
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Please select undertone and makeup type first.")),
+              const SnackBar(content: Text('Please select all required fields')),
             );
           }
         },
