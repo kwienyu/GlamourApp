@@ -5,7 +5,9 @@ import 'glamvault.dart';
 import 'makeup_guide.dart';
 
 class ProfileSelection extends StatefulWidget {
-  const ProfileSelection({super.key});
+
+  final String userId;
+  const ProfileSelection({super.key, required this.userId});
 
   @override
   _ProfileSelectionState createState() => _ProfileSelectionState();
@@ -34,7 +36,6 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       }
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -147,9 +148,9 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 ),
                 SizedBox(height: 10),
                 Center(
-                  child: buildProfileButton(context, Icons.star, "Glam Vault", GlamVaultPage()),
+                  child: buildProfileButton(context, Icons.star, "Glam Vault", GlamVaultScreen(userId: int.parse(widget.userId)),
                 ),
-              ],
+            )],
             ),
           ),
         ],
@@ -158,7 +159,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   ],
 ),
 floatingActionButton: Padding(
-  padding: const EdgeInsets.only(bottom: 30), // Align with Glam Vault
+  padding: const EdgeInsets.only(bottom: 10), // Align with Glam Vault
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [

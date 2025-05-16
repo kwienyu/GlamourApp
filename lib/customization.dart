@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -14,7 +13,7 @@ class CustomizationPage extends StatefulWidget {
   final Map<String, dynamic>? recommendationData;
 
   const CustomizationPage({
-    Key? key,
+    super.key,
     required this.imagePath,
     required this.selectedMakeupType,
     required this.selectedMakeupLook,
@@ -22,7 +21,7 @@ class CustomizationPage extends StatefulWidget {
     required this.undertone,
     this.skinTone,
     this.recommendationData,
-  }) : super(key: key);
+  });
 
   @override
   _CustomizationPageState createState() => _CustomizationPageState();
@@ -245,7 +244,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
               default:
                 return Container();
             }
-          }).toList(),
+          }),
 
           // Makeup Look Title
           Positioned(

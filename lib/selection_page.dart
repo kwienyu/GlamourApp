@@ -33,31 +33,12 @@ class _SelectionPageState extends State<SelectionPage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
 
-  ImageProvider<Object>? getProfileImageProvider() {
-    try {
-      if (_newProfilePic != null) {
-        return FileImage(_newProfilePic!);
-      } else if (profilePic is Uint8List && (profilePic as Uint8List).isNotEmpty) {
-        return MemoryImage(profilePic as Uint8List);
-      }
-    } catch (e) {
-      print("Image provider error: $e");
-    }
-    return null;
-  }
-  
-
-
 bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCachedProfilePic(); 
     _fetchProfileData().then((_){
-      setState(() {
-        isLoading = false;
-      });
     });
 
 //makeup artist text
@@ -70,7 +51,7 @@ bool isLoading = true;
     });
   }
 
-  Future<void> _loadCachedProfilePic() async {
+  Future<void> loadCachedProfilePic() async {
     final prefs = await SharedPreferences.getInstance();
     final cachedImage = prefs.getString('profile_pic');
 
@@ -389,32 +370,38 @@ Widget _buildImageCarousel(List<String> imagePaths) {
   );
 }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.pinkAccent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (context) => ProfileSelection()),
-  );
-},
-),
-        title: Transform.translate(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      backgroundColor: Colors.pinkAccent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        onPressed: () async {
+          // Get the user ID from SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          final userId = prefs.getString('user_id') ?? '';
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfileSelection(userId: userId),
+            ),
+          );
+        },
+      ),
+      title: Transform.translate(
         offset: Offset(-10, 1), 
         child: Image.asset(
           'assets/glam_logo.png',
           height: 60,
         ),
       ),
-      ),
+    ),
       
       floatingActionButton: Padding(
-  padding: const EdgeInsets.only(bottom: 30), 
+  padding: const EdgeInsets.only(bottom: 10), 
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [

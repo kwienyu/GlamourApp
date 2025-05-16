@@ -58,11 +58,13 @@ class _LoginScreenState extends State<LoginScreen> {
           );
 
           // Navigate after slight delay
-          Future.delayed(const Duration(seconds: 1), () {
+          Future.delayed(const Duration(seconds: 1), () async {  // Added async here
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            final prefs = await SharedPreferences.getInstance();
+            final userId = prefs.getString('user_id') ?? '';
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const ProfileSelection()),
+              MaterialPageRoute(builder: (context) => ProfileSelection(userId: userId)),
             );
           });
         } else {
