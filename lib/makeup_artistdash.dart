@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'camera.dart';
 
 class MakeupArtistDash extends StatefulWidget {
   const MakeupArtistDash({super.key});
@@ -27,11 +28,11 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.pinkAccent, // Match Glamour's theme
+        backgroundColor: Colors.pinkAccent,
         title: Row(
           children: [
             Image.asset(
-              'assets/glam_logo.png', // Change to your actual logo path
+              'assets/glam_logo.png',
               height: 60,
             ),
             SizedBox(width: 8),
@@ -43,7 +44,7 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: [
-            Tab(text: "Overview"),
+            Tab(text: "Dashboard"),
             Tab(text: "Clients"),
             Tab(text: "Recommendations"),
           ],
@@ -51,7 +52,6 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
       ),
       body: Column(
         children: [
-          // Welcome Message
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(16),
@@ -68,7 +68,6 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
               ],
             ),
           ),
-          // Existing Grid Layout
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -77,10 +76,15 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
                 children: [
-                  _buildCard("Overview Panel", Icons.dashboard, Colors.blue),
-                  _buildCard("Client Management", Icons.people, Colors.purple),
-                  _buildCard("Makeup Recommendations", Icons.brush, Colors.pink),
-                  _buildCard("Customization & Makeup Application", Icons.edit, Colors.orange),
+                  _buildCard("Your Profile", Icons.person, Colors.blue, () {}),
+                  _buildCard("Add Profile", Icons.people, Colors.purple, () {}),
+                  _buildCard("Test My Look", Icons.camera_alt_rounded, Colors.pink, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CameraPage()),
+                    );
+                  }),
+                  _buildCard("Glam Vault", Icons.star, Colors.orange, () {}),
                 ],
               ),
             ),
@@ -90,26 +94,43 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
     );
   }
 
-  Widget _buildCard(String title, IconData icon, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: color.withOpacity(0.2),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 40, color: color),
-          SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+  Widget _buildCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 243, 149, 180),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 5,
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: Colors.pink[800],
+              size: 40,
+            ),
+            SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold,
+                  color: const Color.fromARGB(255, 16, 16, 16), // Added white text color for better contrast
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

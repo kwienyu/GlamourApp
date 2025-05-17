@@ -3,6 +3,7 @@ import 'selection_page.dart';
 import 'camera.dart';
 import 'glamvault.dart';
 import 'makeup_guide.dart';
+import 'makeup_artistdash.dart';
 
 class ProfileSelection extends StatefulWidget {
 
@@ -143,7 +144,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     buildProfileButton(context, Icons.person, "Your Profile", SelectionPage()),
-                    buildProfileButton(context, Icons.add, "Test My Look", const CameraPage()),
+                    buildProfileButton(context, Icons.camera_alt_rounded, "Test My Look", const CameraPage()),
                   ],
                 ),
                 SizedBox(height: 10),
@@ -199,7 +200,7 @@ floatingActionButton: Padding(
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => CameraPage()),
+              MaterialPageRoute(builder: (context) => MakeupArtistDash()),
             );
           },
           child: Image.asset('assets/facscan_icon.gif', width: 80, height: 80), // Increased from 60

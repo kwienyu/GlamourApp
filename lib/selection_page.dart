@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'camera.dart';
+import 'makeup_artistdash.dart';
 
 class SelectionPage extends StatefulWidget {
   final String? skinTone;
@@ -441,7 +441,7 @@ Widget build(BuildContext context) {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => CameraPage()),
+              MaterialPageRoute(builder: (context) => MakeupArtistDash()),
             );
           },
           child: Image.asset('assets/facscan_icon.gif', width: 80, height: 80), 
