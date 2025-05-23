@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'makeuphub.dart';
+import 'profile_selection.dart';
 
 class CustomizationPage extends StatefulWidget {
   final String imagePath;
@@ -75,7 +77,6 @@ class _CustomizationPageState extends State<CustomizationPage> {
     super.initState();
     _processRecommendationData();
     _fetchRecommendations();
-
   }
 
   void _processRecommendationData() {
@@ -152,7 +153,75 @@ class _CustomizationPageState extends State<CustomizationPage> {
     }
   }
 
+  Future<void> _saveLook() async {
+    if (widget.selectedMakeupLook == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No makeup look selected')),
+      );
+      return;
+    }
 
+    final imageFile = File(widget.imagePath);
+    final imageBytes = await imageFile.readAsBytes();
+    final base64Image = base64Encode(imageBytes);
+
+    // Prepare the shades data in the format the API expects
+    Map<String, List<String>> labeledShades = {};
+    
+    selectedShades.forEach((productType, color) {
+      if (color != null) {
+        // Convert Color to hex string (e.g., #FF5733)
+        String hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+        labeledShades[productType] = [hexColor];
+      }
+    });
+
+    if (labeledShades.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No shades selected to save')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final url = Uri.parse('https://glamouraika.com/api/saved_looks');
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': widget.userId,
+          'makeup_look': widget.selectedMakeupLook,
+          'shades': labeledShades,
+          'image_data': base64Image,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Look saved successfully to the glamvault!")),
+        );
+      } else {
+        final errorData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving look: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   Widget makeupOverlay(Color shade, double left, double top, double width, double height, double opacity) {
     return Positioned(
@@ -206,37 +275,37 @@ class _CustomizationPageState extends State<CustomizationPage> {
             final shade = entry.value!;
             
             switch (product) {
-              case 'foundation':
+              case 'Foundation':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.3, 
                     MediaQuery.of(context).size.height * 0.4, 
                     MediaQuery.of(context).size.width * 0.4, 
                     MediaQuery.of(context).size.height * 0.4, 0.5);
-              case 'concealer':
+              case 'Concealer':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.35, 
                     MediaQuery.of(context).size.height * 0.45, 
                     MediaQuery.of(context).size.width * 0.2, 
                     MediaQuery.of(context).size.height * 0.2, 0.5);
-              case 'contour':
+              case 'Contour':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.32, 
                     MediaQuery.of(context).size.height * 0.48, 
                     MediaQuery.of(context).size.width * 0.3, 
                     MediaQuery.of(context).size.height * 0.1, 0.5);
-              case 'eyeshadow':
+              case 'Eyeshadow':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.45, 
                     MediaQuery.of(context).size.height * 0.3, 
                     MediaQuery.of(context).size.width * 0.2, 
                     MediaQuery.of(context).size.height * 0.05, 0.6);
-              case 'blush':
+              case 'Blush':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.4, 
                     MediaQuery.of(context).size.height * 0.55, 
                     MediaQuery.of(context).size.width * 0.2, 
                     MediaQuery.of(context).size.height * 0.1, 0.5);
-              case 'lipstick':
+              case 'Lipstick':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.45, 
                     MediaQuery.of(context).size.height * 0.65, 
                     MediaQuery.of(context).size.width * 0.15, 
                     MediaQuery.of(context).size.height * 0.05, 0.6);
-              case 'highlighter':
+              case 'Highlighter':
                 return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.43, 
                     MediaQuery.of(context).size.height * 0.35, 
                     MediaQuery.of(context).size.width * 0.2, 
@@ -245,6 +314,30 @@ class _CustomizationPageState extends State<CustomizationPage> {
                 return Container();
             }
           }),
+
+          // Home Icon
+          Positioned(
+            left: 10,
+            top: 40,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.7),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.home,
+                  size: 30,
+                  color: Colors.pinkAccent,
+                ),
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (context) => ProfileSelection(userId: widget.userId,)),
+                  );
+                },
+              ),
+            ),
+          ),
 
           // Makeup Look Title
           Positioned(
@@ -273,7 +366,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
           // Toggle Makeup Products Button
           Positioned(
             left: 10,
-            top: 80,
+            top: 100,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -352,8 +445,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
                                         color: Colors.black26,
                                         blurRadius: 4,
                                         offset: Offset(2, 2),
-                                      ),
-                                    ],
+                                  )],
                                     border: Border.all(
                                       color: selectedProduct == product ? Colors.red : Colors.transparent,
                                       width: 2,
@@ -470,19 +562,29 @@ class _CustomizationPageState extends State<CustomizationPage> {
                   ElevatedButton(
                     onPressed: () {
                       Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                        builder: (context) => MakeupHubPage(), 
+                       ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                     child: const Text("Retake"),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Makeup look '${widget.selectedMakeupLook}' saved!")),
-                      );
-                    },
+                    onPressed: isLoading ? null : _saveLook,
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: const Text("Save Look"),
+                    child: isLoading 
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text("Save Look"),
                   ),
                 ],
               ),

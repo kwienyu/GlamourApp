@@ -77,7 +77,7 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
                 mainAxisSpacing: 10,
                 children: [
                   _buildCard("Your Profile", Icons.person, Colors.blue, () {}),
-                  _buildCard("Add Profile", Icons.people, Colors.purple, () {}),
+                  _buildCard("Scan New Face", Icons.people, Colors.purple, () {}),
                   _buildCard("Test My Look", Icons.camera_alt_rounded, Colors.pink, () {
                     Navigator.push(
                       context,
