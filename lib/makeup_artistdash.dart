@@ -15,7 +15,7 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -31,22 +31,14 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
         backgroundColor: Colors.pinkAccent,
         title: Row(
           children: [
-            Image.asset(
-              'assets/glam_logo.png',
-              height: 60,
+            Transform.translate(
+              offset: Offset(-10, 1), 
+              child: Image.asset(
+                'assets/glam_logo.png',
+                height: 60,
+              ),
             ),
             SizedBox(width: 8),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: [
-            Tab(text: "Dashboard"),
-            Tab(text: "Clients"),
-            Tab(text: "Recommendations"),
           ],
         ),
       ),
@@ -59,34 +51,60 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
               children: [
                 Text(
                   "Hello👋",
-                  style: TextStyle(fontSize: 30, fontFamily: 'Serif', fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   "Welcome to glam-up!!",
                   style: TextStyle(fontSize: 25, fontFamily: 'Serif'),
                 ),
+                SizedBox(height: 16),
+                Container(
+                  color: Colors.pinkAccent,
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white70,
+                    indicatorColor: Colors.white,
+                    tabs: [
+                      Tab(text: "Dashboard"),
+                      Tab(text: "Recommendations"),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                children: [
-                  _buildCard("Your Profile", Icons.person, Colors.blue, () {}),
-                  _buildCard("Scan New Face", Icons.people, Colors.purple, () {}),
-                  _buildCard("Test My Look", Icons.camera_alt_rounded, Colors.pink, () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CameraPage()),
-                    );
-                  }),
-                  _buildCard("Glam Vault", Icons.star, Colors.orange, () {}),
-                ],
-              ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Content for Dashboard tab
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    children: [
+                      _buildCard("Your Profile", Icons.person, Colors.blue, () {}),
+                      _buildCard("Clients", Icons.people, Colors.purple, () {}),
+                      _buildCard("Test New Look", Icons.camera_alt_rounded, Colors.pink, () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => CameraPage()),
+                        );
+                      }),
+                      _buildCard("Glam Vault", Icons.star, Colors.orange, () {}),
+                    ],
+                  ),
+                ),
+                // Content for Recommendations tab
+                Center(child: Text("Recommendations Content")),
+              ],
             ),
           ),
         ],
@@ -123,9 +141,9 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 18, 
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color.fromARGB(255, 16, 16, 16), // Added white text color for better contrast
+                  color: const Color.fromARGB(255, 16, 16, 16),
                 ),
               ),
             ),

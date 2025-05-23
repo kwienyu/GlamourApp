@@ -18,7 +18,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   List<SavedLook> savedLooks = [];
   bool isLoading = true;
   Map<int, Map<String, dynamic>> lookShades = {};
-  Map<int, Uint8List?> lookImages = {}; // Strictly typed map
+  Map<int, Uint8List?> lookImages = {}; 
 
   @override
   void initState() {
@@ -44,13 +44,13 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
 
             // Process image data
             if (look.imageData != null) {
-              final processedImage = await _processAndCacheImage(
-                look.savedLookId, 
-                look.imageData!,
-                prefs
-              );
-              lookImages[look.savedLookId] = processedImage;
-            }
+  final processedImage = await _processAndCacheImage(
+    look.savedLookId, 
+    look.imageData!,
+    prefs
+  );
+  lookImages[look.savedLookId] = processedImage;
+}
 
             // Fetch shades for each look
             await _fetchShadesForLook(look.savedLookId);
@@ -102,7 +102,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         final base64String = imageData.split(',').last;
         imageBytes = base64Decode(base64String);
       } else {
-        // Assume it's raw base64
         imageBytes = base64Decode(imageData);
       }
 
@@ -163,21 +162,20 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   }
 
   Widget _buildLookImage(Uint8List? imageBytes) {
-    if (imageBytes == null) {
-      return _buildPlaceholder();
-    }
-
-    return Image.memory(
-      imageBytes,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('Image.memory error: $error');
-        return _buildErrorPlaceholder();
-      },
-    );
+  if (imageBytes == null) {
+    return _buildPlaceholder();
   }
 
+  return Image.memory(
+    imageBytes,
+    fit: BoxFit.cover,
+    width: double.infinity,
+    errorBuilder: (context, error, stackTrace) {
+      debugPrint('Image.memory error: $error');
+      return _buildErrorPlaceholder();
+    },
+  );
+}
   Widget _buildPlaceholder() {
     return Container(
       color: Colors.grey[200],
@@ -237,50 +235,50 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                   child: CustomScrollView(
                     slivers: [
                       SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                          childAspectRatio: 0.7,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final look = savedLooks[index];
-                            return GestureDetector(
-                              onTap: () => _navigateToLookDetails(look),
-                              child: Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(16),
-                                        ),
-                                        child: _buildLookImage(lookImages[look.savedLookId]),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        look.makeupLookName,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                          childCount: savedLooks.length,
-                        ),
-                      ),
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,
+    crossAxisSpacing: 8,
+    mainAxisSpacing: 8,
+    childAspectRatio: 0.7,
+  ),
+  delegate: SliverChildBuilderDelegate(
+    (context, index) {
+      final look = savedLooks[index];
+      return GestureDetector(
+        onTap: () => _navigateToLookDetails(look),
+        child: Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: _buildLookImage(lookImages[look.savedLookId]),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  look.makeupLookName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+    childCount: savedLooks.length,
+  ),
+),
                     ],
                   ),
                 ),
@@ -331,7 +329,7 @@ class LookDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
+            SizedBox(
               height: 300,
               width: double.infinity,
               child: imageBytes != null

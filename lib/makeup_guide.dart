@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'selection_page.dart';
+import 'profile_selection.dart';
 
 class MakeupGuide extends StatefulWidget {
-  const MakeupGuide({super.key});
+  final String userId;
+  const MakeupGuide({super.key, required this.userId});
 
   @override
   _MakeupGuideState createState() => _MakeupGuideState();
@@ -13,7 +14,7 @@ class _MakeupGuideState extends State<MakeupGuide> {
     Future.delayed(const Duration(milliseconds: 300), () {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => SelectionPage()),
+        MaterialPageRoute(builder: (context) => ProfileSelection(userId: widget.userId)),
       );
     });
   }

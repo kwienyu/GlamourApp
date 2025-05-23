@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; 
 import 'makeuphub.dart';
 import 'profile_selection.dart';
 
@@ -34,6 +35,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
   bool showMakeupProducts = false;
   bool showShades = false;
   bool isLoading = false;
+  bool isSaved = false; // Added missing variable
 
   // Store selected shades for each product type
   Map<String, Color?> selectedShades = {
@@ -203,6 +205,18 @@ class _CustomizationPageState extends State<CustomizationPage> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+        await _cacheSavedLook(
+          responseData['saved_look_id'],
+          widget.selectedMakeupLook!,
+          base64Image,
+          labeledShades, 
+        );
+
+        setState(() {
+          isSaved = true;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Look saved successfully to the glamvault!")),
         );
@@ -221,6 +235,23 @@ class _CustomizationPageState extends State<CustomizationPage> {
         isLoading = false;
       });
     }
+  }
+
+  Future<void> _cacheSavedLook(
+    dynamic lookId, 
+    String lookName, 
+    String imageData,
+    Map<String, dynamic> shades
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('look_image_$lookId', imageData);
+    
+    await prefs.setString('cached_look_$lookId', jsonEncode({
+      'saved_look_id': lookId,
+      'makeup_look_name': lookName,
+      'image_data': imageData,
+      'shades': shades,
+    }));
   }
 
   Widget makeupOverlay(Color shade, double left, double top, double width, double height, double opacity) {
@@ -320,14 +351,10 @@ class _CustomizationPageState extends State<CustomizationPage> {
             left: 10,
             top: 40,
             child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.7),
-              ),
               child: IconButton(
                 icon: Icon(
                   Icons.home,
-                  size: 30,
+                  size: 25,
                   color: Colors.pinkAccent,
                 ),
                 onPressed: () {
@@ -335,30 +362,6 @@ class _CustomizationPageState extends State<CustomizationPage> {
                     MaterialPageRoute(builder: (context) => ProfileSelection(userId: widget.userId,)),
                   );
                 },
-              ),
-            ),
-          ),
-
-          // Makeup Look Title
-          Positioned(
-            top: 80,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade100.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  widget.selectedMakeupLook ?? 'No look selected',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
               ),
             ),
           ),
@@ -412,7 +415,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
                       child: Text(
                         'Products',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Color.fromARGB(255, 17, 16, 16),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -488,7 +491,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
                       child: Text(
                         selectedProduct!,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Color.fromARGB(255, 17, 16, 16),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -545,51 +548,98 @@ class _CustomizationPageState extends State<CustomizationPage> {
               ),
             ),
 
-          // Bottom Buttons
-          Positioned(
-            bottom: 20,
-            left: 55,
-            right: 55,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 3),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade100.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20),
+// Bottom Buttons
+Positioned(
+  bottom: 20,
+  left: MediaQuery.of(context).size.width * 0.2, // Start at 20% of screen width
+  right: MediaQuery.of(context).size.width * 0.2, // End at 80% of screen width
+  child: Container(
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    decoration: BoxDecoration(
+      color: Colors.amber.shade100.withOpacity(0.8),
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Makeup Look Title
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade200.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Text(
+            widget.selectedMakeupLook ?? 'No look selected',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Buttons Row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Retake Button
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => MakeupHubPage(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), 
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                        builder: (context) => MakeupHubPage(), 
-                       ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    child: const Text("Retake"),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: isLoading ? null : _saveLook,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: isLoading 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text("Save Look"),
-                  ),
-                ],
+              child: const Text("Retake"),
+            ),
+            const SizedBox(width: 10), 
+            
+            // Save Look Button
+            ElevatedButton(
+              onPressed: _saveLook, 
+                style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
               ),
             ),
-          ),
+                child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text("Save Look"),
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+),
         ],
       ),
     );

@@ -56,7 +56,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const MakeupGuide()),
+                MaterialPageRoute(builder: (context) => MakeupGuide(userId: widget.userId)),
               );
             },
           ),
