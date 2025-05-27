@@ -290,7 +290,6 @@ class _CustomizationPageState extends State<CustomizationPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
           Positioned.fill(
             child: Image.file(
               File(widget.imagePath),

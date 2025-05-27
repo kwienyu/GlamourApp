@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'profile_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Add this enum for look types
+enum LookType { user, client }
+
 class GlamVaultScreen extends StatefulWidget {
   final int userId;
 
@@ -18,12 +21,24 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   List<SavedLook> savedLooks = [];
   bool isLoading = true;
   Map<int, Map<String, dynamic>> lookShades = {};
-  Map<int, Uint8List?> lookImages = {}; 
+  Map<int, Uint8List?> lookImages = {};
+  LookType _selectedLookType = LookType.user; // Track selected tab
 
   @override
   void initState() {
     super.initState();
     _fetchSavedLooks();
+  }
+
+  // Getter to filter looks based on selected tab
+  List<SavedLook> get _filteredLooks {
+    return savedLooks.where((look) {
+      if (_selectedLookType == LookType.user) {
+        return !look.isClientLook;
+      } else {
+        return look.isClientLook;
+      }
+    }).toList();
   }
 
   Future<void> _fetchSavedLooks() async {
@@ -44,13 +59,13 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
 
             // Process image data
             if (look.imageData != null) {
-  final processedImage = await _processAndCacheImage(
-    look.savedLookId, 
-    look.imageData!,
-    prefs
-  );
-  lookImages[look.savedLookId] = processedImage;
-}
+              final processedImage = await _processAndCacheImage(
+                look.savedLookId, 
+                look.imageData!,
+                prefs
+              );
+              lookImages[look.savedLookId] = processedImage;
+            }
 
             // Fetch shades for each look
             await _fetchShadesForLook(look.savedLookId);
@@ -82,7 +97,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     SharedPreferences prefs
   ) async {
     try {
-      // Check if we have a cached version
       final cachedKey = 'look_image_$lookId';
       final cachedImage = prefs.getString(cachedKey);
       
@@ -98,7 +112,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       // Process new image data
       Uint8List? imageBytes;
       if (imageData.startsWith('data:image')) {
-        // Handle data URI format
         final base64String = imageData.split(',').last;
         imageBytes = base64Decode(base64String);
       } else {
@@ -162,20 +175,21 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   }
 
   Widget _buildLookImage(Uint8List? imageBytes) {
-  if (imageBytes == null) {
-    return _buildPlaceholder();
+    if (imageBytes == null) {
+      return _buildPlaceholder();
+    }
+
+    return Image.memory(
+      imageBytes,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Image.memory error: $error');
+        return _buildErrorPlaceholder();
+      },
+    );
   }
 
-  return Image.memory(
-    imageBytes,
-    fit: BoxFit.cover,
-    width: double.infinity,
-    errorBuilder: (context, error, stackTrace) {
-      debugPrint('Image.memory error: $error');
-      return _buildErrorPlaceholder();
-    },
-  );
-}
   Widget _buildPlaceholder() {
     return Container(
       color: Colors.grey[200],
@@ -226,62 +240,123 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         ),
       ),
       backgroundColor: Colors.pinkAccent[50],
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : savedLooks.isEmpty
-              ? Center(child: Text('No saved looks yet!'))
-              : Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverGrid(
-  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 2,
-    crossAxisSpacing: 8,
-    mainAxisSpacing: 8,
-    childAspectRatio: 0.7,
-  ),
-  delegate: SliverChildBuilderDelegate(
-    (context, index) {
-      final look = savedLooks[index];
-      return GestureDetector(
-        onTap: () => _navigateToLookDetails(look),
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+      body: Column(
+        children: [
+          // Add the tab navigation
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: Text('My Looks'),
+                    selected: _selectedLookType == LookType.user,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedLookType = LookType.user;
+                      });
+                    },
+                    selectedColor: Colors.pinkAccent,
+                    labelStyle: TextStyle(
+                      color: _selectedLookType == LookType.user 
+                          ? Colors.white 
+                          : Colors.black,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: ChoiceChip(
+                    label: Text('Client Looks'),
+                    selected: _selectedLookType == LookType.client,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedLookType = LookType.client;
+                      });
+                    },
+                    selectedColor: Colors.pinkAccent,
+                    labelStyle: TextStyle(
+                      color: _selectedLookType == LookType.client 
+                          ? Colors.white 
+                          : Colors.black,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: _buildLookImage(lookImages[look.savedLookId]),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  look.makeupLookName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          // Main content area
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _filteredLooks.isEmpty
+                    ? Center(child: Text('No ${_selectedLookType == LookType.user ? 'user' : 'client'} looks yet!'))
+                    : Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: CustomScrollView(
+                          slivers: [
+                            SliverGrid(
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 0.7,
+                              ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final look = _filteredLooks[index];
+                                  return GestureDetector(
+                                    onTap: () => _navigateToLookDetails(look),
+                                    child: Card(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.vertical(
+                                                top: Radius.circular(16),
+                                              ),
+                                              child: _buildLookImage(lookImages[look.savedLookId]),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              look.makeupLookName,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (look.isClientLook)
+                                            Padding(
+                                              padding: const EdgeInsets.only(bottom: 4.0),
+                                              child: Text(
+                                                'Client Look',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                                childCount: _filteredLooks.length,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
           ),
-        ),
-      );
-    },
-    childCount: savedLooks.length,
-  ),
-),
-                    ],
-                  ),
-                ),
+        ],
+      ),
     );
   }
 }
@@ -290,11 +365,13 @@ class SavedLook {
   final int savedLookId;
   final String makeupLookName;
   final String? imageData;
+  final bool isClientLook; // Added for tab filtering
 
   SavedLook({
     required this.savedLookId,
     required this.makeupLookName,
     this.imageData,
+    this.isClientLook = false, // Default to false
   });
 
   factory SavedLook.fromJson(Map<String, dynamic> json) {
@@ -302,6 +379,7 @@ class SavedLook {
       savedLookId: json['saved_look_id'],
       makeupLookName: json['makeup_look_name'],
       imageData: json['image_data'],
+      isClientLook: json['is_client_look'] ?? false, // Parse from JSON
     );
   }
 }
@@ -343,6 +421,18 @@ class LookDetailsScreen extends StatelessWidget {
                   : _buildPlaceholder(),
             ),
             SizedBox(height: 20),
+            if (look.isClientLook)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  'Client Look',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
             if (shades.isNotEmpty) ...[
               Text('Shades:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ...shades.entries.map((entry) {
@@ -369,7 +459,7 @@ class LookDetailsScreen extends StatelessWidget {
                                           ? hexCode.substring(1, 7)
                                           : hexCode,
                                       radix: 16) + 0xFF000000
-                                  : 0xFFCCCCCC; // Default gray if no color
+                                  : 0xFFCCCCCC; 
                               
                               return Container(
                                 width: 50,

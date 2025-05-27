@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'makeup_artistdash.dart';
+import 'camera_client.dart';
 
 class SelectionPage extends StatefulWidget {
   final String? skinTone;
@@ -25,31 +25,13 @@ class _SelectionPageState extends State<SelectionPage> {
   File? _newProfilePic;
   dynamic profilePic;
   ImageProvider? image;
-  bool _showBubble = true;
-
-
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController dobController = TextEditingController();
-
-bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfileData().then((_){
-    });
-
-//makeup artist text
-    Future.delayed(Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _showBubble = false;
-        });
-      }
-    });
+    _fetchProfileData();
   }
+    
 
   Future<void> loadCachedProfilePic() async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,65 +61,65 @@ bool isLoading = true;
     }
   }
 
-void _setErrorState() {
-  setState(() {
-    name = 'Guest';
-    faceShape = 'Unknown';
-    skinTone = 'Unknown';
-    profilePic = null;
-  });
-}
-
-Future<void> _fetchProfileData() async {
-  final prefs = await SharedPreferences.getInstance();
-  final userid = prefs.getString('user_id');
-
-  if (userid == null || userid.isEmpty) {
-    debugPrint('No user ID found in shared preferences.');
-    _setErrorState();
-    return;
+  void _setErrorState() {
+    setState(() {
+      name = 'Guest';
+      faceShape = 'Unknown';
+      skinTone = 'Unknown';
+      profilePic = null;
+    });
   }
 
-  final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
-  debugPrint('Fetching profile from: $uri');
+  Future<void> _fetchProfileData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userid = prefs.getString('user_id');
 
-  try {
-    final response = await http.get(uri);
+    if (userid == null || userid.isEmpty) {
+      debugPrint('No user ID found in shared preferences.');
+      _setErrorState();
+      return;
+    }
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+    final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
+    debugPrint('Fetching profile from: $uri');
 
-      String? base64Image = data['profile_pic'];
-      Uint8List? imageBytes;
+    try {
+      final response = await http.get(uri);
 
-      if (base64Image != null && base64Image.isNotEmpty) {
-        try {
-          if (base64Image.startsWith('data:image')) {
-            base64Image = base64Image.split(',').last;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        String? base64Image = data['profile_pic'];
+        Uint8List? imageBytes;
+
+        if (base64Image != null && base64Image.isNotEmpty) {
+          try {
+            if (base64Image.startsWith('data:image')) {
+              base64Image = base64Image.split(',').last;
+            }
+            imageBytes = base64Decode(base64Image);
+            await prefs.setString('user_profile_base64', base64Image);
+          } catch (e) {
+            debugPrint("Image decoding error: $e");
+            imageBytes = null;
           }
-          imageBytes = base64Decode(base64Image);
-          await prefs.setString('user_profile_base64', base64Image);
-        } catch (e) {
-          debugPrint("Image decoding error: $e");
-          imageBytes = null;
         }
-      }
 
-      setState(() {
-        name = data['name'] ?? "Unknown";
-        faceShape = data['face_shape'] ?? "Not Available";
-        skinTone = data['skin_tone'] ?? "Not Available";
-        profilePic = imageBytes;
-      });
-    } else {
-      debugPrint('API returned status: ${response.statusCode}');
+        setState(() {
+          name = data['name'] ?? "Unknown";
+          faceShape = data['face_shape'] ?? "Not Available";
+          skinTone = data['skin_tone'] ?? "Not Available";
+          profilePic = imageBytes;
+        });
+      } else {
+        debugPrint('API returned status: ${response.statusCode}');
+        _setErrorState();
+      }
+    } catch (e) {
+      debugPrint('HTTP error: $e');
       _setErrorState();
     }
-  } catch (e) {
-    debugPrint('HTTP error: $e');
-    _setErrorState();
   }
-}
 
   Future<void> pickProfileImage() async {
     final picker = ImagePicker();
@@ -189,7 +171,6 @@ Future<void> _fetchProfileData() async {
       );
     }
   }
-  
 
   void _showEditProfileDialog() {
     File? tempImage = _newProfilePic;
@@ -271,212 +252,72 @@ Future<void> _fetchProfileData() async {
     );
   }
 
-Widget _buildImageCarousel(List<String> imagePaths) {
-  final PageController pageController = PageController();
-  final ValueNotifier<int> currentPage = ValueNotifier<int>(0);
-
-  return Padding(
-    padding: const EdgeInsets.only(top: 60.0, left: 15.0, right: 15.0), 
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: SizedBox(
-            height: 400, 
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PageView.builder(
-                  controller: pageController,
-                  itemCount: imagePaths.length,
-                  onPageChanged: (index) {
-                    currentPage.value = index;
-                  },
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: AspectRatio(
-                        aspectRatio: 1.2, 
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            imagePaths[index],
-                            fit: BoxFit.contain, 
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                Positioned(
-                  left: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                    onPressed: () {
-                      int prev = currentPage.value - 1;
-                      if (prev >= 0) {
-                        pageController.animateToPage(
-                          prev,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.ease,
-                        );
-                      }
-                    },
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.black),
-                    onPressed: () {
-                      int next = currentPage.value + 1;
-                      if (next < imagePaths.length) {
-                        pageController.animateToPage(
-                          next,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.ease,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20), 
-        ValueListenableBuilder<int>(
-          valueListenable: currentPage,
-          builder: (context, value, _) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                imagePaths.length,
-                (index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: value == index ? Colors.pinkAccent : Colors.grey.shade400,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    ),
-  );
-}
-
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      backgroundColor: Colors.pinkAccent,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.black),
-        onPressed: () async {
-          // Get the user ID from SharedPreferences
-          final prefs = await SharedPreferences.getInstance();
-          final userId = prefs.getString('user_id') ?? '';
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProfileSelection(userId: userId),
-            ),
-          );
-        },
-      ),
-      title: Transform.translate(
-        offset: Offset(-10, 1), 
-        child: Image.asset(
-          'assets/glam_logo.png',
-          height: 60,
-        ),
-      ),
-    ),
-      
-      floatingActionButton: Padding(
-  padding: const EdgeInsets.only(bottom: 10), 
-  child: Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      if (_showBubble)
-        CustomPaint(
-          painter: BubbleWithTailPainter(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: const Text(
-              "Make-up Artist",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-        ),
-      const SizedBox(height: 6),
-
-      // Larger circular button
-      Container(
-        height: 100, 
-        width: 100,  
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color.fromARGB(255, 239, 168, 192),
-          border: Border.all(
-            color: Colors.pinkAccent,
-            width: 4,
-          ),
-        ),
-        child: FloatingActionButton(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          onPressed: () {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.pinkAccent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final userId = prefs.getString('user_id') ?? '';
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => MakeupArtistDash()),
+              MaterialPageRoute(
+                builder: (context) => ProfileSelection(userId: userId),
+              ),
             );
           },
-          child: Image.asset('assets/facscan_icon.gif', width: 80, height: 80), 
         ),
+        title: Center(  // Wrap the logo with Center widget
+          child: Image.asset(
+            'assets/glam_logo.png',
+            height: 60,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CameraClient()),
+                );
+              },
+              child: Image.asset(
+                'assets/facscan_icon.gif',
+                width: 40,
+                height: 40,
+              ),
+            ),
+          ),
+        ],
       ),
-    ],
-  ),
-),
-floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Stack(
-              alignment: Alignment.topCenter,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            Stack(
+              alignment: Alignment.center,
               children: [
-                Positioned(
-                  top: 90,
-                  left: MediaQuery.of(context).size.width * 0.02,
-                  right: MediaQuery.of(context).size.width * 0.02,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    height: MediaQuery.of(context).size.height * 1.1,
-                    decoration: const BoxDecoration(
-                      color: Color.fromARGB(95, 239, 216, 230), // <-- Changed 255 to 100 for transparency
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(40),
-                        topRight: Radius.circular(40),
-                      ),
+                Container(
+                  width: 400,
+                  height: 800,
+                  margin: const EdgeInsets.only(top: 60),
+                  decoration: const BoxDecoration(
+                    color: Color.fromARGB(95, 239, 216, 230),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
                     ),
                   ),
                 ),
                 Column(
                   children: [
-                    const SizedBox(height: 50),            
-          CircleAvatar(
+                    CircleAvatar(
                       radius: 55,
                       backgroundColor: const Color.fromARGB(255, 239, 79, 165),
                       child: CircleAvatar(
@@ -493,61 +334,60 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
                             : null,
                       ),
                     ),
-
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
                     Container(
-  width: MediaQuery.of(context).size.width * 0.9,
-  padding: const EdgeInsets.all(16),
-  decoration: BoxDecoration(
-    borderRadius: BorderRadius.circular(20),
-    border: Border.all(
-      color: const Color.fromARGB(255, 247, 205, 227),
-      width: 3,
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: Color.fromARGB(95, 238, 146, 203).withOpacity(0.2), 
-        spreadRadius: 2,
-        blurRadius: 10,
-        offset: const Offset(0, 4), 
-      ),
-    ],
-  ),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text(
-        name ?? "Loading...",
-        style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
-      ),
-      const SizedBox(height: 3),
-      Text(
-        "Face Shape: ${faceShape ?? "Loading..."}",
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
-      ),
-      Text(
-        "Skin Tone: ${skinTone ?? "Loading..."}",
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
-      ),
-      const SizedBox(height: 2),
-      ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.pinkAccent),
-        onPressed: _showEditProfileDialog,
-        child: const Text("Edit Profile", style: TextStyle(color: Colors.white)),
-      ),
-    ],
-  ),
-),
-
-  const SizedBox(height: 2),
-        DefaultTabController(
-            length: 3,
-            child: Column(
-            children: [
-                      TabBar(
+                      width: 350,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color.fromARGB(255, 247, 205, 227),
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color.fromARGB(95, 238, 146, 203).withOpacity(0.2),
+                            spreadRadius: 2,
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            name ?? "Loading...",
+                            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "Face Shape: ${faceShape ?? "Loading..."}",
+                            style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
+                          ),
+                          Text(
+                            "Skin Tone: ${skinTone ?? "Loading..."}",
+                            style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
+                          ),
+                          const SizedBox(height: 15),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.pinkAccent,
+                            ),
+                            onPressed: _showEditProfileDialog,
+                            child: const Text(
+                              "Edit Profile",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DefaultTabController(
+                      length: 3,
+                      child: Column(
+                        children: [
+                          TabBar(
                             labelColor: const Color.fromARGB(255, 244, 85, 135),
                             unselectedLabelColor: Colors.black,
                             indicatorColor: Colors.pinkAccent,
@@ -559,7 +399,7 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
                             ],
                           ),
                           SizedBox(
-                            height: 350,
+                            height: 420,
                             child: TabBarView(
                               children: [
                                 _buildImageCarousel(['assets/oval1.png', 'assets/round.png', 'assets/square.png', 'assets/heart.png']),
@@ -573,7 +413,6 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
                               ],
                             ),
                           ),
-                          const SizedBox(height: 95),
                         ],
                       ),
                     ),
@@ -581,13 +420,96 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageCarousel(List<String> imagePaths) {
+    final PageController pageController = PageController();
+    final ValueNotifier<int> currentPage = ValueNotifier<int>(0);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 350,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PageView.builder(
+                  controller: pageController,
+                  itemCount: imagePaths.length,
+                  onPageChanged: (index) => currentPage.value = index,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          imagePaths[index],
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Positioned(
+                  left: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                    onPressed: () {
+                      if (currentPage.value > 0) {
+                        pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                        );
+                      }
+                    },
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.black),
+                    onPressed: () {
+                      if (currentPage.value < imagePaths.length - 1) {
+                        pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          ValueListenableBuilder<int>(
+            valueListenable: currentPage,
+            builder: (context, value, _) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  imagePaths.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value == index ? Colors.pinkAccent : Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 }
-
-
-
-

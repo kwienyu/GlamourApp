@@ -279,7 +279,7 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
                           selectedMakeupLook: selectedMakeupLook!,
                           userId: userId,
                           skinTone: userSkinTone,
-                          recommendationData: responseData, // Pass the API response data
+                          recommendationData: responseData, 
                         ),
                       ),
                     );

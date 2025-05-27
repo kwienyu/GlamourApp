@@ -16,14 +16,14 @@ class UserProfile {
   }
 }
 
-class CameraPage extends StatefulWidget {
-  const CameraPage({super.key});
+class CameraClient extends StatefulWidget {
+  const CameraClient({super.key});
 
   @override
-  State<CameraPage> createState() => _CameraPageState();
+  State<CameraClient> createState() => _CameraClientState();
 }
 
-class _CameraPageState extends State<CameraPage> {
+class _CameraClientState extends State<CameraClient> {
   CameraController? _cameraController;
   Future<void>? _initializeControllerFuture;
   XFile? _imageFile;
@@ -33,8 +33,8 @@ class _CameraPageState extends State<CameraPage> {
   String? _faceShape;
   bool _isLoading = false;
   bool _canProceed = false;
-  bool _isCameraReady = false;
-  String? _errorMessage;
+  bool _cameraInitialized = false;
+  String? _cameraError;
 
   final String apiUrl = 'https://glamouraika.com/api/upload_image';
 
@@ -46,47 +46,44 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _initializeCamera() async {
     try {
-      WidgetsFlutterBinding.ensureInitialized();
       _cameras = await availableCameras();
-      
       if (_cameras == null || _cameras!.isEmpty) {
         setState(() {
-          _errorMessage = 'No cameras available';
+          _cameraError = 'No cameras available';
         });
         return;
       }
-
+      
       _cameraController = CameraController(
         _cameras![_selectedCameraIndex],
         ResolutionPreset.medium,
-        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       _initializeControllerFuture = _cameraController!.initialize().then((_) {
         if (!mounted) return;
         setState(() {
-          _isCameraReady = true;
+          _cameraInitialized = true;
         });
       });
 
       await _initializeControllerFuture;
     } on CameraException catch (e) {
       setState(() {
-        _errorMessage = 'Camera error: ${e.description}';
-        _isCameraReady = false;
+        _cameraError = 'Camera error: ${e.description}';
+        _cameraInitialized = false;
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error initializing camera: $e';
-        _isCameraReady = false;
+        _cameraError = 'Error initializing camera: $e';
+        _cameraInitialized = false;
       });
     }
   }
 
   Future<void> _takePicture() async {
-    if (!_isCameraReady || _cameraController == null) {
+    if (!_cameraInitialized || _cameraController == null || !_cameraController!.value.isInitialized) {
       setState(() {
-        _errorMessage = 'Camera not ready';
+        _cameraError = 'Camera not ready';
       });
       return;
     }
@@ -103,36 +100,32 @@ class _CameraPageState extends State<CameraPage> {
       });
 
       await _analyzeImage(File(image.path));
-    } on CameraException catch (e) {
-      setState(() {
-        _errorMessage = 'Camera error: ${e.description}';
-        _isLoading = false;
-      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error capturing image: $e';
+        _cameraError = 'Error capturing image: $e';
         _isLoading = false;
       });
     }
   }
 
   Future<void> _analyzeImage(File imageFile) async {
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+
+    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('email');
+
+    if (email == null || email.trim().isEmpty) {
+      _showErrorDialog('No email found in storage. Please log in again.');
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final normalizedEmail = email.trim().toLowerCase();
+    request.fields['email'] = normalizedEmail;
+
     try {
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-
-      final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('email');
-
-      if (email == null || email.trim().isEmpty) {
-        _showErrorDialog('No email found in storage. Please log in again.');
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final normalizedEmail = email.trim().toLowerCase();
-      request.fields['email'] = normalizedEmail;
-
       var response = await request.send();
       var responseData = await response.stream.bytesToString();
 
@@ -146,51 +139,48 @@ class _CameraPageState extends State<CameraPage> {
             _skinTone = jsonData['skin_tone'];
             _faceShape = jsonData['face_shape'];
             _canProceed = true;
+            _isLoading = false;
           });
-          await saveProfileData(_faceShape!, _skinTone!);
         } else {
           _showErrorDialog('No results found. Please try again.');
+          setState(() => _isLoading = false);
         }
       } else {
         _showErrorDialog('Server error ${response.statusCode}. $responseData');
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       _showErrorDialog('Network error. Please check your connection.');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _switchCamera() async {
     if (_cameras == null || _cameras!.length <= 1) return;
 
-    setState(() {
-      _isCameraReady = false;
-      _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras!.length;
-    });
-
     if (_cameraController != null) {
       await _cameraController!.dispose();
     }
 
+    setState(() {
+      _cameraInitialized = false;
+      _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras!.length;
+    });
+
     _cameraController = CameraController(
       _cameras![_selectedCameraIndex],
       ResolutionPreset.medium,
-      imageFormatGroup: ImageFormatGroup.jpeg,
     );
 
     try {
       await _cameraController!.initialize();
       setState(() {
-        _isCameraReady = true;
-        _errorMessage = null;
+        _cameraInitialized = true;
+        _cameraError = null;
       });
-    } on CameraException catch (e) {
+    } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to switch camera: ${e.description}';
-        _isCameraReady = false;
+        _cameraError = 'Failed to switch camera: $e';
       });
     }
   }
@@ -215,80 +205,6 @@ class _CameraPageState extends State<CameraPage> {
         ],
       ),
     );
-  }
-
-  Future<void> saveProfileData(String faceShape, String skinTone) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('user_id');
-
-      if (userId == null) {
-        print("Error: User ID is null");
-        return;
-      }
-
-      final response = await http.post(
-        Uri.parse("https://glamouraika.com/api/user-profile"),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userId,
-          'face_shape': faceShape,
-          'skin_tone': skinTone,
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        print("Failed to save data: ${response.body}");
-      }
-    } catch (e) {
-      print("Exception: $e");
-    }
-  }
-
-  void _handleProceed() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm'),
-        content: const Text('Your result will be saved to your profile.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              UserProfile.setProfile(_skinTone, _faceShape);
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MakeupHubPage(skinTone: _skinTone),
-                ),
-              );
-            },
-            child: const Text('OK'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCameraPreview() {
-    if (_imageFile != null) {
-      return Image.file(File(_imageFile!.path), fit: BoxFit.cover);
-    } else if (_errorMessage != null) {
-      return Center(
-        child: Text(
-          _errorMessage!,
-          style: const TextStyle(color: Colors.white),
-        ),
-      );
-    } else if (!_isCameraReady) {
-      return const Center(child: CircularProgressIndicator());
-    } else {
-      return CameraPreview(_cameraController!);
-    }
   }
 
   @override
@@ -321,6 +237,14 @@ class _CameraPageState extends State<CameraPage> {
                   ),
                 ),
               ),
+              if (_cameraError != null)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    _cameraError!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
               const SizedBox(height: 15),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -353,19 +277,20 @@ class _CameraPageState extends State<CameraPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 30),
-                          onPressed: _cameras != null && _cameras!.length > 1 ? _switchCamera : null,
-                        ),
+                            icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 30),
+                            onPressed: (_cameras != null && _cameras!.length > 1) ? _switchCamera : null,
+                          ),
+
                         const SizedBox(width: 25),
                         ElevatedButton.icon(
-                          onPressed: _isLoading || !_isCameraReady ? null : _takePicture,
+                          onPressed: _isLoading || !_cameraInitialized ? null : _takePicture,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.pink[300],
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           ),
-                          icon: _isLoading
+                          icon: _isLoading 
                               ? const SizedBox(
                                   width: 24,
                                   height: 24,
@@ -377,7 +302,7 @@ class _CameraPageState extends State<CameraPage> {
                     ),
                     const SizedBox(height: 10),
                     ElevatedButton(
-                      onPressed: _canProceed ? _handleProceed : null,
+                      onPressed: _canProceed ? _handleProceed : null, 
                       child: const Text('Proceed'),
                     ),
                   ],
@@ -388,5 +313,74 @@ class _CameraPageState extends State<CameraPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildCameraPreview() {
+    if (_imageFile != null) {
+      return Image.file(File(_imageFile!.path), fit: BoxFit.cover);
+    } else if (_cameraError != null) {
+      return Center(
+        child: Text(
+          _cameraError!,
+          style: const TextStyle(color: Colors.white),
+        ),
+      );
+    } else if (!_cameraInitialized) {
+      return const Center(child: CircularProgressIndicator());
+    } else {
+      return CameraPreview(_cameraController!);
+    }
+  }
+
+  void _handleProceed() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm'),
+        content: const Text('Your result will be saved to your profile.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              UserProfile.setProfile(_skinTone, _faceShape);    
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MakeupHubPage(skinTone: _skinTone)),
+              );
+            },
+            child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> saveProfileData(String faceShape, String skinTone) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+
+    if (userId == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse("https://glamouraika.com/api/user-profile"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': userId,
+          'face_shape': faceShape,
+          'skin_tone': skinTone,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        print("Failed to save data: ${response.body}");
+      }
+    } catch (e) {
+      print("Exception: $e");
+    }
   }
 }
