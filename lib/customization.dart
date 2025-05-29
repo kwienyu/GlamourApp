@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'makeuphub.dart';
-import 'profile_selection.dart';
+import 'glamvault.dart';
 
 class CustomizationPage extends StatefulWidget {
   final String imagePath;
@@ -352,13 +352,13 @@ class _CustomizationPageState extends State<CustomizationPage> {
             child: Container(
               child: IconButton(
                 icon: Icon(
-                  Icons.home,
+                  Icons.star,
                   size: 25,
                   color: Colors.pinkAccent,
                 ),
                 onPressed: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => ProfileSelection(userId: widget.userId,)),
+                    MaterialPageRoute(builder: (context) =>  GlamVaultScreen(userId: int.parse(widget.userId))),
                   );
                 },
               ),
@@ -608,7 +608,16 @@ Positioned(
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              child: const Text("Retake"),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                   : const Text("Retake"),
             ),
             const SizedBox(width: 10), 
             

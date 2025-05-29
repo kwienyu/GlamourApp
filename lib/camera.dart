@@ -35,6 +35,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _canProceed = false;
   bool _isCameraReady = false;
   String? _errorMessage;
+  bool _showWarning = true;
 
   final String apiUrl = 'https://glamouraika.com/api/upload_image';
 
@@ -42,6 +43,14 @@ class _CameraPageState extends State<CameraPage> {
   void initState() {
     super.initState();
     _initializeCamera();
+    // Hide warning after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          _showWarning = false;
+        });
+      }
+    });
   }
 
   Future<void> _initializeCamera() async {
@@ -81,6 +90,120 @@ class _CameraPageState extends State<CameraPage> {
         _isCameraReady = false;
       });
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.9,
+                      height: MediaQuery.of(context).size.height * 0.6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _buildCameraPreview(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.9,
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            _skinTone == null && _faceShape == null
+                                ? 'Click capture to scan your face'
+                                : 'Skin Tone: $_skinTone\nFace Shape: $_faceShape',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 20, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 30),
+                              onPressed: _cameras != null && _cameras!.length > 1 ? _switchCamera : null,
+                            ),
+                            const SizedBox(width: 25),
+                            ElevatedButton.icon(
+                              onPressed: _isLoading || !_isCameraReady ? null : _takePicture,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.pink[300],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                              icon: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(color: Colors.white))
+                                  : const Icon(Icons.camera_alt),
+                              label: _isLoading ? const Text('Analyzing...') : const Text('Capture'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: _canProceed ? _handleProceed : null,
+                          child: const Text('Proceed'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_showWarning)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Image.asset('assets/warning1.png'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _takePicture() async {
@@ -265,10 +388,6 @@ class _CameraPageState extends State<CameraPage> {
             },
             child: const Text('OK'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
         ],
       ),
     );
@@ -289,104 +408,5 @@ class _CameraPageState extends State<CameraPage> {
     } else {
       return CameraPreview(_cameraController!);
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              Center(
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  height: MediaQuery.of(context).size.height * 0.6,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: _buildCameraPreview(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        _skinTone == null && _faceShape == null
-                            ? 'Click capture to scan your face'
-                            : 'Skin Tone: $_skinTone\nFace Shape: $_faceShape',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 20, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 30),
-                          onPressed: _cameras != null && _cameras!.length > 1 ? _switchCamera : null,
-                        ),
-                        const SizedBox(width: 25),
-                        ElevatedButton.icon(
-                          onPressed: _isLoading || !_isCameraReady ? null : _takePicture,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.pink[300],
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                          ),
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(color: Colors.white))
-                              : const Icon(Icons.camera_alt),
-                          label: _isLoading ? const Text('Analyzing...') : const Text('Capture'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: _canProceed ? _handleProceed : null,
-                      child: const Text('Proceed'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

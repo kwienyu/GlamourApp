@@ -38,7 +38,9 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       } else {
         return look.isClientLook;
       }
-    }).toList();
+    }).toList()
+    // Sort by date in descending order (newest first)
+    ..sort((a, b) => b.savedDate.compareTo(a.savedDate));
   }
 
   Future<void> _fetchSavedLooks() async {
@@ -47,6 +49,8 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       final response = await http.get(
         Uri.parse('https://glamouraika.com/api/user/${widget.userId}/saved_looks'),
       );
+
+       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -64,11 +68,12 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                 look.imageData!,
                 prefs
               );
+
               lookImages[look.savedLookId] = processedImage;
             }
-
             // Fetch shades for each look
             await _fetchShadesForLook(look.savedLookId);
+            if (!mounted) return;
           } catch (e) {
             debugPrint('Error processing look ${lookData['saved_look_id']}: $e');
           }
@@ -118,6 +123,9 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         imageBytes = base64Decode(imageData);
       }
 
+      // Cache the image
+      await prefs.setString(cachedKey, base64Encode(imageBytes));
+
       return imageBytes;
     } catch (e) {
       debugPrint('Error processing image for look $lookId: $e');
@@ -130,6 +138,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       final response = await http.get(
         Uri.parse('https://glamouraika.com/api/saved_looks/$savedLookId/shades'),
       );
+      
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -332,6 +341,16 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                            child: Text(
+                                              look.formattedDate,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ),
                                           if (look.isClientLook)
                                             Padding(
                                               padding: const EdgeInsets.only(bottom: 4.0),
@@ -365,13 +384,15 @@ class SavedLook {
   final int savedLookId;
   final String makeupLookName;
   final String? imageData;
-  final bool isClientLook; // Added for tab filtering
+  final bool isClientLook;
+  final DateTime savedDate; // Added for date tracking
 
   SavedLook({
     required this.savedLookId,
     required this.makeupLookName,
     this.imageData,
-    this.isClientLook = false, // Default to false
+    this.isClientLook = false,
+    required this.savedDate,
   });
 
   factory SavedLook.fromJson(Map<String, dynamic> json) {
@@ -379,8 +400,16 @@ class SavedLook {
       savedLookId: json['saved_look_id'],
       makeupLookName: json['makeup_look_name'],
       imageData: json['image_data'],
-      isClientLook: json['is_client_look'] ?? false, // Parse from JSON
+      isClientLook: json['is_client_look'] ?? false,
+      savedDate: json['saved_date'] != null 
+          ? DateTime.parse(json['saved_date'])
+          : DateTime.now(), // Default to now if not provided
     );
+  }
+
+  // Getter for formatted date
+  String get formattedDate {
+    return '${savedDate.month}/${savedDate.day}/${savedDate.year} ${savedDate.hour}:${savedDate.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -398,15 +427,39 @@ class LookDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text(look.makeupLookName),
+        backgroundColor: Colors.pinkAccent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Image.asset(
+          'assets/glam_logo.png',
+          height: screenHeight * 0.07, // 7% of screen height
+          fit: BoxFit.contain,
+        ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Moved date and time above the image
+            Text(
+              'Saved on: ${look.formattedDate}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 10),
+            
+            // Image section
             SizedBox(
               height: 300,
               width: double.infinity,
@@ -421,6 +474,33 @@ class LookDetailsScreen extends StatelessWidget {
                   : _buildPlaceholder(),
             ),
             SizedBox(height: 20),
+            
+            // Centered makeup look type and name
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    'Type of makeup Look:',
+                    style: TextStyle(
+                      fontFamily: 'Serif',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    look.makeupLookName,
+                    style: TextStyle(
+                      fontFamily: 'Serif',
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10),
+            
+            // Client look indicator (if applicable)
             if (look.isClientLook)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
@@ -433,8 +513,10 @@ class LookDetailsScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            
+            // Shades section
             if (shades.isNotEmpty) ...[
-              Text('Shades:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Shades:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Serif',)),
               ...shades.entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.only(top: 16),
@@ -443,7 +525,7 @@ class LookDetailsScreen extends StatelessWidget {
                     children: [
                       Text(
                         entry.key,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Serif',),
                       ),
                       SizedBox(height: 8),
                       if (entry.value is List)

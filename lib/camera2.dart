@@ -34,12 +34,13 @@ class CameraPage extends StatefulWidget {
 class _CameraPageState extends State<CameraPage> {
   CameraController? _controller;
   late Future<void> _initializeControllerFuture;
-  String? _imagePath;
+  String? _imagePath; // Stored for potential future use or debugging
   bool _isFaceDetected = false;
   bool _isInsideFrame = false;
   bool _isUsingFrontCamera = true;
   bool _isProcessing = false;
   Timer? _detectionSimulationTimer;
+  late BuildContext _scaffoldContext;
 
   @override
   void initState() {
@@ -65,6 +66,11 @@ class _CameraPageState extends State<CameraPage> {
       if (mounted) setState(() {});
     } catch (e) {
       print("Camera init error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+          const SnackBar(content: Text("Failed to initialize camera")),
+        );
+      }
     }
   }
 
@@ -101,7 +107,7 @@ class _CameraPageState extends State<CameraPage> {
   bool get _isReadyForCapture =>
       _isFaceDetected && _isInsideFrame && !_isProcessing;
 
-  Future<void> _takePicture(BuildContext context) async {
+  Future<void> _takePicture() async {
     try {
       setState(() => _isProcessing = true);
       
@@ -115,17 +121,19 @@ class _CameraPageState extends State<CameraPage> {
 
       if (!mounted) return;
 
-      setState(() => _imagePath = imagePath);
+      setState(() => _imagePath = imagePath); // Storing path even if not currently used
 
-     if (widget.recommendationData != null) {
-  _navigateToCustomization(context, imagePath);
-} else {
-  await _fetchRecommendationData(imagePath, context);
-}
+      if (widget.recommendationData != null) {
+        if (mounted) {
+          _navigateToCustomization(imagePath);
+        }
+      } else {
+        await _fetchRecommendationData(imagePath);
+      }
     } catch (e) {
       print("Capture error: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
           const SnackBar(content: Text("Failed to capture image.")),
         );
       }
@@ -134,59 +142,60 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<void> _fetchRecommendationData(String imagePath, BuildContext context) async {
-  try {
-    final response = await http.post(
-      Uri.parse('https://glamouraika.com/api/recommendation'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'user_id': widget.userId,
-        'undertone': widget.selectedUndertone,
-        'makeup_type': widget.selectedMakeupType,
-        'makeup_look': widget.selectedMakeupLook,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = json.decode(response.body);
-      if (mounted) {
-        _navigateToCustomization(context, imagePath, recommendationData: responseData);
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("API Error: ${response.body}")),
-        );
-        _navigateToCustomization(context, imagePath);
-      }
-    }
-  } catch (e) {
-    print("API call error: $e");
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't fetch recommendations")),
+  Future<void> _fetchRecommendationData(String imagePath) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://glamouraika.com/api/recommendation'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': widget.userId,
+          'undertone': widget.selectedUndertone,
+          'makeup_type': widget.selectedMakeupType,
+          'makeup_look': widget.selectedMakeupLook,
+        }),
       );
-      _navigateToCustomization(context, imagePath);
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (mounted) {
+          _navigateToCustomization(imagePath, recommendationData: responseData);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+            SnackBar(content: Text("API Error: ${response.body}")),
+          );
+          _navigateToCustomization(imagePath);
+        }
+      }
+    } catch (e) {
+      print("API call error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+          const SnackBar(content: Text("Couldn't fetch recommendations")),
+        );
+        _navigateToCustomization(imagePath);
+      }
     }
   }
-}
 
-void _navigateToCustomization(BuildContext context, String imagePath, {Map<String, dynamic>? recommendationData}) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => CustomizationPage(
-        imagePath: imagePath,
-        selectedMakeupType: widget.selectedMakeupType,
-        selectedMakeupLook: widget.selectedMakeupLook,
-        userId: widget.userId,
-        undertone: widget.selectedUndertone,
-        skinTone: widget.skinTone,
-        recommendationData: recommendationData ?? widget.recommendationData,
+  void _navigateToCustomization(String imagePath, {Map<String, dynamic>? recommendationData}) {
+    if (!mounted) return;
+    
+    Navigator.of(_scaffoldContext).push(
+      MaterialPageRoute(
+        builder: (context) => CustomizationPage(
+          imagePath: imagePath,
+          selectedMakeupType: widget.selectedMakeupType,
+          selectedMakeupLook: widget.selectedMakeupLook,
+          userId: widget.userId,
+          undertone: widget.selectedUndertone,
+          skinTone: widget.skinTone,
+          recommendationData: recommendationData ?? widget.recommendationData,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void dispose() {
@@ -215,6 +224,8 @@ void _navigateToCustomization(BuildContext context, String imagePath, {Map<Strin
 
   @override
   Widget build(BuildContext context) {
+    _scaffoldContext = context;
+    
     return Scaffold(
       body: Stack(
         children: [
@@ -293,7 +304,7 @@ void _navigateToCustomization(BuildContext context, String imagePath, {Map<Strin
                         ),
                       ),
                       child: ElevatedButton(
-                        onPressed: _isReadyForCapture ? () => _takePicture(context) : null,
+                        onPressed: _isReadyForCapture ? _takePicture : null,
                         style: ElevatedButton.styleFrom(
                           shape: const CircleBorder(),
                           padding: const EdgeInsets.all(20),
