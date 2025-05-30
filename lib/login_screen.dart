@@ -15,12 +15,12 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  bool isLoading = false; // Added state for loading effect
-  bool _obscurePassword = true; // State for password visibility toggle
+  bool isLoading = false; 
+  bool _obscurePassword = true; 
 
   Future<void> loginUser(BuildContext context) async {
     setState(() {
-      isLoading = true; // Show loading effect
+      isLoading = true; 
     });
 
     String apiUrl = 'https://glamouraika.com/api/login';
@@ -56,9 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-
-          // Navigate after slight delay
-          Future.delayed(const Duration(seconds: 1), () async {  // Added async here
+          Future.delayed(const Duration(seconds: 1), () async { 
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             final prefs = await SharedPreferences.getInstance();
             final userId = prefs.getString('user_id') ?? '';
@@ -68,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           });
         } else {
-          // Handle non-JSON successful response
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Server error: Unexpected response format.'),
@@ -97,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } finally {
       setState(() {
-        isLoading = false; // Hide loading effect
+        isLoading = false; 
       });
     }
   }

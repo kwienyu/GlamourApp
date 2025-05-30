@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'profile_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Add this enum for look types
 enum LookType { user, client }
 
 class GlamVaultScreen extends StatefulWidget {
@@ -22,7 +21,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   bool isLoading = true;
   Map<int, Map<String, dynamic>> lookShades = {};
   Map<int, Uint8List?> lookImages = {};
-  LookType _selectedLookType = LookType.user; // Track selected tab
+  LookType _selectedLookType = LookType.user; 
 
   @override
   void initState() {
@@ -39,7 +38,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         return look.isClientLook;
       }
     }).toList()
-    // Sort by date in descending order (newest first)
     ..sort((a, b) => b.savedDate.compareTo(a.savedDate));
   }
 
@@ -123,7 +121,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         imageBytes = base64Decode(imageData);
       }
 
-      // Cache the image
       await prefs.setString(cachedKey, base64Encode(imageBytes));
 
       return imageBytes;
@@ -385,7 +382,7 @@ class SavedLook {
   final String makeupLookName;
   final String? imageData;
   final bool isClientLook;
-  final DateTime savedDate; // Added for date tracking
+  final DateTime savedDate; 
 
   SavedLook({
     required this.savedLookId,
@@ -403,7 +400,7 @@ class SavedLook {
       isClientLook: json['is_client_look'] ?? false,
       savedDate: json['saved_date'] != null 
           ? DateTime.parse(json['saved_date'])
-          : DateTime.now(), // Default to now if not provided
+          : DateTime.now(), 
     );
   }
 
@@ -439,7 +436,7 @@ class LookDetailsScreen extends StatelessWidget {
         ),
         title: Image.asset(
           'assets/glam_logo.png',
-          height: screenHeight * 0.07, // 7% of screen height
+          height: screenHeight * 0.07, 
           fit: BoxFit.contain,
         ),
         centerTitle: true,
@@ -449,7 +446,6 @@ class LookDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Moved date and time above the image
             Text(
               'Saved on: ${look.formattedDate}',
               style: TextStyle(
@@ -474,8 +470,6 @@ class LookDetailsScreen extends StatelessWidget {
                   : _buildPlaceholder(),
             ),
             SizedBox(height: 20),
-            
-            // Centered makeup look type and name
             Center(
               child: Column(
                 children: [
@@ -499,8 +493,6 @@ class LookDetailsScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 10),
-            
-            // Client look indicator (if applicable)
             if (look.isClientLook)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
@@ -560,7 +552,7 @@ class LookDetailsScreen extends StatelessWidget {
                               );
                             } catch (e) {
                               debugPrint('Error rendering shade: $e');
-                              return Container(); // Empty container if error occurs
+                              return Container(); 
                             }
                           }).toList(),
                         ),

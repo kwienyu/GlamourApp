@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'makeuphub.dart';
+
 
 class UndertoneTutorial extends StatefulWidget {
   const UndertoneTutorial({super.key});
@@ -9,27 +9,7 @@ class UndertoneTutorial extends StatefulWidget {
 }
 
 class _UndertoneTutorialState extends State<UndertoneTutorial> {
-  bool _isLoading = false; // Track loading state
-
-  void _onProceed() {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Effect for navigating
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => MakeupHubPage()),
-        );
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    });
-  }
-
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,30 +35,6 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
               const SizedBox(height: 5),
               Image.asset('assets/undertone.png', width: 550, height: 550),
               const SizedBox(height: 20),
-              SizedBox(
-                width: 150,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _onProceed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 239, 134, 169),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color.fromARGB(255, 237, 156, 190)),
-                        )
-                      : const Text(
-                          'Proceed',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Color.fromARGB(255, 243, 241, 242),
-                          ),
-                        ),
-                ),
-              ),
             ],
           ),
         ),

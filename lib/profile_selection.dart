@@ -43,7 +43,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         elevation: 0,
         title: Image.asset(
           'assets/glam_logo.png',
-          height: screenHeight * 0.07, // 7% of screen height
+          height: screenHeight * 0.07, 
           fit: BoxFit.contain,
         ),
         centerTitle: true,
@@ -97,7 +97,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     return ClipPath(
       clipper: TopCurveClipper(),
       child: Container(
-        height: screenHeight * 0.25, // 25% of screen height
+        height: screenHeight * 0.25, 
         decoration: const BoxDecoration(color: Colors.pinkAccent),
       ),
     );
@@ -150,7 +150,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   Widget _buildProfileCards(double screenWidth) {
     return SizedBox(
-      height: screenWidth * 0.9, // 90% of screen width (for height)
+      height: screenWidth * 0.9, 
       child: PageView(
         controller: _pageController,
         children: [

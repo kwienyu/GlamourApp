@@ -37,7 +37,7 @@ class _MakeupGuideState extends State<MakeupGuide> {
 
               // Move the button up
               Padding(
-                padding: const EdgeInsets.only(top: 2), // Adjust top padding as needed
+                padding: const EdgeInsets.only(top: 2), 
                 child: SizedBox(
                   width: 130,
                   height: 45,

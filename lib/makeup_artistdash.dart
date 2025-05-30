@@ -102,7 +102,6 @@ class _MakeupArtistDashState extends State<MakeupArtistDash>
                     ],
                   ),
                 ),
-                // Content for Recommendations tab
                 Center(child: Text("Recommendations Content")),
               ],
             ),
