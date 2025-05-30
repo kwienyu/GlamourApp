@@ -43,7 +43,6 @@ class _CameraPageState extends State<CameraPage> {
   void initState() {
     super.initState();
     _initializeCamera();
-    // Hide warning after 5 seconds
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         setState(() {
