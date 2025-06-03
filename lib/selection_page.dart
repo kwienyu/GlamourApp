@@ -161,7 +161,7 @@ class _SelectionPageState extends State<SelectionPage> {
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully'), backgroundColor: Color.fromARGB(255, 238, 148, 195)),
+        const SnackBar(content: Text('Profile uploaded successfully'), backgroundColor: Color.fromARGB(255, 238, 148, 195)),
       );
       await Future.delayed(const Duration(seconds: 2));
       await _fetchProfileData();

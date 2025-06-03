@@ -35,7 +35,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
   bool showMakeupProducts = false;
   bool showShades = false;
   bool isLoading = false;
-  bool isSaved = false; 
+  bool isSaved = false; // Added missing variable
 
   // Store selected shades for each product type
   Map<String, Color?> selectedShades = {
@@ -49,7 +49,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
     'Eyebrow': null,
   };
 
-  // Store all recommended shades 
+  // Store all recommended shades from API
   Map<String, List<Color>> makeupShades = {};
 
   final Map<String, String> productIcons = {
@@ -167,7 +167,9 @@ class _CustomizationPageState extends State<CustomizationPage> {
     final imageBytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(imageBytes);
 
+    // Prepare the shades data in the format the API expects
     Map<String, List<String>> labeledShades = {};
+    
     selectedShades.forEach((productType, color) {
       if (color != null) {
         // Convert Color to hex string (e.g., #FF5733)
@@ -294,6 +296,54 @@ class _CustomizationPageState extends State<CustomizationPage> {
               fit: BoxFit.cover,
             ),
           ),
+
+          // Makeup Overlays
+          ...selectedShades.entries.map((entry) {
+            if (entry.value == null) return Container();
+            
+            final product = entry.key;
+            final shade = entry.value!;
+            
+            switch (product) {
+              case 'Foundation':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.3, 
+                    MediaQuery.of(context).size.height * 0.4, 
+                    MediaQuery.of(context).size.width * 0.4, 
+                    MediaQuery.of(context).size.height * 0.4, 0.5);
+              case 'Concealer':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.35, 
+                    MediaQuery.of(context).size.height * 0.45, 
+                    MediaQuery.of(context).size.width * 0.2, 
+                    MediaQuery.of(context).size.height * 0.2, 0.5);
+              case 'Contour':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.32, 
+                    MediaQuery.of(context).size.height * 0.48, 
+                    MediaQuery.of(context).size.width * 0.3, 
+                    MediaQuery.of(context).size.height * 0.1, 0.5);
+              case 'Eyeshadow':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.45, 
+                    MediaQuery.of(context).size.height * 0.3, 
+                    MediaQuery.of(context).size.width * 0.2, 
+                    MediaQuery.of(context).size.height * 0.05, 0.6);
+              case 'Blush':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.4, 
+                    MediaQuery.of(context).size.height * 0.55, 
+                    MediaQuery.of(context).size.width * 0.2, 
+                    MediaQuery.of(context).size.height * 0.1, 0.5);
+              case 'Lipstick':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.45, 
+                    MediaQuery.of(context).size.height * 0.65, 
+                    MediaQuery.of(context).size.width * 0.15, 
+                    MediaQuery.of(context).size.height * 0.05, 0.6);
+              case 'Highlighter':
+                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.43, 
+                    MediaQuery.of(context).size.height * 0.35, 
+                    MediaQuery.of(context).size.width * 0.2, 
+                    MediaQuery.of(context).size.height * 0.07, 0.5);
+              default:
+                return Container();
+            }
+          }),
           Positioned(
             left: 10,
             top: 40,

@@ -4,7 +4,6 @@ import 'camera.dart';
 import 'glamvault.dart';
 import 'makeup_guide.dart';
 
-
 class ProfileSelection extends StatefulWidget {
   final String userId;
   const ProfileSelection({super.key, required this.userId});
@@ -16,7 +15,7 @@ class ProfileSelection extends StatefulWidget {
 class _ProfileSelectionState extends State<ProfileSelection> {
   int selectedIndex = 0;
   bool showBubble = true;
-  final PageController _pageController = PageController(viewportFraction: 0.7);
+  final PageController _pageController = PageController(viewportFraction: 0.8); // Adjusted viewport fraction
 
   @override
   void initState() {
@@ -32,6 +31,93 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     super.dispose();
   }
 
+  Widget _buildImageCarousel(List<String> imagePaths) {
+    final PageController pageController = PageController();
+    final ValueNotifier<int> currentPage = ValueNotifier<int>(0);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 350,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PageView.builder(
+                  controller: pageController,
+                  itemCount: imagePaths.length,
+                  onPageChanged: (index) => currentPage.value = index,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          imagePaths[index],
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Positioned(
+                  left: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                    onPressed: () {
+                      if (currentPage.value > 0) {
+                        pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                        );
+                      }
+                    },
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.black),
+                    onPressed: () {
+                      if (currentPage.value < imagePaths.length - 1) {
+                        pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.ease,
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          ValueListenableBuilder<int>(
+            valueListenable: currentPage,
+            builder: (context, value, _) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  imagePaths.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value == index ? Colors.pinkAccent : Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -43,7 +129,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         elevation: 0,
         title: Image.asset(
           'assets/glam_logo.png',
-          height: screenHeight * 0.07, 
+          height: screenHeight * 0.10, // Slightly smaller logo
           fit: BoxFit.contain,
         ),
         centerTitle: true,
@@ -58,11 +144,53 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         ],
       ),
       drawer: Drawer(child: _buildDrawerContent()),
-      body: Stack(
-        children: [
-          _buildCurvedBackground(screenHeight),
-          _buildMainContent(screenHeight, screenWidth),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                _buildCurvedBackground(screenHeight),
+                _buildMainContent(screenHeight, screenWidth),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: DefaultTabController(
+                length: 3,
+                child: Column(
+                  children: [
+                    TabBar(
+                      labelColor: const Color.fromARGB(255, 244, 85, 135),
+                      unselectedLabelColor: Colors.black,
+                      indicatorColor: Colors.pinkAccent,
+                      isScrollable: true,
+                      tabs: const [
+                        Tab(text: "Face Shapes"),
+                        Tab(text: "Skin Tone"),
+                        Tab(text: "Makeup Looks"),
+                      ],
+                    ),
+                    SizedBox(
+                      height: 400,
+                      child: TabBarView(
+                        children: [
+                          _buildImageCarousel(['assets/oval1.png', 'assets/round.png', 'assets/square.png', 'assets/heart.png']),
+                          _buildImageCarousel(['assets/mestiza1.jpg', 'assets/morena.jpg', 'assets/chinita.jpg']),
+                          _buildImageCarousel([
+                            'assets/makeup1.jpg', 'assets/makeup2.jpg', 'assets/makeup3.jpg',
+                            'assets/makeup4.jpg', 'assets/makeup5.jpg', 'assets/makeup6.jpg',
+                            'assets/makeup7.jpg', 'assets/makeup8.jpg', 'assets/makeup9.jpg',
+                            'assets/makeup10.jpg', 'assets/makeup11.jpg',
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -97,26 +225,21 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     return ClipPath(
       clipper: TopCurveClipper(),
       child: Container(
-        height: screenHeight * 0.25, 
+        height: screenHeight * 0.22, // Slightly smaller curve background
         decoration: const BoxDecoration(color: Colors.pinkAccent),
       ),
     );
   }
 
   Widget _buildMainContent(double screenHeight, double screenWidth) {
-    return SingleChildScrollView(
-      child: SizedBox(
-        height: screenHeight,
-        child: Column(
-          children: [
-            SizedBox(height: screenHeight * 0.05),
-            _buildWelcomeText(),
-            SizedBox(height: screenHeight * 0.20),
-            _buildProfileCards(screenWidth),
-            SizedBox(height: screenHeight * 0.05),
-          ],
-        ),
-      ),
+    return Column(
+      children: [
+        SizedBox(height: screenHeight * 0.04), // Reduced spacing
+        _buildWelcomeText(),
+        SizedBox(height: screenHeight * 0.15), // Reduced spacing
+        _buildProfileCards(screenWidth),
+        SizedBox(height: screenHeight * 0.04), // Reduced spacing
+      ],
     );
   }
 
@@ -127,17 +250,17 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           Text(
             'Hello👋',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 26, // Slightly smaller font
               fontFamily: 'Serif',
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 8), // Reduced spacing
           Text(
             'Welcome to glam-up!!',
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 22, // Slightly smaller font
               fontFamily: 'Serif',
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -150,7 +273,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   Widget _buildProfileCards(double screenWidth) {
     return SizedBox(
-      height: screenWidth * 0.9, 
+      height: screenWidth * 0.7, // Reduced height for smaller cards
       child: PageView(
         controller: _pageController,
         children: [
@@ -166,48 +289,35 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => route)),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.05),
+        margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.07), // Adjusted margin
         decoration: BoxDecoration(
           color: const Color.fromARGB(255, 243, 149, 180),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: Colors.black26,
-              blurRadius: 10,
-              spreadRadius: 2,
+              blurRadius: 8, // Slightly smaller shadow
+              spreadRadius: 1, // Slightly smaller shadow
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.pink[800], size: MediaQuery.of(context).size.width * 0.15),
-            SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+            Icon(icon, 
+              color: Colors.pink[800], 
+              size: MediaQuery.of(context).size.width * 0.12), // Smaller icon
+            SizedBox(height: MediaQuery.of(context).size.height * 0.02), // Reduced spacing
             Text(
               text,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width * 0.06,
+                fontSize: MediaQuery.of(context).size.width * 0.05, // Smaller font
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget buildArtistButton() {
-    return Container(
-      height: MediaQuery.of(context).size.width * 0.22,
-      width: MediaQuery.of(context).size.width * 0.22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color.fromARGB(255, 239, 168, 192),
-        border: Border.all(
-          color: Colors.pinkAccent,
-          width: 4,
         ),
       ),
     );
@@ -218,11 +328,11 @@ class TopCurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    path.lineTo(0, size.height - 100);
+    path.lineTo(0, size.height - 80); // Adjusted curve
     path.cubicTo(
-      size.width * 0.2, size.height - 20,
-      size.width * 0.5, size.height - 140,
-      size.width, size.height,
+      size.width * 0.2, size.height - 15,
+      size.width * 0.5, size.height - 120,
+      size.width, size.height - 20, // Adjusted curve
     );
     path.lineTo(size.width, 0);
     path.close();
@@ -231,34 +341,4 @@ class TopCurveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
-
-class BubbleWithTailPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final fillPaint = Paint()
-      ..color = Colors.pink[100]!
-      ..style = PaintingStyle.fill;
-    final strokePaint = Paint()
-      ..color = Colors.pinkAccent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    final bubbleRect = RRect.fromLTRBR(
-      0, 0, size.width, size.height - 10, Radius.circular(12),
-    );
-    final tailPath = Path()
-      ..moveTo(size.width / 2 - 6, size.height - 10)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width / 2 + 6, size.height - 10)
-      ..close();
-
-    canvas.drawPath(Path()..addRRect(bubbleRect), fillPaint);
-    canvas.drawPath(tailPath, fillPaint);
-    canvas.drawPath(Path()..addRRect(bubbleRect), strokePaint);
-    canvas.drawPath(tailPath, strokePaint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
