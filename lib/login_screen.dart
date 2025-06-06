@@ -13,182 +13,261 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
-  bool isLoading = false; 
-  bool _obscurePassword = true; 
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false;
+  bool _obscurePassword = true;
 
-  Future<void> loginUser(BuildContext context) async {
-    setState(() {
-      isLoading = true; 
-    });
-
-    String apiUrl = 'https://glamouraika.com/api/login';
+  Future<void> loginUser() async {
+    if (!mounted) return;
+    setState(() => isLoading = true);
 
     try {
-      var response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      final response = await http.post(
+        Uri.parse('https://glamouraika.com/api/login'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': emailController.text,
           'password': passwordController.text,
         }),
       );
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
-      print('Raw response: ${response.body}');
+
+      final responseBody = jsonDecode(response.body);
+      print('Raw response: $responseBody');
 
       if (response.statusCode == 200) {
-        if (response.headers['content-type']?.contains('application/json') == true) {
-          var responseData = jsonDecode(response.body);
-
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_id', responseData['user_id'].toString());
-          await prefs.setString('user_email', responseData['email']);
-          print("✅ Saved user_id: ${responseData['user_id']}, email: ${responseData['email']}");
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(responseData['message']),
-              backgroundColor: const Color.fromARGB(255, 238, 148, 195),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          Future.delayed(const Duration(seconds: 1), () async { 
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            final prefs = await SharedPreferences.getInstance();
-            final userId = prefs.getString('user_id') ?? '';
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => ProfileSelection(userId: userId)),
-            );
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Server error: Unexpected response format.'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+        await _handleSuccessResponse(responseBody);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid email or password. Please try again.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showErrorMessage('Invalid email or password. Please try again.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!mounted) return;
+      _showErrorMessage('Error: $e');
     } finally {
-      setState(() {
-        isLoading = false; 
-      });
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
+  }
+
+  Future<void> _handleSuccessResponse(Map<String, dynamic> responseData) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', responseData['user_id'].toString());
+    await prefs.setString('user_email', responseData['email']);
+    print("✅ Saved user_id: ${responseData['user_id']}, email: ${responseData['email']}");
+
+    if (!mounted) return;
+    _showSuccessMessage(responseData['message']);
+
+    await Future.delayed(const Duration(seconds: 1));
+    
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    final userId = prefs.getString('user_id') ?? '';
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => ProfileSelection(userId: userId)),
+    );
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color.fromARGB(255, 238, 148, 195),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/glam_logo.png',
-              height: 100,
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.4),
-                labelText: 'Email Address',
-                prefixIcon: const Icon(Icons.email),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
+      body: Stack(
+        children: [
+          // Background image
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/frame3.png'),
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.4),
-                labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+          ),
+          
+          // Black transparent overlay
+          Container(
+            color: Colors.black.withOpacity(0.5),
+          ),
+          
+          // Content
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 130),
+                  // Logo
+                  Image.asset(
+                    'assets/glam_logo.png', 
+                    height: 100,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 246, 67, 126).withOpacity(0.4),
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              onPressed: isLoading ? null : () => loginUser(context),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      'Log in',
-                      style: TextStyle(color: Colors.white),
+                  const SizedBox(height: 20),
+                  
+                  // Login Form Container
+                  Container(
+                    padding: const EdgeInsets.all(25.0),
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 252, 251, 251).withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(15),
                     ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Don't have an account?"),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
+                    child: Column(
+                      children: [
+                        // Email Field
+                        TextField(
+                          controller: emailController,
+                          style: const TextStyle(color: Colors.black), // Changed to black text
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white, // Solid white background
+                            labelText: 'Email Address',
+                            labelStyle: const TextStyle(color: Colors.black54), // Dark label
+                            prefixIcon: const Icon(Icons.email, color: Colors.pinkAccent),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color.fromARGB(255, 246, 67, 126),
+                                width: 2,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 15, horizontal: 20),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Password Field
+                        TextField(
+                          controller: passwordController,
+                          obscureText: _obscurePassword,
+                          style: const TextStyle(color: Colors.black), // Changed to black text
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white, // Solid white background
+                            labelText: 'Password',
+                            labelStyle: const TextStyle(color: Colors.black54), // Dark label
+                            prefixIcon: const Icon(Icons.lock, color: Colors.pinkAccent),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword 
+                                  ? Icons.visibility_off 
+                                  : Icons.visibility,
+                                color: Colors.pinkAccent,
+                              ),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color.fromARGB(255, 246, 67, 126),
+                                width: 2,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 15, horizontal: 20),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        
+                        // Login Button
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color.fromARGB(255, 246, 67, 126),
+                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 5,
+                          ),
+                          onPressed: isLoading ? null : loginUser,
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'LOG IN',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Register Link
+                  TextButton(
+                    onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const SignUpScreen()),
-                    );
-                  },
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(
-                      color: Color.fromARGB(255, 241, 125, 158),
+                    ),
+                    child: RichText(
+                      text: const TextSpan(
+                        children: [
+                          TextSpan(
+                            text: "Don't have an account? ",
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          TextSpan(
+                            text: 'Register',
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 246, 67, 126),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

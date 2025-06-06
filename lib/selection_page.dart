@@ -11,8 +11,9 @@ import 'camera_client.dart';
 class SelectionPage extends StatefulWidget {
   final String? skinTone;
   final String? faceShape;
+  final String userId;
 
-  const SelectionPage({super.key, this.skinTone, this.faceShape});
+  const SelectionPage({super.key, this.skinTone, this.faceShape, required this.userId,});
 
   @override
   _SelectionPageState createState() => _SelectionPageState();

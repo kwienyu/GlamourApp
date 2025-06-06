@@ -137,6 +137,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       child: Scaffold(
         body: Stack(
           children: [
+            // Background image
+            Positioned.fill(
+              child: Image.asset(
+                'assets/frame3.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            // Semi-transparent overlay
+            Container(
+              color: const Color.fromARGB(255, 4, 4, 4).withOpacity(0.4),
+            ),
             Center(
               child: SingleChildScrollView(
                 child: Padding(
@@ -146,101 +157,139 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Image.asset(
                         'assets/glam_logo.png',
-                        height: 105,
+                        height: 110,
                       ),
-                      const Text(
-                        "Create an Account",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color.fromARGB(255, 9, 9, 9),
+                      const SizedBox(height: 5),
+                      // Transparent black box container for the form
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Color.fromARGB(255, 252, 251, 251).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                      ),
-                      const SizedBox(height: 15),
-                      TextField(
-                        controller: fullNameController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.4),
-                          hintText: "Full Name",
-                          prefixIcon: const Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: emailController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.4),
-                          hintText: "Email Address",
-                          prefixIcon: const Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.4),
-                          hintText: "Password",
-                          prefixIcon: const Icon(Icons.lock),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: dobController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.4),
-                          hintText: "(YYYY-MM-DD)",
-                          prefixIcon: const Icon(Icons.calendar_today),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 246, 67, 126).withOpacity(0.4),
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        onPressed: isLoading ? null : signUp,
-                        child: isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'Sign Up',
-                                style: TextStyle(color: Colors.white),
+                        child: Column(
+                          children: [
+                            const Text(
+                              "Create an Account",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
                               ),
+                            ),
+                            const SizedBox(height: 20),
+                            TextField(
+                              controller: fullNameController,
+                              style: const TextStyle(color: Colors.black),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.3),
+                                hintText: "Full Name",
+                                hintStyle: const TextStyle(color: Colors.black),
+                                prefixIcon: const Icon(Icons.person, color: Colors.pinkAccent),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            TextField(
+                              controller: emailController,
+                              style: const TextStyle(color: Colors.black),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.3),
+                                hintText: "Email Address",
+                                hintStyle: const TextStyle(color: Colors.black),
+                                prefixIcon: const Icon(Icons.email, color: Colors.pinkAccent),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            TextField(
+                              controller: passwordController,
+                              obscureText: _obscurePassword,
+                              style: const TextStyle(color: Colors.black),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.3),
+                                hintText: "Password",
+                                hintStyle: const TextStyle(color: Colors.black),
+                                prefixIcon: const Icon(Icons.lock, color: Colors.pinkAccent),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    color: Colors.pinkAccent,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            TextField(
+                              controller: dobController,
+                              style: const TextStyle(color: Colors.black),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.3),
+                                hintText: "Date of Birth (YYYY-MM-DD)",
+                                hintStyle: const TextStyle(color: Colors.black),
+                                prefixIcon: const Icon(Icons.calendar_today, color: Colors.pinkAccent),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color.fromARGB(255, 246, 67, 126),
+                                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                elevation: 5,
+                              ),
+                              onPressed: isLoading ? null : signUp,
+                              child: isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text(
+                                      'Sign Up',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text("Already have an account?"),
+                          const Text(
+                            "Already have an account?",
+                            style: TextStyle(color: Colors.white),
+                          ),
                           TextButton(
                             onPressed: () {
                               Navigator.push(
@@ -253,7 +302,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: const Text(
                               'Log In',
                               style: TextStyle(
-                                color: Color.fromARGB(255, 241, 125, 158),
+                                color: Color.fromARGB(255, 246, 67, 126),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
