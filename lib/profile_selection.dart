@@ -6,6 +6,7 @@ import 'camera.dart';
 import 'glamvault.dart';
 import 'makeup_guide.dart';
 import 'makeup_artistform.dart';
+import 'faceshapes.dart';
 
 class ProfileSelection extends StatefulWidget {
   final String userId;
@@ -62,155 +63,102 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.pinkAccent,
-        elevation: 0,
-        title: Image.asset(
-          'assets/glam_logo.png',
-          height: screenHeight * 0.10,
-          fit: BoxFit.contain,
-        )
-            .animate()
-            .fadeIn(duration: 500.ms)
-            .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.black)
+      appBar: _buildAppBar(context),
+      drawer: _buildDrawer(),
+      body: _buildBody(context),
+    );
+  }
+
+  AppBar _buildAppBar(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    return AppBar(
+      backgroundColor: Colors.pinkAccent,
+      elevation: 0,
+      title: Image.asset(
+        'assets/glam_logo.png',
+        height: screenHeight * 0.10,
+        fit: BoxFit.contain,
+      )
+          .animate()
+          .fadeIn(duration: 500.ms)
+          .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.black)
+              .animate()
+              .fadeIn(delay: 300.ms)
+              .slide(begin: Offset(-0.5, 0), end: Offset.zero),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MakeupGuide(userId: widget.userId),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Colors.pinkAccent),
+            child: Text(
+              'Menu',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+              ),
+            )
+                .animate()
+                .fadeIn(delay: 100.ms)
+                .scaleXY(begin: 0.8, end: 1),
+          ),
+          ListTile(
+            title: const Text('Home')
+                .animate()
+                .fadeIn(delay: 200.ms)
+                .slideX(begin: -0.2, end: 0),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            title: const Text('Settings')
                 .animate()
                 .fadeIn(delay: 300.ms)
-                .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MakeupGuide(userId: widget.userId),
-              ),
-            ),
+                .slideX(begin: -0.2, end: 0),
+            onTap: () => Navigator.pop(context),
           ),
         ],
       ),
-      drawer: Drawer(child: _buildDrawerContent()),
-      body: SingleChildScrollView(
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: screenHeight,
+        ),
         child: Column(
           children: [
             Stack(
               children: [
                 _buildCurvedBackground(screenHeight),
-                _buildMainContent(screenHeight, screenWidth),
+                _buildMainContent(context),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20.0),
-              child: Column(
-                children: [
-                  const Text(
-                    'Categories',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.pinkAccent,
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(delay: 200.ms)
-                      .scaleXY(begin: 0.8, end: 1),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildCategoryImage('assets/face shape 2.png', 'Face Shape')
-                          .animate()
-                          .fadeIn(delay: 300.ms)
-                          .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-                      _buildCategoryImage('assets/skin tone 2.png', 'Skin Tone')
-                          .animate()
-                          .fadeIn(delay: 400.ms)
-                          .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-                      _buildCategoryImage('assets/makeup look.png', 'Makeup Look')
-                          .animate()
-                          .fadeIn(delay: 500.ms)
-                          .slide(begin: Offset(0.5, 0), end: Offset.zero),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _buildCategoriesSection(context),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildCategoryImage(String imagePath, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            image: DecorationImage(
-              image: AssetImage(imagePath),
-              fit: BoxFit.cover,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 2,
-                blurRadius: 5,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDrawerContent() {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        DrawerHeader(
-          decoration: const BoxDecoration(color: Colors.pinkAccent),
-          child: Text(
-            'Menu',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-            ),
-          )
-              .animate()
-              .fadeIn(delay: 100.ms)
-              .scaleXY(begin: 0.8, end: 1),
-        ),
-        ListTile(
-          title: const Text('Home')
-              .animate()
-              .fadeIn(delay: 200.ms)
-              .slideX(begin: -0.2, end: 0),
-          onTap: () => Navigator.pop(context),
-        ),
-        ListTile(
-          title: const Text('Settings')
-              .animate()
-              .fadeIn(delay: 300.ms)
-              .slideX(begin: -0.2, end: 0),
-          onTap: () => Navigator.pop(context),
-        ),
-      ],
     );
   }
 
@@ -228,13 +176,10 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                   blurRadius: 20,
                   spreadRadius: 5,
                   offset: const Offset(0, 10),
-                ),
-              ],
+            )],
             ),
           ),
-        )
-            .animate()
-            .fadeIn(duration: 300.ms),
+        ).animate().fadeIn(duration: 300.ms),
         ClipPath(
           clipper: TopCurveClipper(),
           child: Container(
@@ -243,14 +188,14 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               color: Colors.pinkAccent,
             ),
           ),
-        )
-            .animate()
-            .fadeIn(duration: 500.ms),
+        ).animate().fadeIn(duration: 500.ms),
       ],
     );
   }
 
-  Widget _buildMainContent(double screenHeight, double screenWidth) {
+  Widget _buildMainContent(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Column(
       children: [
         SizedBox(
@@ -259,14 +204,14 @@ class _ProfileSelectionState extends State<ProfileSelection> {
             children: [
               Positioned.fill(
                 child: Align(
-                  alignment: Alignment(0.0, -0.4), // Move text slightly upward
+                  alignment: Alignment(0.0, -0.4),
                   child: _buildWelcomeText(),
                 ),
               ),
             ],
           ),
         ),
-        _buildProfileCards(screenWidth),
+        _buildProfileCards(context),
         SizedBox(height: screenHeight * 0.04),
       ],
     );
@@ -327,8 +272,10 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildProfileCards(double screenWidth) {
+  Widget _buildProfileCards(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     int? parsedUserId;
+    
     try {
       parsedUserId = int.parse(widget.userId);
     } catch (e) {
@@ -340,19 +287,19 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       child: PageView(
         controller: _pageController,
         children: [
-          _buildProfileCard('assets/profile.png', "Your Profile", SelectionPage(userId: widget.userId))
+          _buildProfileCard(context, 'assets/profile.png', "Your Profile", SelectionPage(userId: widget.userId))
               .animate()
               .fadeIn(delay: 200.ms)
               .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard('assets/camera.png', "Test My Look", const CameraPage())
+          _buildProfileCard(context, 'assets/camera.png', "Test My Look", const CameraPage())
               .animate()
               .fadeIn(delay: 300.ms)
               .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard('assets/facscan_icon.gif', "Be a Makeup Artist", MakeupArtistForm(userId: parsedUserId))
+          _buildProfileCard(context, 'assets/facscan_icon.gif', "Be a Makeup Artist", MakeupArtistForm(userId: parsedUserId))
               .animate()
               .fadeIn(delay: 400.ms)
               .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard(Icons.star, "Glam Vault", GlamVaultScreen(userId: parsedUserId))
+          _buildProfileCard(context, Icons.star, "Glam Vault", GlamVaultScreen(userId: parsedUserId))
               .animate()
               .fadeIn(delay: 500.ms)
               .scaleXY(begin: 0.8, end: 1),
@@ -361,18 +308,20 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildProfileCard(dynamic icon, String text, Widget route) {
+  Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
+    final size = MediaQuery.of(context).size;
+    
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => route)),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.07),
+        margin: EdgeInsets.symmetric(horizontal: size.width * 0.07),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.05),
+          borderRadius: BorderRadius.circular(size.width * 0.05),
           boxShadow: [
             BoxShadow(
               color: Colors.black26,
-              blurRadius: MediaQuery.of(context).size.width * 0.02,
-              spreadRadius: MediaQuery.of(context).size.width * 0.002,
+              blurRadius: size.width * 0.02,
+              spreadRadius: size.width * 0.002,
             ),
           ],
           image: const DecorationImage(
@@ -382,7 +331,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(MediaQuery.of(context).size.width * 0.05),
+            borderRadius: BorderRadius.circular(size.width * 0.05),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -391,24 +340,24 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 Icon(
                   icon,
                   color: Colors.white,
-                  size: MediaQuery.of(context).size.width * 0.20,
+                  size: size.width * 0.20,
                 )
                     .animate(onPlay: (controller) => controller.repeat())
                     .shake(duration: 2000.ms, hz: 2),
               if (icon is String)
                 Image.asset(
                   icon,
-                  width: MediaQuery.of(context).size.width * 0.20,
-                  height: MediaQuery.of(context).size.width * 0.20,
+                  width: size.width * 0.20,
+                  height: size.width * 0.20,
                 )
                     .animate(onPlay: (controller) => controller.repeat())
                     .shake(duration: 2000.ms, hz: 2),
-              SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+              SizedBox(height: size.height * 0.02),
               Text(
                 text,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: MediaQuery.of(context).size.width * 0.06,
+                  fontSize: size.width * 0.06,
                   fontFamily: 'Serif',
                   fontWeight: FontWeight.bold,
                   color: const Color.fromARGB(255, 16, 16, 16),
@@ -420,6 +369,90 @@ class _ProfileSelectionState extends State<ProfileSelection> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+ Widget _buildCategoriesSection(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start, // This aligns children to the left
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: screenWidth * 0.05), // Add left padding to match the items
+          child: const Text(
+            'Categories',
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold, 
+              color: Color.fromARGB(255, 10, 10, 10),
+            ),
+          )
+              .animate()
+              .fadeIn(delay: 200.ms)
+              .scaleXY(begin: 0.8, end: 1),
+        ),
+        SizedBox(height: screenWidth * 0.05),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              SizedBox(width: screenWidth * 0.05),
+              _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+              SizedBox(width: screenWidth * 0.05),
+              _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', Container()), // Replace with your SkinTone page
+              SizedBox(width: screenWidth * 0.05),
+              _buildCategoryItem(context, 'assets/makeup look.png', 'Makeup Look', Container()), // Replace with your MakeupLook page
+              SizedBox(width: screenWidth * 0.05),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildCategoryItem(BuildContext context, String imagePath, String label, Widget route) {
+    final size = MediaQuery.of(context).size;
+    
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => route)),
+      child: Column(
+        children: [
+          Container(
+            width: size.width * 0.25,
+            height: size.width * 0.25,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              image: DecorationImage(
+                image: AssetImage(imagePath),
+                fit: BoxFit.cover,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.5),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: size.height * 0.01),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: size.width * 0.035,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

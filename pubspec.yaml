@@ -49,6 +49,8 @@ dependencies:
   shimmer_animation: ^2.2.2
   bouncing_widget: ^2.0.0
   loading_animation_widget: ^1.3.0
+  better_image_shadow: ^0.0.3
+  animations: ^2.0.11
 
   
   
@@ -108,6 +110,16 @@ flutter:
     - assets/phone_bg.png
     - assets/phone.png
     - assets/frame3.png
+    - assets/oval.png
+    - assets/round.png
+    - assets/heart.png
+    - assets/square.png
+    - assets/oblong.png 
+    - assets/ovalt_image.png
+    - assets/round2_image.png
+    - assets/square2_image.png
+    - assets/heart2_image.png
+    - assets/oblong2_image.png
 
    
     
