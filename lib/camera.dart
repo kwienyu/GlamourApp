@@ -367,30 +367,41 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  void _handleProceed() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm'),
-        content: const Text('Your result will be saved to your profile.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              UserProfile.setProfile(_skinTone, _faceShape);
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MakeupHubPage(skinTone: _skinTone),
-                ),
-              );
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  // In CameraPage's _handleProceed method:
+void _handleProceed() {
+  if (_imageFile == null) {
+    _showErrorDialog('No image captured. Please take a picture first.');
+    return;
   }
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Confirm'),
+      content: const Text('Your result will be saved to your profile.'),
+      actions: [
+        TextButton(
+          onPressed: () {
+            UserProfile.setProfile(_skinTone, _faceShape);
+            Navigator.pop(context);
+            
+            // Navigate directly to MakeupHubPage with the image path and skin tone
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MakeupHubPage(
+                  skinTone: _skinTone,
+                  imagePath: _imageFile!.path, // Add this line
+                ),
+              ),
+            );
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildCameraPreview() {
     if (_imageFile != null) {

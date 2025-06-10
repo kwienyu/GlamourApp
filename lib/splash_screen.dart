@@ -100,7 +100,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -127,24 +127,27 @@ class _MainScreenState extends State<MainScreen> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: ClipPath(
-              clipper: CurvedEdgeRectangleClipper(),
-              child: Shimmer(
-                duration: const Duration(seconds: 3),
-                color: Colors.white,
-                colorOpacity: 0.3,
-                enabled: true,
-                direction: ShimmerDirection.fromLeftToRight(),
-                child: Container(
-                  height: MediaQuery.of(context).size.height * 0.4,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFFFAD0C4),
-                        Colors.pinkAccent,
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
+            child: CustomPaint(
+              painter: InvertedUBorderPainter(), // Add border painter for inverted U
+              child: ClipPath(
+                clipper: CurvedEdgeRectangleClipper(),
+                child: Shimmer(
+                  duration: const Duration(seconds: 3),
+                  color: Colors.white,
+                  colorOpacity: 0.3,
+                  enabled: true,
+                  direction: ShimmerDirection.fromLeftToRight(),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.4,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFFFAD0C4),
+                          Colors.pinkAccent,
+                        ],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
                     ),
                   ),
                 ),
@@ -244,8 +247,10 @@ class CurvedEdgeRectangleClipper extends CustomClipper<Path> {
 
     // Curve from top-left to left-mid
     path.quadraticBezierTo(
-      0, 80,
-      80, 80
+      0,
+      80,
+      80,
+      80,
     );
 
     // Center line — flat
@@ -253,8 +258,10 @@ class CurvedEdgeRectangleClipper extends CustomClipper<Path> {
 
     // Curve from right-mid to top-right
     path.quadraticBezierTo(
-      size.width, 80,
-      size.width, 160
+      size.width,
+      80,
+      size.width,
+      160,
     );
 
     // Line to bottom-right
@@ -268,4 +275,27 @@ class CurvedEdgeRectangleClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class InvertedUBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.pinkAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0; // Increased border width
+
+    final path = Path();
+
+    // Draw only the inverted U-shaped top edge
+    path.moveTo(0, 160);
+    path.quadraticBezierTo(0, 80, 80, 80); // Left curve
+    path.lineTo(size.width - 80, 80); // Flat center
+    path.quadraticBezierTo(size.width, 80, size.width, 160); // Right curve
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

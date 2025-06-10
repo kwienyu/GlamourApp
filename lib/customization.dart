@@ -2,8 +2,9 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; 
-import 'makeuphub.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as img;
+import 'camera.dart';
 import 'glamvault.dart';
 
 class CustomizationPage extends StatefulWidget {
@@ -35,9 +36,8 @@ class _CustomizationPageState extends State<CustomizationPage> {
   bool showMakeupProducts = false;
   bool showShades = false;
   bool isLoading = false;
-  bool isSaved = false; // Added missing variable
+  bool isSaved = false;
 
-  // Store selected shades for each product type
   Map<String, Color?> selectedShades = {
     'Foundation': null,
     'Concealer': null,
@@ -49,8 +49,8 @@ class _CustomizationPageState extends State<CustomizationPage> {
     'Eyebrow': null,
   };
 
-  // Store all recommended shades from API
   Map<String, List<Color>> makeupShades = {};
+  Map<String, List<String>> shadeHexCodes = {};
 
   final Map<String, String> productIcons = {
     'Foundation': 'assets/foundation.png',
@@ -74,6 +74,8 @@ class _CustomizationPageState extends State<CustomizationPage> {
     'Eyebrow',
   ];
 
+  final String? _apiToken = null;
+
   @override
   void initState() {
     super.initState();
@@ -83,16 +85,24 @@ class _CustomizationPageState extends State<CustomizationPage> {
 
   void _processRecommendationData() {
     if (widget.recommendationData != null) {
-      final recommendedShades = widget.recommendationData!['recommended_shades'] as Map<String, dynamic>?;
-      
-      if (recommendedShades != null) {
+      final recommendations = widget.recommendationData!['recommendations'] as Map<String, dynamic>?;
+      if (recommendations != null) {
         setState(() {
           makeupShades.clear();
-          recommendedShades.forEach((type, shades) {
-            if (shades is List) {
-              makeupShades[type] = List<Color>.from(
-                shades.map<Color>((hex) => _parseHexColor(hex.toString())),
-              );
+          shadeHexCodes.clear();
+          recommendations.forEach((category, shadeMap) {
+            if (shadeMap is Map) {
+              final shadeTypes = ['Light', 'Medium', 'Dark'];
+              shadeHexCodes[category] = [];
+              makeupShades[category] = [];
+              
+              for (var shadeType in shadeTypes) {
+                if (shadeMap.containsKey(shadeType)) {
+                  final hexCode = shadeMap[shadeType] as String;
+                  shadeHexCodes[category]!.add(hexCode);
+                  makeupShades[category]!.add(_parseHexColor(hexCode));
+                }
+              }
             }
           });
         });
@@ -102,46 +112,88 @@ class _CustomizationPageState extends State<CustomizationPage> {
 
   Color _parseHexColor(String hexColor) {
     try {
+      if (!RegExp(r'^#[0-9A-Fa-f]{6,8}$').hasMatch(hexColor)) {
+        return Colors.transparent;
+      }
       return Color(int.parse(hexColor.replaceFirst('#', '0xFF')));
     } catch (e) {
       return Colors.transparent;
     }
   }
 
-  Future<void> _fetchRecommendations() async {
+  Future<void> _fetchRecommendations({int retryCount = 0}) async {
+    const maxRetries = 3;
     setState(() {
       isLoading = true;
     });
 
     try {
       final url = Uri.parse('https://glamouraika.com/api/recommendation');
-      
+      final headers = {
+        'Content-Type': 'application/json',
+        if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
+      };
+
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode({
           'user_id': widget.userId,
           'undertone': widget.undertone,
           'makeup_type': widget.selectedMakeupType,
           'makeup_look': widget.selectedMakeupLook,
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        final recommendedShades = data['recommended_shades'] as Map<String, dynamic>;
+        final recommendations = data['recommendations'] as Map<String, dynamic>?;
+
+        if (recommendations == null) {
+          throw Exception('Invalid API response: missing recommendations');
+        }
 
         setState(() {
           makeupShades.clear();
-          recommendedShades.forEach((type, shades) {
-            makeupShades[type] = List<Color>.from(
-              (shades as List).map<Color>((hex) => Color(int.parse(hex.replaceFirst('#', '0xFF')))),
-            );
+          shadeHexCodes.clear();
+          recommendations.forEach((category, shadeMap) {
+            if (shadeMap is Map) {
+              final shadeTypes = ['Light', 'Medium', 'Dark'];
+              shadeHexCodes[category] = [];
+              makeupShades[category] = [];
+              
+              for (var shadeType in shadeTypes) {
+                if (shadeMap.containsKey(shadeType)) {
+                  final hexCode = shadeMap[shadeType] as String;
+                  shadeHexCodes[category]!.add(hexCode);
+                  makeupShades[category]!.add(_parseHexColor(hexCode));
+                }
+              }
+            }
           });
         });
+      } else if (response.statusCode == 400) {
+        final errorData = jsonDecode(response.body);
+        if (errorData['message'] == 'User profile incomplete') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please complete your profile first')),
+          );
+        } else if (errorData['message'] == 'Missing required fields') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Missing required information')),
+          );
+        }
+      } else if (response.statusCode == 404) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('User not found')),
+        );
+      } else if (response.statusCode == 503) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Makeup recommendation service is currently unavailable')),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load recommendations: ${response.body}')),
+          SnackBar(content: Text('Failed to load recommendations: ${response.statusCode}')),
         );
       }
     } catch (e) {
@@ -155,32 +207,22 @@ class _CustomizationPageState extends State<CustomizationPage> {
     }
   }
 
+  Future<String> _compressAndEncodeImage(File imageFile) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) throw Exception('Failed to decode image');
+      final compressed = img.encodeJpg(image, quality: 85);
+      return base64Encode(compressed);
+    } catch (e) {
+      throw Exception('Image processing error: $e');
+    }
+  }
+
   Future<void> _saveLook() async {
     if (widget.selectedMakeupLook == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No makeup look selected')),
-      );
-      return;
-    }
-
-    final imageFile = File(widget.imagePath);
-    final imageBytes = await imageFile.readAsBytes();
-    final base64Image = base64Encode(imageBytes);
-
-    // Prepare the shades data in the format the API expects
-    Map<String, List<String>> labeledShades = {};
-    
-    selectedShades.forEach((productType, color) {
-      if (color != null) {
-        // Convert Color to hex string (e.g., #FF5733)
-        String hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
-        labeledShades[productType] = [hexColor];
-      }
-    });
-
-    if (labeledShades.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No shades selected to save')),
       );
       return;
     }
@@ -190,27 +232,58 @@ class _CustomizationPageState extends State<CustomizationPage> {
     });
 
     try {
+      final imageFile = File(widget.imagePath);
+      final base64Image = await _compressAndEncodeImage(imageFile);
+
+      Map<String, String?> labeledShades = {};
+      selectedShades.forEach((productType, color) {
+        if (color != null) {
+          labeledShades[productType] = '#${color.value.toRadixString(16).substring(2)}';
+        }
+      });
+
+      if (labeledShades.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No shades selected to save')),
+        );
+        return;
+      }
+
       final url = Uri.parse('https://glamouraika.com/api/saved_looks');
-      
+      final headers = {
+        'Content-Type': 'application/json',
+        if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
+      };
+
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode({
           'user_id': widget.userId,
           'makeup_look': widget.selectedMakeupLook,
-          'shades': labeledShades,
+          'recommendation_data': {
+            'skin_tone': widget.skinTone,
+            'undertone': widget.undertone,
+            'makeup_type': widget.selectedMakeupType,
+            'makeup_look': widget.selectedMakeupLook,
+            'selected_shades': labeledShades,
+          },
           'image_data': base64Image,
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final savedLookId = responseData['saved_look_id'];
+        if (savedLookId == null) {
+          throw Exception('Invalid API response: missing saved_look_id');
+        }
 
         await _cacheSavedLook(
-          responseData['saved_look_id'],
+          savedLookId,
           widget.selectedMakeupLook!,
           base64Image,
-          labeledShades, 
+          labeledShades,
         );
 
         setState(() {
@@ -218,12 +291,12 @@ class _CustomizationPageState extends State<CustomizationPage> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Look saved successfully to the glamvault!")),
+          const SnackBar(content: Text('Look saved successfully to the glamvault!')),
         );
       } else {
         final errorData = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? response.body}')),
+          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? response.statusCode}')),
         );
       }
     } catch (e) {
@@ -238,20 +311,22 @@ class _CustomizationPageState extends State<CustomizationPage> {
   }
 
   Future<void> _cacheSavedLook(
-    dynamic lookId, 
-    String lookName, 
+    dynamic lookId,
+    String lookName,
     String imageData,
-    Map<String, dynamic> shades
+    Map<String, dynamic> shades,
   ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('look_image_$lookId', imageData);
-    
-    await prefs.setString('cached_look_$lookId', jsonEncode({
-      'saved_look_id': lookId,
-      'makeup_look_name': lookName,
-      'image_data': imageData,
-      'shades': shades,
-    }));
+    await prefs.setString(
+      'cached_look_$lookId',
+      jsonEncode({
+        'saved_look_id': lookId,
+        'makeup_look_name': lookName,
+        'image_data': imageData,
+        'shades': shades,
+      }),
+    );
   }
 
   Widget makeupOverlay(Color shade, double left, double top, double width, double height, double opacity) {
@@ -271,7 +346,6 @@ class _CustomizationPageState extends State<CustomizationPage> {
 
   Widget _buildProductIcon(String productName) {
     final iconPath = productIcons[productName];
-    
     return iconPath != null
         ? Image.asset(
             iconPath,
@@ -285,6 +359,35 @@ class _CustomizationPageState extends State<CustomizationPage> {
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
+  Widget _buildShadeItem(String shadeType, Color color, String hexCode) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedShades[selectedProduct!] = color;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color,
+          border: Border.all(
+            color: selectedShades[selectedProduct!] == color 
+                ? Colors.pink 
+                : Colors.grey,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(shadeType),
+            Text(hexCode),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,50 +399,39 @@ class _CustomizationPageState extends State<CustomizationPage> {
               fit: BoxFit.cover,
             ),
           ),
-
-          // Makeup Overlays
           ...selectedShades.entries.map((entry) {
             if (entry.value == null) return Container();
-            
             final product = entry.key;
             final shade = entry.value!;
-            
             switch (product) {
               case 'Foundation':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.3, 
-                    MediaQuery.of(context).size.height * 0.4, 
-                    MediaQuery.of(context).size.width * 0.4, 
-                    MediaQuery.of(context).size.height * 0.4, 0.5);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.3, MediaQuery.of(context).size.height * 0.4,
+                    MediaQuery.of(context).size.width * 0.4, MediaQuery.of(context).size.height * 0.4, 0.5);
               case 'Concealer':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.35, 
-                    MediaQuery.of(context).size.height * 0.45, 
-                    MediaQuery.of(context).size.width * 0.2, 
-                    MediaQuery.of(context).size.height * 0.2, 0.5);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.35, MediaQuery.of(context).size.height * 0.45,
+                    MediaQuery.of(context).size.width * 0.2, MediaQuery.of(context).size.height * 0.2, 0.5);
               case 'Contour':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.32, 
-                    MediaQuery.of(context).size.height * 0.48, 
-                    MediaQuery.of(context).size.width * 0.3, 
-                    MediaQuery.of(context).size.height * 0.1, 0.5);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.32, MediaQuery.of(context).size.height * 0.48,
+                    MediaQuery.of(context).size.width * 0.3, MediaQuery.of(context).size.height * 0.1, 0.5);
               case 'Eyeshadow':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.45, 
-                    MediaQuery.of(context).size.height * 0.3, 
-                    MediaQuery.of(context).size.width * 0.2, 
-                    MediaQuery.of(context).size.height * 0.05, 0.6);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.45, MediaQuery.of(context).size.height * 0.3,
+                    MediaQuery.of(context).size.width * 0.2, MediaQuery.of(context).size.height * 0.05, 0.6);
               case 'Blush':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.4, 
-                    MediaQuery.of(context).size.height * 0.55, 
-                    MediaQuery.of(context).size.width * 0.2, 
-                    MediaQuery.of(context).size.height * 0.1, 0.5);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.4, MediaQuery.of(context).size.height * 0.55,
+                    MediaQuery.of(context).size.width * 0.2, MediaQuery.of(context).size.height * 0.1, 0.5);
               case 'Lipstick':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.45, 
-                    MediaQuery.of(context).size.height * 0.65, 
-                    MediaQuery.of(context).size.width * 0.15, 
-                    MediaQuery.of(context).size.height * 0.05, 0.6);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.45, MediaQuery.of(context).size.height * 0.65,
+                    MediaQuery.of(context).size.width * 0.15, MediaQuery.of(context).size.height * 0.05, 0.6);
               case 'Highlighter':
-                return makeupOverlay(shade, MediaQuery.of(context).size.width * 0.43, 
-                    MediaQuery.of(context).size.height * 0.35, 
-                    MediaQuery.of(context).size.width * 0.2, 
-                    MediaQuery.of(context).size.height * 0.07, 0.5);
+                return makeupOverlay(
+                    shade, MediaQuery.of(context).size.width * 0.43, MediaQuery.of(context).size.height * 0.35,
+                    MediaQuery.of(context).size.width * 0.2, MediaQuery.of(context).size.height * 0.07, 0.5);
               default:
                 return Container();
             }
@@ -349,21 +441,19 @@ class _CustomizationPageState extends State<CustomizationPage> {
             top: 40,
             child: Container(
               child: IconButton(
-                icon: Icon(
+                icon: const Icon(
                   Icons.star,
                   size: 25,
                   color: Colors.pinkAccent,
                 ),
                 onPressed: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) =>  GlamVaultScreen(userId: int.parse(widget.userId))),
+                    MaterialPageRoute(builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId))),
                   );
                 },
               ),
             ),
           ),
-
-          // Toggle Makeup Products Button
           Positioned(
             left: 10,
             top: 100,
@@ -389,8 +479,6 @@ class _CustomizationPageState extends State<CustomizationPage> {
               ),
             ),
           ),
-
-          // Makeup Products Panel
           if (showMakeupProducts)
             Positioned(
               left: 0,
@@ -412,7 +500,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
                       child: Text(
                         'Products',
                         style: TextStyle(
-                          color: Color.fromARGB(255, 17, 16, 16),
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -445,7 +533,8 @@ class _CustomizationPageState extends State<CustomizationPage> {
                                         color: Colors.black26,
                                         blurRadius: 4,
                                         offset: Offset(2, 2),
-                                  )],
+                                      )
+                                    ],
                                     border: Border.all(
                                       color: selectedProduct == product ? Colors.red : Colors.transparent,
                                       width: 2,
@@ -465,175 +554,150 @@ class _CustomizationPageState extends State<CustomizationPage> {
                 ),
               ),
             ),
-
-          // Shades Panel
           if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
             Positioned(
               right: 0,
               top: 140,
               bottom: 0,
               child: Container(
-                width: 80,
+                width: 100,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(20),
                     bottomLeft: Radius.circular(20),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(top: 10.0),
                       child: Text(
                         selectedProduct!,
                         style: const TextStyle(
-                          color: Color.fromARGB(255, 17, 16, 16),
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
+                    const SizedBox(height: 8),
                     Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: makeupShades[selectedProduct]!.map((shade) {
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedShades[selectedProduct!] = shade;
-                                });
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: shade,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: selectedShades[selectedProduct!] == shade 
-                                        ? Colors.pink 
-                                        : Colors.white,
-                                    width: selectedShades[selectedProduct!] == shade ? 3 : 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: selectedShades[selectedProduct!] == shade
-                                          ? Colors.pink.withOpacity(0.6)
-                                          : Colors.black26,
-                                      blurRadius: selectedShades[selectedProduct!] == shade ? 6 : 4,
-                                      spreadRadius: selectedShades[selectedProduct!] == shade ? 1 : 0,
-                                      offset: const Offset(2, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: selectedShades[selectedProduct!] == shade
-                                    ? const Icon(
-                                        Icons.check,
-                                        color: Colors.white,
-                                        size: 20,
-                                      )
-                                    : null,
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                      child: ListView(
+                        children: [
+                          _buildShadeItem('Light', makeupShades[selectedProduct]![0], 
+                            shadeHexCodes[selectedProduct]![0]),
+                          _buildShadeItem('Medium', makeupShades[selectedProduct]![1], 
+                            shadeHexCodes[selectedProduct]![1]),
+                          _buildShadeItem('Dark', makeupShades[selectedProduct]![2], 
+                            shadeHexCodes[selectedProduct]![2]),
+                        ],
                       ),
                     ),
+                    if (isLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(
+                          color: Colors.pink,
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
-
-// Bottom Buttons
-Positioned(
-  bottom: 20,
-  left: MediaQuery.of(context).size.width * 0.2, 
-  right: MediaQuery.of(context).size.width * 0.2, 
-  child: Container(
-    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-    decoration: BoxDecoration(
-      color: Colors.amber.shade100.withOpacity(0.8),
-      borderRadius: BorderRadius.circular(20),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Makeup Look Title
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade200.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Text(
-            widget.selectedMakeupLook ?? 'No look selected',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Retake Button
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => MakeupHubPage(),
+          Positioned(
+            bottom: 20,
+            left: MediaQuery.of(context).size.width * 0.2,
+            right: MediaQuery.of(context).size.width * 0.2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), 
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
+                ],
               ),
-              child: const Text("Retake"),
-            ),
-            const SizedBox(width: 10), 
-            
-            // Save Look Button
-            ElevatedButton(
-              onPressed: _saveLook, 
-                style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-            ),
-                child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade200.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      widget.selectedMakeupLook ?? 'No look selected',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                    )
-                  : const Text("Save Look"),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const CameraPage(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        child: const Text("Retake"),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: _saveLook,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text("Save Look"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ],
-    ),
-  ),
           ),
         ],
       ),

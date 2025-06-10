@@ -306,7 +306,7 @@ class _SelectionPageState extends State<SelectionPage> {
               children: [
                 Container(
                   width: 400,
-                  height: 800,
+                  height: 400, // Reduced height since we removed the tabs
                   margin: const EdgeInsets.only(top: 60),
                   decoration: const BoxDecoration(
                     color: Color.fromARGB(95, 239, 216, 230),
@@ -383,133 +383,12 @@ class _SelectionPageState extends State<SelectionPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    DefaultTabController(
-                      length: 3,
-                      child: Column(
-                        children: [
-                          TabBar(
-                            labelColor: const Color.fromARGB(255, 244, 85, 135),
-                            unselectedLabelColor: Colors.black,
-                            indicatorColor: Colors.pinkAccent,
-                            isScrollable: true,
-                            tabs: const [
-                              Tab(text: "Face Shapes"),
-                              Tab(text: "Skin Tone"),
-                              Tab(text: "Makeup Looks"),
-                            ],
-                          ),
-                          SizedBox(
-                            height: 420,
-                            child: TabBarView(
-                              children: [
-                                _buildImageCarousel(['assets/oval1.png', 'assets/round.png', 'assets/square.png', 'assets/heart.png']),
-                                _buildImageCarousel(['assets/mestiza1.jpg', 'assets/morena.jpg', 'assets/chinita.jpg']),
-                                _buildImageCarousel([
-                                  'assets/makeup1.jpg', 'assets/makeup2.jpg', 'assets/makeup3.jpg',
-                                  'assets/makeup4.jpg', 'assets/makeup5.jpg', 'assets/makeup6.jpg',
-                                  'assets/makeup7.jpg', 'assets/makeup8.jpg', 'assets/makeup9.jpg',
-                                  'assets/makeup10.jpg', 'assets/makeup11.jpg',
-                                ]),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildImageCarousel(List<String> imagePaths) {
-    final PageController pageController = PageController();
-    final ValueNotifier<int> currentPage = ValueNotifier<int>(0);
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 20),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 350,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PageView.builder(
-                  controller: pageController,
-                  itemCount: imagePaths.length,
-                  onPageChanged: (index) => currentPage.value = index,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          imagePaths[index],
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                Positioned(
-                  left: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                    onPressed: () {
-                      if (currentPage.value > 0) {
-                        pageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.ease,
-                        );
-                      }
-                    },
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.black),
-                    onPressed: () {
-                      if (currentPage.value < imagePaths.length - 1) {
-                        pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.ease,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          ValueListenableBuilder<int>(
-            valueListenable: currentPage,
-            builder: (context, value, _) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  imagePaths.length,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: value == index ? Colors.pinkAccent : Colors.grey.shade400,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }

@@ -1,11 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'selection_page.dart';
 import 'camera.dart';
 import 'glamvault.dart';
 import 'makeup_guide.dart';
-import 'makeup_artistform.dart';
 import 'faceshapes.dart';
 
 class ProfileSelection extends StatefulWidget {
@@ -20,43 +18,17 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   int selectedIndex = 0;
   bool showBubble = true;
   final PageController _pageController = PageController(viewportFraction: 0.8);
-  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _startAutoScroll();
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) setState(() => showBubble = false);
     });
   }
 
-  void _startAutoScroll() {
-    _timer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
-      if (mounted && _pageController.hasClients) {
-        final currentPage = _pageController.page!.round();
-        final totalPages = 4; // Number of cards in PageView
-        bool isLastPage = currentPage == totalPages - 1;
-        
-        int nextPage;
-        if (isLastPage) {
-          nextPage = 0;
-        } else {
-          nextPage = currentPage + 1;
-        }
-
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.ease,
-        );
-      }
-    });
-  }
-
   @override
   void dispose() {
-    _timer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -72,7 +44,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   AppBar _buildAppBar(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return AppBar(
       backgroundColor: Colors.pinkAccent,
       elevation: 0,
@@ -141,7 +113,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   Widget _buildBody(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return SingleChildScrollView(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -176,7 +148,8 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                   blurRadius: 20,
                   spreadRadius: 5,
                   offset: const Offset(0, 10),
-            )],
+                ),
+              ],
             ),
           ),
         ).animate().fadeIn(duration: 300.ms),
@@ -195,7 +168,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   Widget _buildMainContent(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return Column(
       children: [
         SizedBox(
@@ -275,7 +248,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   Widget _buildProfileCards(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     int? parsedUserId;
-    
+
     try {
       parsedUserId = int.parse(widget.userId);
     } catch (e) {
@@ -295,13 +268,9 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               .animate()
               .fadeIn(delay: 300.ms)
               .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard(context, 'assets/facscan_icon.gif', "Be a Makeup Artist", MakeupArtistForm(userId: parsedUserId))
-              .animate()
-              .fadeIn(delay: 400.ms)
-              .scaleXY(begin: 0.8, end: 1),
           _buildProfileCard(context, Icons.star, "Glam Vault", GlamVaultScreen(userId: parsedUserId))
               .animate()
-              .fadeIn(delay: 500.ms)
+              .fadeIn(delay: 400.ms)
               .scaleXY(begin: 0.8, end: 1),
         ],
       ),
@@ -310,7 +279,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
 
   Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
     final size = MediaQuery.of(context).size;
-    
+
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => route)),
       child: Container(
@@ -373,53 +342,53 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
- Widget _buildCategoriesSection(BuildContext context) {
-  final screenWidth = MediaQuery.of(context).size.width;
-  
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, // This aligns children to the left
-      children: [
-        Padding(
-          padding: EdgeInsets.only(left: screenWidth * 0.05), // Add left padding to match the items
-          child: const Text(
-            'Categories',
-            style: TextStyle(
-              fontSize: 24,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold, 
-              color: Color.fromARGB(255, 10, 10, 10),
-            ),
-          )
-              .animate()
-              .fadeIn(delay: 200.ms)
-              .scaleXY(begin: 0.8, end: 1),
-        ),
-        SizedBox(height: screenWidth * 0.05),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              SizedBox(width: screenWidth * 0.05),
-              _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
-              SizedBox(width: screenWidth * 0.05),
-              _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', Container()), // Replace with your SkinTone page
-              SizedBox(width: screenWidth * 0.05),
-              _buildCategoryItem(context, 'assets/makeup look.png', 'Makeup Look', Container()), // Replace with your MakeupLook page
-              SizedBox(width: screenWidth * 0.05),
-            ],
+  Widget _buildCategoriesSection(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: screenWidth * 0.05),
+            child: const Text(
+              'Categories',
+              style: TextStyle(
+                fontSize: 24,
+                fontFamily: 'Serif',
+                fontWeight: FontWeight.bold,
+                color: Color.fromARGB(255, 10, 10, 10),
+              ),
+            )
+                .animate()
+                .fadeIn(delay: 200.ms)
+                .scaleXY(begin: 0.8, end: 1),
           ),
-        ),
-      ],
-    ),
-  );
-}
+          SizedBox(height: screenWidth * 0.05),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                SizedBox(width: screenWidth * 0.05),
+                _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+                SizedBox(width: screenWidth * 0.05),
+                _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', Container()),
+                SizedBox(width: screenWidth * 0.05),
+                _buildCategoryItem(context, 'assets/makeup look.png', 'Makeup Look', Container()),
+                SizedBox(width: screenWidth * 0.05),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildCategoryItem(BuildContext context, String imagePath, String label, Widget route) {
     final size = MediaQuery.of(context).size;
-    
+
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => route)),
       child: Column(
@@ -464,9 +433,12 @@ class TopCurveClipper extends CustomClipper<Path> {
     final path = Path();
     path.lineTo(0, size.height - 80);
     path.cubicTo(
-      size.width * 0.2, size.height - 15,
-      size.width * 0.5, size.height - 120,
-      size.width, size.height - 20,
+      size.width * 0.2,
+      size.height - 15,
+      size.width * 0.5,
+      size.height - 120,
+      size.width,
+      size.height - 20,
     );
     path.lineTo(size.width, 0);
     path.close();

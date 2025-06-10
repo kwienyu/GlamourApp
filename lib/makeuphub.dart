@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart'; 
-import 'camera2.dart'; 
+import 'customization.dart'; 
 import 'undertone_tutorial.dart'; 
 
 class MakeupHubPage extends StatefulWidget {
-  const MakeupHubPage({super.key, this.skinTone});
+  const MakeupHubPage({super.key, this.skinTone, this.imagePath});
 
   final String? skinTone; 
+  final String? imagePath;
   
   @override
   _MakeupHubPageState createState() => _MakeupHubPageState();
@@ -271,18 +272,19 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
                   final responseData = json.decode(response.body);
                   if (responseData['success'] == true) {
                     Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CameraPage(
-                          selectedUndertone: selectedUndertone!,
-                          selectedMakeupType: selectedMakeupType!,
-                          selectedMakeupLook: selectedMakeupLook!,
-                          userId: userId,
-                          skinTone: userSkinTone,
-                          recommendationData: responseData, 
-                        ),
-                      ),
-                    );
+          context,
+          MaterialPageRoute(
+            builder: (context) => CustomizationPage(
+              imagePath: widget.imagePath!,
+              selectedMakeupType: selectedMakeupType!,
+              selectedMakeupLook: selectedMakeupLook!,
+              userId: userId,
+              undertone: selectedUndertone!,
+              skinTone: userSkinTone,
+              recommendationData: responseData,
+            ),
+          ),
+        );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(responseData['message'] ?? 'Request failed')),

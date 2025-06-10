@@ -22,7 +22,7 @@ class _MakeupGuideState extends State<MakeupGuide> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Makeup Guide")),
+      appBar: AppBar(title: const Text("Makeup Tip")),
       body: Center(
         child: SingleChildScrollView(
           child: Column(
