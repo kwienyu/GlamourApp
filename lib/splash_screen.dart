@@ -283,7 +283,7 @@ class InvertedUBorderPainter extends CustomPainter {
     final paint = Paint()
       ..color = Colors.pinkAccent
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.0; // Increased border width
+      ..strokeWidth = 8.0; // Increased border width
 
     final path = Path();
 

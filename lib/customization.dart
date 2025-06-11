@@ -17,7 +17,7 @@ class CustomizationPage extends StatefulWidget {
   final Map<String, dynamic>? recommendationData;
 
   const CustomizationPage({
-    super.key,
+    Key? key,
     required this.imagePath,
     required this.selectedMakeupType,
     required this.selectedMakeupLook,
@@ -25,7 +25,7 @@ class CustomizationPage extends StatefulWidget {
     required this.undertone,
     this.skinTone,
     this.recommendationData,
-  });
+  }) : super(key: key);
 
   @override
   _CustomizationPageState createState() => _CustomizationPageState();
@@ -121,108 +121,138 @@ class _CustomizationPageState extends State<CustomizationPage> {
     }
   }
 
-  Future<void> _fetchRecommendations({int retryCount = 0}) async {
-    const maxRetries = 3;
-    setState(() {
-      isLoading = true;
-    });
+  Future<void> _fetchRecommendations() async {
+  setState(() {
+    isLoading = true;
+  });
 
-    try {
-      final url = Uri.parse('https://glamouraika.com/api/recommendation');
-      final headers = {
-        'Content-Type': 'application/json',
-        if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
-      };
+  try {
+    final url = Uri.parse('https://glamouraika.com/api/recommendation');
+    final headers = {
+      'Content-Type': 'application/json',
+      if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
+    };
 
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: jsonEncode({
-          'user_id': widget.userId,
-          'undertone': widget.undertone,
-          'makeup_type': widget.selectedMakeupType,
-          'makeup_look': widget.selectedMakeupLook,
-        }),
-      ).timeout(const Duration(seconds: 10));
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'user_id': widget.userId,
+        'undertone': widget.undertone,
+        'makeup_type': widget.selectedMakeupType,
+        'makeup_look': widget.selectedMakeupLook,
+      }),
+    ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final recommendations = data['recommendations'] as Map<String, dynamic>?;
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final recommendations = data['recommendations'] as Map<String, dynamic>?;
 
-        if (recommendations == null) {
-          throw Exception('Invalid API response: missing recommendations');
-        }
+      if (recommendations == null) {
+        throw Exception('Invalid API response: missing recommendations');
+      }
 
-        setState(() {
-          makeupShades.clear();
-          shadeHexCodes.clear();
-          recommendations.forEach((category, shadeMap) {
-            if (shadeMap is Map) {
-              final shadeTypes = ['Light', 'Medium', 'Dark'];
-              shadeHexCodes[category] = [];
-              makeupShades[category] = [];
-              
-              for (var shadeType in shadeTypes) {
-                if (shadeMap.containsKey(shadeType)) {
-                  final hexCode = shadeMap[shadeType] as String;
-                  shadeHexCodes[category]!.add(hexCode);
-                  makeupShades[category]!.add(_parseHexColor(hexCode));
-                }
+      setState(() {
+        makeupShades.clear();
+        shadeHexCodes.clear();
+        recommendations.forEach((category, shadeMap) {
+          if (shadeMap is Map) {
+            final shadeTypes = ['Light', 'Medium', 'Dark'];
+            shadeHexCodes[category] = [];
+            makeupShades[category] = [];
+            
+            for (var shadeType in shadeTypes) {
+              if (shadeMap.containsKey(shadeType)) {
+                final hexCode = shadeMap[shadeType] as String;
+                shadeHexCodes[category]!.add(hexCode);
+                makeupShades[category]!.add(_parseHexColor(hexCode));
               }
             }
-          });
+          }
         });
-      } else if (response.statusCode == 400) {
-        final errorData = jsonDecode(response.body);
-        if (errorData['message'] == 'User profile incomplete') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please complete your profile first')),
-          );
-        } else if (errorData['message'] == 'Missing required fields') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Missing required information')),
-          );
-        }
-      } else if (response.statusCode == 404) {
+      });
+    } else if (response.statusCode == 400) {
+      final errorData = jsonDecode(response.body);
+      if (errorData['message'] == 'User profile incomplete') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('User not found')),
+          const SnackBar(content: Text('Please complete your profile first')),
         );
-      } else if (response.statusCode == 503) {
+      } else if (errorData['message'] == 'Missing required fields') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Makeup recommendation service is currently unavailable')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load recommendations: ${response.statusCode}')),
+          const SnackBar(content: Text('Missing required information')),
         );
       }
-    } catch (e) {
+    } else if (response.statusCode == 404) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching recommendations: $e')),
+        const SnackBar(content: Text('User not found')),
       );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
+    } else if (response.statusCode == 503) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Makeup recommendation service is currently unavailable')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load recommendations: ${response.statusCode}')),
+      );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching recommendations: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
-  Future<String> _compressAndEncodeImage(File imageFile) async {
-    try {
-      final bytes = await imageFile.readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image == null) throw Exception('Failed to decode image');
-      final compressed = img.encodeJpg(image, quality: 85);
-      return base64Encode(compressed);
-    } catch (e) {
-      throw Exception('Image processing error: $e');
+ Future<String> compressAndEncodeImage(File imageFile) async {
+  try {
+    final bytes = await imageFile.readAsBytes();
+    // Skip decoding/encoding for JPEG images to avoid quality loss
+    if (imageFile.path.toLowerCase().endsWith('.jpg') || 
+        imageFile.path.toLowerCase().endsWith('.jpeg')) {
+      return base64Encode(bytes);
     }
+    // For other formats, use the image package to convert to JPEG
+    final image = img.decodeImage(bytes);
+    if (image == null) throw Exception('Failed to decode image');
+    final compressed = img.encodeJpg(image, quality: 85);
+    return base64Encode(compressed);
+  } catch (e) {
+    debugPrint('Image processing error: $e');
+    // Fallback to simple base64 encoding if processing fails
+    final bytes = await imageFile.readAsBytes();
+    return base64Encode(bytes);
   }
+}
 
-  Future<void> _saveLook() async {
+Future<void> _saveLook() async {
     if (widget.selectedMakeupLook == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No makeup look selected')),
+      );
+      return;
+    }
+
+    final imageFile = File(widget.imagePath);
+    final imageBytes = await imageFile.readAsBytes();
+    final base64Image = base64Encode(imageBytes);
+
+    // Prepare the shades data in the format the API expects
+    Map<String, List<String>> labeledShades = {};
+    
+    selectedShades.forEach((productType, color) {
+      if (color != null) {
+        // Convert Color to hex string (e.g., #FF5733)
+        String hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+        labeledShades[productType] = [hexColor];
+      }
+    });
+
+    if (labeledShades.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No shades selected to save')),
       );
       return;
     }
@@ -232,58 +262,28 @@ class _CustomizationPageState extends State<CustomizationPage> {
     });
 
     try {
-      final imageFile = File(widget.imagePath);
-      final base64Image = await _compressAndEncodeImage(imageFile);
-
-      Map<String, String?> labeledShades = {};
-      selectedShades.forEach((productType, color) {
-        if (color != null) {
-          labeledShades[productType] = '#${color.value.toRadixString(16).substring(2)}';
-        }
-      });
-
-      if (labeledShades.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No shades selected to save')),
-        );
-        return;
-      }
-
       final url = Uri.parse('https://glamouraika.com/api/saved_looks');
-      final headers = {
-        'Content-Type': 'application/json',
-        if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
-      };
-
+      
       final response = await http.post(
         url,
-        headers: headers,
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': widget.userId,
           'makeup_look': widget.selectedMakeupLook,
-          'recommendation_data': {
-            'skin_tone': widget.skinTone,
-            'undertone': widget.undertone,
-            'makeup_type': widget.selectedMakeupType,
-            'makeup_look': widget.selectedMakeupLook,
-            'selected_shades': labeledShades,
-          },
+          'shades': labeledShades,
           'image_data': base64Image,
+          'is_client_look': false, // Set this based on your needs
         }),
-      ).timeout(const Duration(seconds: 10));
+      );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        final savedLookId = responseData['saved_look_id'];
-        if (savedLookId == null) {
-          throw Exception('Invalid API response: missing saved_look_id');
-        }
 
         await _cacheSavedLook(
-          savedLookId,
+          responseData['saved_look_id'],
           widget.selectedMakeupLook!,
           base64Image,
-          labeledShades,
+          labeledShades, // Fixed variable name from shadesData to labeledShades
         );
 
         setState(() {
@@ -291,12 +291,20 @@ class _CustomizationPageState extends State<CustomizationPage> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Look saved successfully to the glamvault!')),
+          SnackBar(content: Text("Look saved successfully to the glamvault!")),
         );
+
+        // Navigate to GlamVault after saving
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId)),
+        ),
+      );
+      
       } else {
         final errorData = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? response.statusCode}')),
+          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? response.body}')),
         );
       }
     } catch (e) {
@@ -311,22 +319,21 @@ class _CustomizationPageState extends State<CustomizationPage> {
   }
 
   Future<void> _cacheSavedLook(
-    dynamic lookId,
-    String lookName,
+    dynamic lookId, // Changed from int to dynamic to handle different ID types
+    String lookName, 
     String imageData,
-    Map<String, dynamic> shades,
+    Map<String, dynamic> shades
   ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('look_image_$lookId', imageData);
-    await prefs.setString(
-      'cached_look_$lookId',
-      jsonEncode({
-        'saved_look_id': lookId,
-        'makeup_look_name': lookName,
-        'image_data': imageData,
-        'shades': shades,
-      }),
-    );
+    
+    // You might want to cache other look details as well
+    await prefs.setString('cached_look_$lookId', jsonEncode({
+      'saved_look_id': lookId,
+      'makeup_look_name': lookName,
+      'image_data': imageData,
+      'shades': shades,
+    }));
   }
 
   Widget makeupOverlay(Color shade, double left, double top, double width, double height, double opacity) {
@@ -359,7 +366,7 @@ class _CustomizationPageState extends State<CustomizationPage> {
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
-  Widget _buildShadeItem(String shadeType, Color color, String hexCode) {
+  Widget _buildShadeItem(Color color) {
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -367,21 +374,24 @@ class _CustomizationPageState extends State<CustomizationPage> {
         });
       },
       child: Container(
+        width: 50,
+        height: 50,
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: color,
+          shape: BoxShape.circle,
           border: Border.all(
             color: selectedShades[selectedProduct!] == color 
                 ? Colors.pink 
                 : Colors.grey,
             width: 2,
           ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          children: [
-            Text(shadeType),
-            Text(hexCode),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
       ),
@@ -435,11 +445,15 @@ class _CustomizationPageState extends State<CustomizationPage> {
               default:
                 return Container();
             }
-          }),
+          }).toList(),
           Positioned(
             left: 10,
             top: 40,
             child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.7),
+              ),
               child: IconButton(
                 icon: const Icon(
                   Icons.star,
@@ -590,26 +604,16 @@ class _CustomizationPageState extends State<CustomizationPage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 2),
                     Expanded(
                       child: ListView(
                         children: [
-                          _buildShadeItem('Light', makeupShades[selectedProduct]![0], 
-                            shadeHexCodes[selectedProduct]![0]),
-                          _buildShadeItem('Medium', makeupShades[selectedProduct]![1], 
-                            shadeHexCodes[selectedProduct]![1]),
-                          _buildShadeItem('Dark', makeupShades[selectedProduct]![2], 
-                            shadeHexCodes[selectedProduct]![2]),
+                          _buildShadeItem(makeupShades[selectedProduct]![0]),
+                          _buildShadeItem(makeupShades[selectedProduct]![1]),
+                          _buildShadeItem(makeupShades[selectedProduct]![2]),
                         ],
                       ),
                     ),
-                    if (isLoading)
-                      const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: CircularProgressIndicator(
-                          color: Colors.pink,
-                        ),
-                      ),
                   ],
                 ),
               ),

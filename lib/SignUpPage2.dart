@@ -135,7 +135,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Account created successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: Color.fromARGB(255, 238, 148, 195),
           ),
         );
         
