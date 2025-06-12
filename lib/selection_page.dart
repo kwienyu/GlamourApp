@@ -84,69 +84,74 @@ class _SelectionPageState extends State<SelectionPage> {
     }
   }
 
-  void _setErrorState() {
-    setState(() {
-      name = 'Guest';
-      faceShape = 'Unknown';
-      skinTone = 'Unknown';
-      profilePic = null;
-      email = 'Not available';
-      gender = 'Not specified';
-      dob = 'Not specified';
-      age = null;
-    });
+ void _setErrorState() {
+  setState(() {
+    name = 'Guest User'; // Default full name
+    faceShape = 'Unknown';
+    skinTone = 'Unknown';
+    profilePic = null;
+    email = 'Not available';
+    gender = 'Not specified';
+    dob = 'Not specified';
+    age = null;
+  });
+}
+
+ Future<void> _fetchProfileData() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userid = prefs.getString('user_id');
+
+  if (userid == null || userid.isEmpty) {
+    _setErrorState();
+    return;
   }
 
-  Future<void> _fetchProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userid = prefs.getString('user_id');
+  final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
 
-    if (userid == null || userid.isEmpty) {
-      _setErrorState();
-      return;
-    }
+  try {
+    final response = await http.get(uri);
 
-    final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
 
-    try {
-      final response = await http.get(uri);
+      String? base64Image = data['profile_pic'];
+      Uint8List? imageBytes;
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        String? base64Image = data['profile_pic'];
-        Uint8List? imageBytes;
-
-        if (base64Image != null && base64Image.isNotEmpty) {
-          try {
-            if (base64Image.startsWith('data:image')) {
-              base64Image = base64Image.split(',').last;
-            }
-            imageBytes = base64Decode(base64Image);
-            await prefs.setString('user_profile_base64', base64Image);
-          } catch (e) {
-            debugPrint("Image decoding error: $e");
+      if (base64Image != null && base64Image.isNotEmpty) {
+        try {
+          if (base64Image.startsWith('data:image')) {
+            base64Image = base64Image.split(',').last;
           }
+          imageBytes = base64Decode(base64Image);
+          await prefs.setString('user_profile_base64', base64Image);
+        } catch (e) {
+          debugPrint("Image decoding error: $e");
         }
-
-        setState(() {
-          name = data['name'] ?? "Unknown";
-          faceShape = data['face_shape'] ?? "Not Available";
-          skinTone = data['skin_tone'] ?? "Not Available";
-          profilePic = imageBytes;
-          email = data['email'] ?? "Not available";
-          gender = data['gender'] ?? "Not specified";
-          dob = data['dob'] ?? "Not specified";
-          age = calculateAge(data['dob']);
-        });
-      } else {
-        _setErrorState();
       }
-    } catch (e) {
-      debugPrint('HTTP error: $e');
+
+      // Get first name and last name from API
+      String? firstName = data['name'] ?? "";  
+      String? lastName = data['last_name'] ?? "";
+      String fullName = "$firstName $lastName".trim();
+
+      setState(() {
+        name = fullName.isNotEmpty ? fullName : "Unknown User";
+        faceShape = data['face_shape'] ?? "Not Available";
+        skinTone = data['skin_tone'] ?? "Not Available";
+        profilePic = imageBytes;
+        email = data['email'] ?? "Not available";
+        gender = data['gender'] ?? "Not specified";
+        dob = data['dob'] ?? "Not specified";
+        age = calculateAge(data['dob']);
+      });
+    } else {
       _setErrorState();
     }
+  } catch (e) {
+    debugPrint('HTTP error: $e');
+    _setErrorState();
   }
+}
 
   Future<void> pickProfileImage() async {
     final picker = ImagePicker();
@@ -464,7 +469,7 @@ Widget build(BuildContext context) {
                 ),
                 const Divider(color: Colors.grey),
                 const SizedBox(height: 10),
-                _buildDetailRow("Name:", name ?? "Loading..."),
+                _buildDetailRow("Full Name:", name ?? "Loading..."),
                 _buildDetailRow("Email:", email ?? "Loading..."),
                 _buildDetailRow("Gender:", gender ?? "Loading..."),
                 _buildDetailRow("Age:", age != null ? "$age years" : "Not available"),

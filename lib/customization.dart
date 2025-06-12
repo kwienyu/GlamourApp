@@ -17,7 +17,7 @@ class CustomizationPage extends StatefulWidget {
   final Map<String, dynamic>? recommendationData;
 
   const CustomizationPage({
-    Key? key,
+    super.key,
     required this.imagePath,
     required this.selectedMakeupType,
     required this.selectedMakeupLook,
@@ -25,7 +25,7 @@ class CustomizationPage extends StatefulWidget {
     required this.undertone,
     this.skinTone,
     this.recommendationData,
-  }) : super(key: key);
+  });
 
   @override
   _CustomizationPageState createState() => _CustomizationPageState();
@@ -445,29 +445,7 @@ Future<void> _saveLook() async {
               default:
                 return Container();
             }
-          }).toList(),
-          Positioned(
-            left: 10,
-            top: 40,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.7),
-              ),
-              child: IconButton(
-                icon: const Icon(
-                  Icons.star,
-                  size: 25,
-                  color: Colors.pinkAccent,
-                ),
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId))),
-                  );
-                },
-              ),
-            ),
-          ),
+          }),
           Positioned(
             left: 10,
             top: 100,

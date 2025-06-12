@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
 import 'profile_selection.dart';
+import 'makeup_tips_generator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum LookType { user, client }
@@ -461,7 +462,7 @@ class SavedLook {
   }
 }
 
-class LookDetailsScreen extends StatelessWidget {
+class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;
   final Uint8List? imageBytes;
@@ -474,185 +475,194 @@ class LookDetailsScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+  State<LookDetailsScreen> createState() => _LookDetailsScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.pinkAccent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-            size: screenWidth * 0.06, 
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Center(
-          child: Image.asset(
-            'assets/glam_logo.png',
-            height: screenHeight * 0.08, 
-            fit: BoxFit.contain,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(screenWidth * 0.04), 
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Saved on: ${look.formattedDate}',
-                  style: TextStyle(
-                    fontSize: screenWidth * 0.035, 
-                    color: Colors.grey,
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.015), 
-                // Image section
-                SizedBox(
-                  height: screenHeight * 0.4, 
-                  width: double.infinity,
-                  child: imageBytes != null
-                      ? Image.memory(
-                          imageBytes!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildErrorPlaceholder(screenWidth);
-                          },
-                        )
-                      : _buildPlaceholder(screenWidth),
-                ),
-                SizedBox(height: screenHeight * 0.025), 
-                Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        'Type of makeup Look:',
-                        style: TextStyle(
-                          fontFamily: 'Serif',
-                          fontSize: screenWidth * 0.04, 
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.005), 
-                      Text(
-                        look.makeupLookName,
-                        style: TextStyle(
-                          fontFamily: 'Serif',
-                          fontSize: screenWidth * 0.05, 
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.015), 
-                if (look.isClientLook)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: screenHeight * 0.02), 
-                    child: Text(
-                      'Client Look',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.04, 
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                // Shades section
-                if (shades.isNotEmpty) ...[
-                  Text(
-                    'Shades:',
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.05, 
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Serif',
-                    ),
-                  ),
-                  ...shades.entries.map((entry) {
-                    return Padding(
-                      padding: EdgeInsets.only(top: screenHeight * 0.02), 
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.key,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: screenWidth * 0.04,
-                              fontFamily: 'Serif',
-                            ),
-                          ),
-                          SizedBox(height: screenHeight * 0.01), 
-                          if (entry.value is List)
-                            Wrap(
-                              spacing: screenWidth * 0.02, 
-                              runSpacing: screenWidth * 0.02, 
-                              children: (entry.value as List).map((shade) {
-                                try {
-                                  final hexCode = shade['hex_code']?.toString() ?? '';
-                                  final colorValue = hexCode.isNotEmpty
-                                      ? int.parse(
-                                          hexCode.startsWith('#')
-                                              ? hexCode.substring(1, 7)
-                                              : hexCode,
-                                          radix: 16) +
-                                          0xFF000000
-                                      : 0xFFCCCCCC;
+class _LookDetailsScreenState extends State<LookDetailsScreen> {
+  String _userFaceShape = 'Oval';
+  double screenWidth = 0.0;
+  double screenHeight = 0.0;
+  bool _showTipsBox = false;
+  String? _currentProductName;
+  String? _currentTip;
 
-                                  return Container(
-                                    width: screenWidth * 0.12, 
-                                    height: screenWidth * 0.12, 
-                                    decoration: BoxDecoration(
-                                      color: Color(colorValue),
-                                      borderRadius: BorderRadius.circular(screenWidth * 0.06), 
-                                      border: Border.all(color: Colors.black12),
-                                    ),
-                                    child: shade['shade_name'] != null
-                                        ? Tooltip(
-                                            message: shade['shade_name'].toString(),
-                                            child: Container(),
-                                          )
-                                        : null,
-                                  );
-                                } catch (e) {
-                                  debugPrint('Error rendering shade: $e');
-                                  return Container();
-                                }
-                              }).toList(),
-                            ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadFaceShape();
   }
 
-  Widget _buildPlaceholder(double screenWidth) {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    screenWidth = MediaQuery.of(context).size.width;
+    screenHeight = MediaQuery.of(context).size.height;
+  }
+
+  Future<void> _loadFaceShape() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userFaceShape = prefs.getString('face_shape') ?? 'Oval';
+    });
+  }
+
+  void _toggleTipsBox(String productName) {
+    final tip = MakeupTipsGenerator.getTip(_userFaceShape, productName);
+    
+    setState(() {
+      if (_showTipsBox && _currentProductName == productName) {
+        _showTipsBox = false;
+        _currentProductName = null;
+        _currentTip = null;
+      } else {
+        _showTipsBox = true;
+        _currentProductName = productName;
+        _currentTip = tip;
+      }
+    });
+  }
+
+  Widget _buildShadeChip(dynamic shade) {
+    try {
+      final hexCode = shade['hex_code']?.toString() ?? '';
+      final colorValue = hexCode.isNotEmpty
+          ? int.parse(
+              hexCode.startsWith('#') ? hexCode.substring(1, 7) : hexCode,
+              radix: 16) + 0xFF000000
+          : 0xFFCCCCCC;
+
+      return Container(
+        width: screenWidth * 0.12,
+        height: screenWidth * 0.12,
+        decoration: BoxDecoration(
+          color: Color(colorValue),
+          borderRadius: BorderRadius.circular(screenWidth * 0.06),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: shade['shade_name'] != null
+            ? Tooltip(
+                message: shade['shade_name'].toString(),
+                child: Container(),
+              )
+            : null,
+      );
+    } catch (e) {
+      debugPrint('Error rendering shade: $e');
+      return Container();
+    }
+  }
+
+ Widget _buildTipsBox() {
+  if (!_showTipsBox || _currentTip == null || _currentProductName == null) {
+    return const SizedBox.shrink();
+  }
+
+  return Positioned(
+    right: screenWidth * 0.02,
+    top: screenHeight * 0.60, // Adjust this value as needed
+    child: Container(
+      width: screenWidth * 0.5,
+      padding: EdgeInsets.all(screenWidth * 0.03),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 5,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${_currentProductName} Tips',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: screenWidth * 0.04,
+              color: Colors.pinkAccent,
+            ),
+          ),
+          SizedBox(height: screenHeight * 0.01),
+          Text(
+            _currentTip!,
+            style: TextStyle(
+              fontSize: screenWidth * 0.035,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildProductWithTips(String productName, List<dynamic> shades) {
+  return Padding(
+    padding: EdgeInsets.only(top: screenHeight * 0.02),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              productName,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: screenWidth * 0.04,
+                fontFamily: 'Serif',
+              ),
+            ),
+            SizedBox(width: screenWidth * 0.02),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pinkAccent[100],
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.02,
+                  vertical: screenHeight * 0.005,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => _toggleTipsBox(productName),
+              child: Text(
+                'Click for tips',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.03,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: screenHeight * 0.01),
+        Wrap(
+          spacing: screenWidth * 0.02,
+          runSpacing: screenWidth * 0.02,
+          children: shades.map((shade) => _buildShadeChip(shade)).toList(),
+        ),
+      ],
+    ),
+  );
+}
+
+
+  Widget _buildPlaceholder() {
     return Container(
       color: Colors.grey[200],
       child: Center(
         child: Icon(
           Icons.photo_library,
-          size: screenWidth * 0.1, 
+          size: screenWidth * 0.1,
           color: Colors.grey,
         ),
       ),
     );
   }
 
-  Widget _buildErrorPlaceholder(double screenWidth) {
+  Widget _buildErrorPlaceholder() {
     return Container(
       color: Colors.grey[200],
       child: Center(
@@ -662,17 +672,128 @@ class LookDetailsScreen extends StatelessWidget {
             Icon(
               Icons.error_outline,
               color: Colors.red,
-              size: screenWidth * 0.1, 
+              size: screenWidth * 0.1,
             ),
             Text(
               'Invalid image',
               style: TextStyle(
                 color: Colors.red,
-                fontSize: screenWidth * 0.035, 
+                fontSize: screenWidth * 0.035,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final safeScreenWidth = screenWidth > 0 ? screenWidth : MediaQuery.of(context).size.width;
+    final safeScreenHeight = screenHeight > 0 ? screenHeight : MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.pinkAccent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: Colors.black,
+            size: safeScreenWidth * 0.06,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Center(
+          child: Image.asset(
+            'assets/glam_logo.png',
+            height: safeScreenHeight * 0.08,
+            fit: BoxFit.contain,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.all(safeScreenWidth * 0.04),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saved on: ${widget.look.formattedDate}',
+                  style: TextStyle(
+                    fontSize: safeScreenWidth * 0.035,
+                    color: Colors.grey,
+                  ),
+                ),
+                SizedBox(height: safeScreenHeight * 0.015),
+                SizedBox(
+                  height: safeScreenHeight * 0.4,
+                  width: double.infinity,
+                  child: widget.imageBytes != null
+                      ? Image.memory(
+                          widget.imageBytes!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildErrorPlaceholder();
+                          },
+                        )
+                      : _buildPlaceholder(),
+                ),
+                SizedBox(height: safeScreenHeight * 0.025),
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        'Type of makeup Look:',
+                        style: TextStyle(
+                          fontFamily: 'Serif',
+                          fontSize: safeScreenWidth * 0.04,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: safeScreenHeight * 0.005),
+                      Text(
+                        widget.look.makeupLookName,
+                        style: TextStyle(
+                          fontFamily: 'Serif',
+                          fontSize: safeScreenWidth * 0.05,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: safeScreenHeight * 0.015),
+                if (widget.look.isClientLook)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: safeScreenHeight * 0.02),
+                    child: Text(
+                      'Client Look',
+                      style: TextStyle(
+                        fontSize: safeScreenWidth * 0.04,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                if (widget.shades.isNotEmpty) ...[
+                  Text(
+                    'Shades:',
+                    style: TextStyle(
+                      fontSize: safeScreenWidth * 0.05,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Serif',
+                    ),
+                  ),
+                  ...widget.shades.entries.map((entry) =>
+                      _buildProductWithTips(entry.key, entry.value is List ? entry.value : [])),
+                ],
+              ],
+            ),
+          ),
+           _buildTipsBox(),
+        ],
       ),
     );
   }

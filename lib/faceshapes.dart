@@ -4,7 +4,7 @@ import 'package:animations/animations.dart';
 
 class FaceShapesApp extends StatelessWidget {
   final String userId;
-  const FaceShapesApp({Key? key, required this.userId}) : super(key: key);
+  const FaceShapesApp({super.key, required this.userId});
 
    @override
   Widget build(BuildContext context) {
@@ -120,7 +120,7 @@ Widget build(BuildContext context) {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Left side: Icons
-                    Container(
+                    SizedBox(
                       width: iconSize + padding * 2,
                       child: Column(
                         children: faceShapes.map((shape) {
@@ -194,7 +194,7 @@ Widget build(BuildContext context) {
                                       textAlign: TextAlign.center,
                                     ),
                                     SizedBox(height: padding * 0.5),
-                                    Container(
+                                    SizedBox(
                                       width: displayImageSize,
                                       child: Text(
                                         _selectedShape!['description']!,
@@ -238,7 +238,7 @@ Widget build(BuildContext context) {
 class FadeTransitionWidget extends StatefulWidget {
   final Widget child;
 
-  const FadeTransitionWidget({Key? key, required this.child}) : super(key: key);
+  const FadeTransitionWidget({super.key, required this.child});
 
   @override
   _FadeTransitionWidgetState createState() => _FadeTransitionWidgetState();

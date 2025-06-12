@@ -238,52 +238,47 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<void> _analyzeImage(File imageFile) async {
-    try {
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+ Future<void> _analyzeImage(File imageFile) async {
+  try {
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
 
-      final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('email');
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('email');
 
-      if (email == null || email.trim().isEmpty) {
-        _showErrorDialog('No email found in storage. Please log in again.');
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final normalizedEmail = email.trim().toLowerCase();
-      request.fields['email'] = normalizedEmail;
-
-      var response = await request.send();
-      var responseData = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        var jsonData = json.decode(responseData);
-
-        if (jsonData is Map<String, dynamic> &&
-            jsonData.containsKey('skin_tone') &&
-            jsonData.containsKey('face_shape')) {
-          setState(() {
-            _skinTone = jsonData['skin_tone'];
-            _faceShape = jsonData['face_shape'];
-            _canProceed = true;
-          });
-          await saveProfileData(_faceShape!, _skinTone!);
-        } else {
-          _showErrorDialog('No results found. Please try again.');
-        }
-      } else {
-        _showErrorDialog('Server error ${response.statusCode}. $responseData');
-      }
-    } catch (e) {
-      _showErrorDialog('Network error. Please check your connection.');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (email == null || email.trim().isEmpty) {
+      _showErrorDialog('No email found. Please log in again.');
+      setState(() => _isLoading = false);
+      return;
     }
+
+    request.fields['email'] = email.trim().toLowerCase();
+
+    var response = await request.send();
+    var responseData = await response.stream.bytesToString();
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(responseData);
+      
+      if (jsonData['skin_tone'] != null && jsonData['face_shape'] != null) {
+        setState(() {
+          _skinTone = jsonData['skin_tone'].toString();
+          _faceShape = jsonData['face_shape'].toString();
+          _canProceed = true;
+        });
+        await saveProfileData(_faceShape!, _skinTone!); // Save data after analysis
+      } else {
+        _showErrorDialog('Invalid response format from server.');
+      }
+    } else {
+      _showErrorDialog('Server error: ${response.statusCode}');
+    }
+  } catch (e) {
+    _showErrorDialog('Error: ${e.toString()}');
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> _switchCamera() async {
     if (_cameras == null || _cameras!.length <= 1) return;

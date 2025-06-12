@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         _showErrorMessage(responseBody['message'] ?? 'Login failed. Please try again later.');
       }
-    } on http.ClientException catch (e) {
+    } on http.ClientException {
       if (!mounted) return;
       _showErrorMessage('Network error: Please check your internet connection');
     } catch (e) {
