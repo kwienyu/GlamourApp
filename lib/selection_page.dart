@@ -472,7 +472,7 @@ Widget build(BuildContext context) {
                 _buildDetailRow("Full Name:", name ?? "Loading..."),
                 _buildDetailRow("Email:", email ?? "Loading..."),
                 _buildDetailRow("Gender:", gender ?? "Loading..."),
-                _buildDetailRow("Age:", age != null ? "$age years" : "Not available"),
+                _buildDetailRow("Age:", age != null ? "$age years old" : "Not available"),
                 _buildDetailRow("Date of Birth:", dob ?? "Loading..."),
                 
               ],
