@@ -5,6 +5,7 @@ import 'camera.dart';
 import 'glamvault.dart';
 import 'makeup_guide.dart';
 import 'faceshapes.dart';
+import 'skintone.dart';
 
 class ProfileSelection extends StatefulWidget {
   final String userId;
@@ -374,7 +375,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 SizedBox(width: screenWidth * 0.05),
                 _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
                 SizedBox(width: screenWidth * 0.05),
-                _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', Container()),
+                _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
                 SizedBox(width: screenWidth * 0.05),
                 _buildCategoryItem(context, 'assets/makeup look.png', 'Makeup Look', Container()),
                 SizedBox(width: screenWidth * 0.05),

@@ -559,26 +559,23 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
 
   return Positioned(
     right: screenWidth * 0.02,
-    top: screenHeight * 0.60, // Adjust this value as needed
-    child: Container(
-      width: screenWidth * 0.5,
-      padding: EdgeInsets.all(screenWidth * 0.03),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 5,
-            spreadRadius: 1,
-          ),
-        ],
+    top: screenHeight * 0.60,
+    child: Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: screenWidth * 0.6,
+        padding: EdgeInsets.all(screenWidth * 0.03),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.pinkAccent[100]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${_currentProductName} Tips',
+            '$_currentProductName Tips',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: screenWidth * 0.04,
@@ -594,6 +591,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
           ),
         ],
       ),
+    ),
     ),
   );
 }
@@ -615,24 +613,14 @@ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
               ),
             ),
             SizedBox(width: screenWidth * 0.02),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.pinkAccent[100],
-                padding: EdgeInsets.symmetric(
-                  horizontal: screenWidth * 0.02,
-                  vertical: screenHeight * 0.005,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () => _toggleTipsBox(productName),
-              child: Text(
-                'Click for tips',
-                style: TextStyle(
-                  fontSize: screenWidth * 0.03,
-                  color: Colors.black,
-                ),
+            GestureDetector(
+              onTap: () => _toggleTipsBox(productName),
+              child: Icon(
+                Icons.lightbulb_outline,
+                size: screenWidth * 0.06,
+                color: _showTipsBox && _currentProductName == productName 
+                    ? Colors.yellow[700] 
+                    : Colors.grey[600],
               ),
             ),
           ],
@@ -647,8 +635,6 @@ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
     ),
   );
 }
-
-
   Widget _buildPlaceholder() {
     return Container(
       color: Colors.grey[200],
