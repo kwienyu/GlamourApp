@@ -49,28 +49,31 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
                 image: AssetImage('assets/phone.png'),
                 fit: BoxFit.cover,
+              )),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: MediaQuery.of(context).size.height * 0.2, // Lowered position
-            left: 0,
-            right: 0,
-            child: Center(
-              child: LoadingAnimationWidget.staggeredDotsWave(
-                color: Colors.pinkAccent,
-                size: 50,
+              Positioned(
+                bottom: constraints.maxHeight * 0.2,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: LoadingAnimationWidget.staggeredDotsWave(
+                    color: Colors.pinkAccent,
+                    size: constraints.maxWidth * 0.12, // Responsive size
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -84,13 +87,12 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  bool _isLoading = false; // Track loading state
+  bool _isLoading = false;
 
   void _handleGetStarted() async {
     setState(() {
-      _isLoading = true; // Show flicker animation
+      _isLoading = true;
     });
-    // Simulate loading for 2 seconds
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
       Navigator.push(
@@ -100,168 +102,210 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Full background image with shimmer effect
-          Shimmer(
-            duration: const Duration(seconds: 3),
-            color: Colors.white,
-            colorOpacity: 0.3,
-            enabled: true,
-            direction: ShimmerDirection.fromLeftToRight(),
-            child: Container(
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/phone_bg.png'),
-                  fit: BoxFit.cover,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate responsive values
+          final screenHeight = constraints.maxHeight;
+          final screenWidth = constraints.maxWidth;
+          final curvedContainerHeight = screenHeight * 0.4;
+          const curveHeightFraction = 0.25;
+          final logoSize = screenWidth * 0.3; // Increased from 0.2 to 0.3 (50% bigger)
+          final logoTopPosition = screenHeight * 0.63; // Lowered from 0.65 to 0.55
+          final buttonWidth = screenWidth * 0.5;
+          final buttonHeight = screenHeight * 0.07;
+
+          return Stack(
+            children: [
+              // Full background image with shimmer effect
+              Shimmer(
+                duration: const Duration(seconds: 3),
+                color: Colors.white,
+                colorOpacity: 0.3,
+                enabled: true,
+                direction: ShimmerDirection.fromLeftToRight(),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/phone_bg.png'),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
 
-          // Pink Inverted U-Shaped Container at Bottom with shimmer effect
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: CustomPaint(
-              painter: InvertedUBorderPainter(), // Add border painter for inverted U
-              child: ClipPath(
-                clipper: CurvedEdgeRectangleClipper(),
-                child: Shimmer(
-                  duration: const Duration(seconds: 3),
-                  color: Colors.white,
-                  colorOpacity: 0.3,
-                  enabled: true,
-                  direction: ShimmerDirection.fromLeftToRight(),
-                  child: Container(
-                    height: MediaQuery.of(context).size.height * 0.4,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xFFFAD0C4),
-                          Colors.pinkAccent,
-                        ],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
+              // Pink Inverted U-Shaped Container at Bottom
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: CustomPaint(
+                  painter: InvertedUBorderPainter(
+                    curveHeight: curvedContainerHeight * curveHeightFraction,
+                    borderWidth: screenWidth * 0.015,
+                  ),
+                  child: ClipPath(
+                    clipper: CurvedEdgeRectangleClipper(
+                      curveHeight: curvedContainerHeight * curveHeightFraction,
+                    ),
+                    child: Shimmer(
+                      duration: const Duration(seconds: 3),
+                      color: Colors.white,
+                      colorOpacity: 0.3,
+                      enabled: true,
+                      direction: ShimmerDirection.fromLeftToRight(),
+                      child: Container(
+                        height: curvedContainerHeight,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFFFAD0C4),
+                              Colors.pinkAccent,
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // Logo positioned on top of the U-shape
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.65,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/glam_logo.png',
-                height: 80,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
+              // Logo positioned on top of the U-shape
+              Positioned(
+  top: logoTopPosition,
+  left: 0,
+  right: 0,
+  child: Center(
+    child: Image.asset(
+      'assets/glam_logo.png',
+      height: logoSize,
+      width: logoSize * 3, // Maintain aspect ratio
+      fit: BoxFit.contain,
+    ),
+  ),
+),
 
-          // Text and Button positioned lower
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                const Text(
-                  'Because every face',
-                  style: TextStyle(
-                    fontSize: 30,
-                    color: Color.fromARGB(255, 12, 12, 12),
-                    fontFamily: 'Serif',
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'deserves its matching hue',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Color.fromARGB(255, 12, 12, 12),
-                    fontFamily: 'Serif',
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                _isLoading
-                    ? LoadingAnimationWidget.flickr(
-                        leftDotColor: Colors.pinkAccent,
-                        rightDotColor: Colors.pinkAccent,
-                        size: 40,
-                      )
-                    : BouncingWidget(
-                        scaleFactor: 1.5,
-                        duration: const Duration(milliseconds: 100),
-                        onPressed: _handleGetStarted,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40.0,
-                            vertical: 16.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30.0),
-                          ),
-                          child: const Text(
-                            'GET STARTED',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
+              // Text and Button positioned lower
+              Positioned(
+                bottom: screenHeight * 0.03,
+                left: 0,
+                right: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Shaped by you.',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.08, // Responsive font size
+                        color: const Color.fromARGB(255, 12, 12, 12),
+                        fontFamily: 'Serif',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: screenHeight * 0.01),
+                    Text(
+                      'Toned by you.',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.065,
+                        color: const Color.fromARGB(255, 12, 12, 12),
+                        fontFamily: 'Serif',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: screenHeight * 0.01),
+                    Text(
+                      'Glammed for you.',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        color: const Color.fromARGB(255, 12, 12, 12),
+                        fontFamily: 'Serif',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: screenHeight * 0.03),
+                    _isLoading
+                        ? LoadingAnimationWidget.flickr(
+                            leftDotColor: Colors.pinkAccent,
+                            rightDotColor: Colors.pinkAccent,
+                            size: screenWidth * 0.1,
+                          )
+                        : BouncingWidget(
+                            scaleFactor: 1.5,
+                            duration: const Duration(milliseconds: 100),
+                            onPressed: _handleGetStarted,
+                            child: Container(
+                              width: buttonWidth,
+                              height: buttonHeight,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                 color: Colors.white,
+                                 borderRadius: BorderRadius.circular(20.0),
+                                boxShadow: [
+                                  BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                              ),
+                              child: Text(
+                                'GET STARTED',
+                                style: TextStyle(
+                                  fontSize: screenWidth * 0.055,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-              ],
-            ),
-          ),
-        ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 class CurvedEdgeRectangleClipper extends CustomClipper<Path> {
+  final double curveHeight;
+
+  const CurvedEdgeRectangleClipper({this.curveHeight = 80.0});
+
   @override
   Path getClip(Size size) {
     final path = Path();
+    final curveWidth = curveHeight * 1.5; // Maintain curve proportions
 
     // Start at bottom-left
     path.moveTo(0, size.height);
 
     // Line up left edge
-    path.lineTo(0, 160);
+    path.lineTo(0, curveHeight * 2);
 
     // Curve from top-left to left-mid
     path.quadraticBezierTo(
       0,
-      80,
-      80,
-      80,
+      curveHeight,
+      curveWidth,
+      curveHeight,
     );
 
     // Center line — flat
-    path.lineTo(size.width - 80, 80);
+    path.lineTo(size.width - curveWidth, curveHeight);
 
     // Curve from right-mid to top-right
     path.quadraticBezierTo(
       size.width,
-      80,
+      curveHeight,
       size.width,
-      160,
+      curveHeight * 2,
     );
 
     // Line to bottom-right
@@ -274,28 +318,43 @@ class CurvedEdgeRectangleClipper extends CustomClipper<Path> {
   }
 
   @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+  bool shouldReclip(CustomClipper<Path> oldClipper) =>
+      oldClipper is! CurvedEdgeRectangleClipper ||
+      oldClipper.curveHeight != curveHeight;
 }
 
 class InvertedUBorderPainter extends CustomPainter {
+  final double curveHeight;
+  final double borderWidth;
+
+  const InvertedUBorderPainter({
+    this.curveHeight = 80.0,
+    this.borderWidth = 8.0,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.pinkAccent
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 8.0; // Increased border width
+      ..strokeWidth = borderWidth;
 
     final path = Path();
+    final curveWidth = curveHeight * 1.5; // Maintain curve proportions
 
     // Draw only the inverted U-shaped top edge
-    path.moveTo(0, 160);
-    path.quadraticBezierTo(0, 80, 80, 80); // Left curve
-    path.lineTo(size.width - 80, 80); // Flat center
-    path.quadraticBezierTo(size.width, 80, size.width, 160); // Right curve
+    path.moveTo(0, curveHeight * 2);
+    path.quadraticBezierTo(0, curveHeight, curveWidth, curveHeight); // Left curve
+    path.lineTo(size.width - curveWidth, curveHeight); // Flat center
+    path.quadraticBezierTo(
+        size.width, curveHeight, size.width, curveHeight * 2); // Right curve
 
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CustomPainter oldDelegate) =>
+      oldDelegate is! InvertedUBorderPainter ||
+      oldDelegate.curveHeight != curveHeight ||
+      oldDelegate.borderWidth != borderWidth;
 }

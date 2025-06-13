@@ -222,6 +222,20 @@ class _SignUpPage2State extends State<SignUpPage2> {
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          controller: usernameController,
+                          decoration: InputDecoration(
+                            labelText: 'Username',
+                            filled: true,
+                            fillColor: Colors.white,
+                            prefixIcon: Icon(Icons.person, color: Colors.pinkAccent),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
                           controller: emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
@@ -234,20 +248,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
                               borderSide: BorderSide.none,
                             ),
                             hintText: 'example@domain.com',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: usernameController,
-                          decoration: InputDecoration(
-                            labelText: 'Username',
-                            filled: true,
-                            fillColor: Colors.white,
-                            prefixIcon: Icon(Icons.person, color: Colors.pinkAccent),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
                           ),
                         ),
                         const SizedBox(height: 16),

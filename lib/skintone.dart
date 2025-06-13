@@ -45,7 +45,7 @@ class _FaceShapesWidgetState extends State<FaceShapesWidget> {
 
   final faceShapes = [
     {
-      'icon': 'assets/morena-ic.png',
+      'icon': 'assets/morena-ic2.png',
       'image': 'assets/Morena-tone.jpg',
       'name': 'Morena Skin Tone',
       'description': 'Morena skin tones range from dark brown to warm brown. These shades include deep dark brown, medium brown, light brown, and warm brown. The tone is rich, earthy, and radiant, often with a naturally warm and vibrant appearance.'

@@ -8,48 +8,67 @@ class SignUpPage1 extends StatefulWidget {
   _SignUpPage1State createState() => _SignUpPage1State();
 }
 
-class _SignUpPage1State extends State<SignUpPage1> {
+class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStateMixin {
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
   String? suffix;
   String? gender;
 
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
   final List<String> suffixOptions = ['', 'Jr', 'Sr', 'II', 'III'];
   final List<String> genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _animation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
 
   @override
   void dispose() {
     firstNameController.dispose();
     lastNameController.dispose();
     dobController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final now = DateTime.now();
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime(now.year - 12, now.month, now.day),
-      firstDate: DateTime(1900),
-      lastDate: DateTime(now.year - 12, now.month, now.day),
-      builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color.fromARGB(255, 246, 67, 126),
-            ),
+ Future<void> _selectDate(BuildContext context) async {
+  final now = DateTime.now();
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: DateTime(now.year - 16, now.month, now.day), // Changed from 12 to 16
+    firstDate: DateTime(1985),
+    lastDate: DateTime(now.year - 16, now.month, now.day), // Changed from 12 to 16
+    builder: (BuildContext context, Widget? child) {
+      return Theme(
+        data: ThemeData.light().copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: Color.fromARGB(255, 246, 67, 126),
           ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() {
-        dobController.text = "${picked.day}/${picked.month}/${picked.year}";
-      });
-    }
+        ),
+        child: child!,
+      );
+    },
+  );
+  if (picked != null) {
+    setState(() {
+      dobController.text = "${picked.day}/${picked.month}/${picked.year}";
+    });
   }
+}
 
   void _navigateToNextPage() {
     if (firstNameController.text.isEmpty ||
@@ -79,6 +98,63 @@ class _SignUpPage1State extends State<SignUpPage1> {
     );
   }
 
+  void _handleGenderSelection(String selectedGender) {
+    setState(() {
+      gender = selectedGender;
+    });
+    _animationController.reset();
+    _animationController.forward();
+  }
+
+  Widget _buildGenderCheckbox(String genderOption) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: gender == genderOption ? _animation.value : 1.0,
+                  child: Checkbox(
+                    value: gender == genderOption,
+                    onChanged: (bool? selected) {
+                      if (selected == true) {
+                        _handleGenderSelection(genderOption);
+                      }
+                    },
+                    activeColor: _getGlitterColor(genderOption),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    side: BorderSide(
+                      color: Colors.grey.withOpacity(0.8),
+                      width: 1.5,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            genderOption,
+            style: TextStyle(
+              fontSize: 16,
+              color: gender == genderOption 
+                  ? _getGlitterColor(genderOption)
+                  : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,14 +178,15 @@ class _SignUpPage1State extends State<SignUpPage1> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 80), // Reduced from 80 to move content up
                   Image.asset(
                     'assets/glam_logo.png',
                     height: 100,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.all(25.0),
+                    padding: const EdgeInsets.all(20.0),
+                    margin: const EdgeInsets.only(top: 1), // Moved container up
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(15),
@@ -184,6 +261,31 @@ class _SignUpPage1State extends State<SignUpPage1> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Padding(
+      padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+      child: Text(
+        'Gender',
+        style: TextStyle(
+          fontSize: 16,
+          color: Colors.black.withOpacity(0.6),
+        ),
+      ),
+    ),
+    Row(
+      children: [
+        _buildGenderCheckbox('Male'),
+        const SizedBox(width: 20),
+        _buildGenderCheckbox('Female'),
+        const SizedBox(width: 20),
+        _buildGenderCheckbox('other'),
+      ],
+    ),
+  ],
+),
+                        const SizedBox(height: 16),
                         TextField(
                           controller: dobController,
                           readOnly: true,
@@ -201,32 +303,6 @@ class _SignUpPage1State extends State<SignUpPage1> {
                             ),
                           ),
                           onTap: () => _selectDate(context),
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: gender,
-                          decoration: InputDecoration(
-                            labelText: 'Gender',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          items: genderOptions.map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              gender = newValue;
-                            });
-                          },
-                          validator: (value) =>
-                              value == null ? 'Please select gender' : null,
                         ),
                         const SizedBox(height: 32),
                         ElevatedButton(
@@ -259,5 +335,18 @@ class _SignUpPage1State extends State<SignUpPage1> {
         ],
       ),
     );
+  }
+
+  Color _getGlitterColor(String label) {
+    switch (label) {
+      case 'Male':
+        return Colors.blueAccent;
+      case 'Female':
+        return Colors.pinkAccent;
+      case 'other':
+        return Colors.purpleAccent;
+      default:
+        return Colors.pinkAccent;
+    }
   }
 }
