@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
-import 'camera.dart';
+import 'camera2.dart';
 import 'glamvault.dart';
 
 class CustomizationPage extends StatefulWidget {
-  final String imagePath;
+  final File capturedImage;
   final String? selectedMakeupType;
   final String? selectedMakeupLook;
   final String userId;
@@ -18,7 +18,7 @@ class CustomizationPage extends StatefulWidget {
 
   const CustomizationPage({
     super.key,
-    required this.imagePath,
+    required this.capturedImage,
     required this.selectedMakeupType,
     required this.selectedMakeupLook,
     required this.userId,
@@ -235,8 +235,7 @@ Future<void> _saveLook() async {
       return;
     }
 
-    final imageFile = File(widget.imagePath);
-    final imageBytes = await imageFile.readAsBytes();
+    final imageBytes = await widget.capturedImage.readAsBytes();
     final base64Image = base64Encode(imageBytes);
 
     // Prepare the shades data in the format the API expects
@@ -404,8 +403,8 @@ Future<void> _saveLook() async {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.file(
-              File(widget.imagePath),
+          child: Image.file(
+            widget.capturedImage,
               fit: BoxFit.cover,
             ),
           ),

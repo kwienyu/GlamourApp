@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -6,10 +7,14 @@ import 'customization.dart';
 import 'undertone_tutorial.dart'; 
 
 class MakeupHubPage extends StatefulWidget {
-  const MakeupHubPage({super.key, this.skinTone, this.imagePath});
+  const MakeupHubPage({
+    super.key, 
+    this.skinTone, 
+    required this.capturedImage,
+  });
 
   final String? skinTone; 
-  final String? imagePath;
+  final File capturedImage;
   
   @override
   _MakeupHubPageState createState() => _MakeupHubPageState();
@@ -232,77 +237,60 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
             selectedMakeupLook = look;
           });
 
-          // Debug print for selected values
-  print("Selected Values:");
-  print("- Undertone: $selectedUndertone");
-  print("- Makeup Type: $selectedMakeupType");
-  print("- Makeup Look: $look");
-  print("- Skin Tone: $userSkinTone");
-  
+          print("Selected Values:");
+          print("- Undertone: $selectedUndertone");
+          print("- Makeup Type: $selectedMakeupType");
+          print("- Makeup Look: $look");
+          print("- Skin Tone: $userSkinTone");
 
           if (selectedUndertone != null && selectedMakeupType != null) {
             try {
               final userId = await getUserId();
               if (userId != null) {
-                // Create request body matching API requirements
                 final requestBody = {
                   'user_id': userId,
                   'undertone': selectedUndertone,
                   'makeup_type': selectedMakeupType,
                   'makeup_look': look,
-                  'skin_tone' : userSkinTone,
+                  'skin_tone': userSkinTone,
                 };
                 print("Request Payload: ${jsonEncode(requestBody)}");
 
-
-                // Make API call to recommendation endpoint
                 final response = await http.post(
                   Uri.parse('https://glamouraika.com/api/recommendation'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode(requestBody),
                 );
-                    // Debug print for full response
-        print("API Response:");
-        print("- Status Code: ${response.statusCode}");
-        print("- Body: ${response.body}");
-        print("- Headers: ${response.headers}");
 
-                // Handle API response
+                print("API Response:");
+                print("- Status Code: ${response.statusCode}");
+                print("- Body: ${response.body}");
+                print("- Headers: ${response.headers}");
+
                 if (response.statusCode == 200) {
                   final responseData = json.decode(response.body);
                   if (responseData['success'] == true) {
                     Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CustomizationPage(
-              imagePath: widget.imagePath!,
-              selectedMakeupType: selectedMakeupType!,
-              selectedMakeupLook: selectedMakeupLook!,
-              userId: userId,
-              undertone: selectedUndertone!,
-              skinTone: userSkinTone,
-              recommendationData: responseData,
-            ),
-          ),
-        );
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CustomizationPage(
+                          capturedImage: widget.capturedImage,
+                          selectedMakeupType: selectedMakeupType!,
+                          selectedMakeupLook: selectedMakeupLook!,
+                          userId: userId,
+                          undertone: selectedUndertone!,
+                          skinTone: userSkinTone,
+                          recommendationData: responseData,
+                        ),
+                      ),
+                    );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(responseData['message'] ?? 'Request failed')),
                     );
                   }
-                } else if (response.statusCode == 400) {
-                  final errorData = json.decode(response.body);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(errorData['message'] ?? 'Invalid request')),
-                  );
-                } else if (response.statusCode == 404) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('User not found')),
-                  );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Server error')),
-                  );
+                  _handleApiError(response);
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -336,6 +324,23 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
         ),
       ),
     );
+  }
+
+  void _handleApiError(http.Response response) {
+    if (response.statusCode == 400) {
+      final errorData = json.decode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorData['message'] ?? 'Invalid request')),
+      );
+    } else if (response.statusCode == 404) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not found')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Server error')),
+      );
+    }
   }
 
   Future<String?> getUserId() async {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'selection_page.dart';
-import 'camera.dart';
+import 'camera2.dart';
 import 'glamvault.dart';
 import 'makeup_guide.dart';
 import 'faceshapes.dart';
@@ -265,7 +265,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               .animate()
               .fadeIn(delay: 200.ms)
               .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard(context, 'assets/camera.png', "Test My Look", const CameraPage())
+          _buildProfileCard(context, 'assets/camera.png', "Test My Look", CameraPage())
               .animate()
               .fadeIn(delay: 300.ms)
               .scaleXY(begin: 0.8, end: 1),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'camera.dart';
+import 'camera2.dart';
 
 class MakeupArtistDash extends StatefulWidget {
   const MakeupArtistDash({super.key});

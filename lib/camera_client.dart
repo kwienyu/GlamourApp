@@ -342,14 +342,19 @@ class _CameraClientState extends State<CameraClient> {
           TextButton(
             onPressed: () {
               UserProfile.setProfile(_skinTone, _faceShape);    
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => MakeupHubPage(skinTone: _skinTone)),
-              );
-            },
-            child: const Text('OK'),
-          ),
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MakeupHubPage(
+                  skinTone: _skinTone,
+                  capturedImage: File(_imageFile!.path), // Pass the captured image file
+                ),
+              ),
+            );
+          },
+          child: const Text('OK'),
+        ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
