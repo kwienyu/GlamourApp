@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:http_parser/http_parser.dart';
@@ -29,28 +30,52 @@ class _CameraPageState extends State<CameraPage> {
   bool _showResults = false;
   String? _userEmail;
   File? _capturedImage;
-  Color _ovalColor = Colors.white; // Track oval frame color
-  bool _faceDetected = false; // Track if face is detected
-  bool _faceInFrame = false; // Track if face is within oval frame
-  Timer? _faceCheckTimer; // Timer for checking face position
+  Color _ovalColor = Colors.white;
+  bool _faceDetected = false;
+  bool _faceInFrame = false;
+  Timer? _faceCheckTimer;
+  
+  
+  // Face detection properties
+  FaceDetector? _faceDetector;
+  bool _isFaceStable = false;
+  DateTime? _lastFaceMovementTime;
+  Rect? _lastFacePosition;
+  static const double _stabilityThreshold = 0.05;
+  static const int _stabilityDurationMs = 1000;
+  bool _isProcessingFrame = false;
+  InputImageRotation _rotation = InputImageRotation.rotation0deg;
 
   @override
   void initState() {
     super.initState();
+    _initializeFaceDetector();
     _initializeControllerFuture = _initializeCamera();
     _loadUserEmail();
     _startFaceDetectionTimer();
   }
 
+  void _initializeFaceDetector() {
+  final options = FaceDetectorOptions(
+    performanceMode: FaceDetectorMode.accurate, // Changed from fast to accurate
+    enableContours: false,
+    enableClassification: false,
+    enableLandmarks: false,
+    enableTracking: true,
+  );
+  _faceDetector = FaceDetector(options: options);
+}
+
   @override
   void dispose() {
     _faceCheckTimer?.cancel();
     _controller?.dispose();
+    _faceDetector?.close();
     super.dispose();
   }
 
   void _startFaceDetectionTimer() {
-    _faceCheckTimer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+    _faceCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (_controller != null && _controller!.value.isInitialized && !_isProcessing && _capturedImage == null) {
         _checkFacePosition();
       }
@@ -58,27 +83,116 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _checkFacePosition() async {
-    // In a real app, you would use a face detection library here
-    // For this example, we'll simulate face detection
+  if (_controller == null || 
+      !_controller!.value.isInitialized || 
+      _isProcessingFrame || 
+      _isProcessing || 
+      _capturedImage != null) {
+    return;
+  }
+
+  try {
+    _isProcessingFrame = true;
     
-    // Simulate face detection - replace with actual face detection logic
-    bool faceDetected = Random().nextDouble() > 0.3; // 70% chance of detecting face
-    bool faceInFrame = Random().nextDouble() > 0.5; // 50% chance of face being in frame
+    // Get the latest frame from camera
+    final frame = await _controller!.takePicture();
+    final inputImage = InputImage.fromFilePath(frame.path);
     
+    // Process the image for face detection
+    final faces = await _faceDetector!.processImage(inputImage);
+    
+    // Delete the temporary file immediately
+    await File(frame.path).delete();
+
     setState(() {
-      _faceDetected = faceDetected;
-      _faceInFrame = faceInFrame;
-      
-      // Update oval color based on face position
-      if (!_faceDetected) {
-        _ovalColor = Colors.white; // No face detected
-      } else if (!_faceInFrame) {
-        _ovalColor = Colors.red; // Face detected but not in frame
+      if (faces.isEmpty) {
+        _faceDetected = false;
+        _faceInFrame = false;
+        _isFaceStable = false;
+        _ovalColor = Colors.white;
       } else {
-        _ovalColor = Colors.green; // Face detected and in frame
+        final face = faces.first;
+        _faceDetected = true;
+        _faceInFrame = _isFaceInOval(face.boundingBox);
+        
+        if (_faceInFrame) {
+          _checkFaceStability(face.boundingBox);
+          _ovalColor = _isFaceStable ? Colors.green : Colors.orange;
+        } else {
+          _ovalColor = Colors.red;
+          _isFaceStable = false;
+        }
       }
     });
+  } catch (e) {
+    print('Face detection error: $e');
+    setState(() {
+      _faceDetected = false;
+      _faceInFrame = false;
+      _isFaceStable = false;
+      _ovalColor = Colors.white;
+    });
+  } finally {
+    _isProcessingFrame = false;
   }
+}
+
+  bool _isFaceInOval(Rect faceRect) {
+  final screenSize = MediaQuery.of(_scaffoldContext).size;
+  final ovalCenter = Offset(screenSize.width / 2, screenSize.height * 0.4);
+  final ovalWidth = screenSize.width * 0.75;
+  final ovalHeight = screenSize.height * 0.45;
+  
+  // Convert face rect coordinates to account for camera mirroring
+  final adjustedFaceRect = _isUsingFrontCamera 
+      ? Rect.fromLTRB(
+          screenSize.width - faceRect.right,
+          faceRect.top,
+          screenSize.width - faceRect.left,
+          faceRect.bottom,
+        )
+      : faceRect;
+
+  // Calculate face center
+  final faceCenter = Offset(
+    adjustedFaceRect.left + adjustedFaceRect.width / 2,
+    adjustedFaceRect.top + adjustedFaceRect.height / 2,
+  );
+
+  // Elliptical boundary check
+  final normalizedX = pow((faceCenter.dx - ovalCenter.dx) / (ovalWidth / 2), 2);
+  final normalizedY = pow((faceCenter.dy - ovalCenter.dy) / (ovalHeight / 2), 2);
+  
+  return (normalizedX + normalizedY) <= 1.0;
+}
+void _checkFaceStability(Rect currentPosition) {
+  final now = DateTime.now();
+  
+  if (_lastFacePosition == null) {
+    _lastFacePosition = currentPosition;
+    _lastFaceMovementTime = now;
+    _isFaceStable = false;
+    return;
+  }
+
+  // Calculate relative movement (percentage of face size)
+  final dx = (currentPosition.left - _lastFacePosition!.left).abs() / _lastFacePosition!.width;
+  final dy = (currentPosition.top - _lastFacePosition!.top).abs() / _lastFacePosition!.height;
+  final movement = sqrt(dx * dx + dy * dy); // Use Euclidean distance
+
+  print('Face movement: ${movement.toStringAsFixed(4)}');
+
+  if (movement > _stabilityThreshold) {
+    _lastFacePosition = currentPosition;
+    _lastFaceMovementTime = now;
+    _isFaceStable = false;
+  } else if (_lastFaceMovementTime != null && 
+            now.difference(_lastFaceMovementTime!).inMilliseconds > _stabilityDurationMs) {
+    _isFaceStable = true;
+  }
+  
+  _lastFacePosition = currentPosition;
+}
 
   Future<void> _loadUserEmail() async {
     try {
@@ -100,32 +214,57 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _initializeCamera() async {
-    try {
-      final cameras = await availableCameras();
-      final selectedCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == (_isUsingFrontCamera ? CameraLensDirection.front : CameraLensDirection.back),
-        orElse: () => cameras.first,
-      );
+  try {
+    final cameras = await availableCameras();
+    final selectedCamera = cameras.firstWhere(
+      (camera) => camera.lensDirection == 
+          (_isUsingFrontCamera ? CameraLensDirection.front : CameraLensDirection.back),
+      orElse: () => cameras.first,
+    );
 
-      _controller = CameraController(selectedCamera, ResolutionPreset.high);
-      await _controller!.initialize();
-      if (mounted) setState(() {});
-    } catch (e) {
-      print("Camera init error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
-          const SnackBar(content: Text("Failed to initialize camera")),
-        );
-      }
+    _controller = CameraController(
+      selectedCamera,
+      ResolutionPreset.medium, // Changed from high to medium for better performance
+      imageFormatGroup: ImageFormatGroup.yuv420,
+    );
+    
+    await _controller!.initialize();
+    _rotation = _getRotation(selectedCamera.sensorOrientation);
+    
+    if (mounted) setState(() {});
+  } catch (e) {
+    print("Camera init error: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+        const SnackBar(content: Text("Failed to initialize camera")),
+      );
     }
   }
+}
+
+// Helper method to get correct rotation
+InputImageRotation _getRotation(int sensorOrientation) {
+  switch (sensorOrientation) {
+    case 90:
+      return InputImageRotation.rotation90deg;
+    case 180:
+      return InputImageRotation.rotation180deg;
+    case 270:
+      return InputImageRotation.rotation270deg;
+    default:
+      return InputImageRotation.rotation0deg;
+  }
+}
 
   void _switchCamera() async {
     setState(() {
       _isUsingFrontCamera = !_isUsingFrontCamera;
       _showResults = false;
       _capturedImage = null;
-      _ovalColor = Colors.white; // Reset color when switching camera
+      _ovalColor = Colors.white;
+      _lastFacePosition = null;
+      _lastFaceMovementTime = null;
+      _isFaceStable = false;
     });
     _initializeControllerFuture = _initializeCamera();
   }
@@ -136,9 +275,8 @@ class _CameraPageState extends State<CameraPage> {
         throw Exception('Please login first to use this feature');
       }
 
-      // Only allow capture when face is in frame and stable (green)
-      if (_ovalColor != Colors.green) {
-        throw Exception('Please position your face properly within the frame');
+      if (_ovalColor != Colors.green || !_isFaceStable) {
+        throw Exception('Please keep your face steady within the frame');
       }
 
       setState(() {
@@ -173,59 +311,53 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
- Future<void> _analyzeImage(File imageFile) async {
-  try {
-    setState(() {
-      _isLoading = true;
-      _showResults = false; // Ensure this is reset before new analysis
-    });
-
-    // Add timeout to the request
-    var request = http.MultipartRequest(
-      'POST', 
-      Uri.parse('https://glamouraika.com/api/upload_image')
-    )..fields['email'] = _userEmail!;
-
-    request.files.add(await http.MultipartFile.fromPath(
-      'image', 
-      imageFile.path,
-      contentType: MediaType('image', 'jpeg'),
-    ));
-
-    // Add timeout and better error handling
-    final response = await request.send().timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        throw TimeoutException('The connection timed out');
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = await response.stream.bytesToString();
-      final jsonResponse = json.decode(responseData);
-
-      if (jsonResponse['face_shape'] == null || jsonResponse['skin_tone'] == null) {
-        throw Exception('Could not detect face shape and skin tone. Please try again with a clearer photo.');
-      }
-
-       // Debug prints to verify values
-      print('Face shape: ${jsonResponse['face_shape']}');
-      print('Skin tone: ${jsonResponse['skin_tone']}');
-
+  Future<void> _analyzeImage(File imageFile) async {
+    try {
       setState(() {
-        _faceShape = jsonResponse['face_shape'];
-        _skinTone = jsonResponse['skin_tone'];
-        _showResults = true;
-        _isLoading = false;
+        _isLoading = true;
+        _showResults = false;
       });
-        // Show glitter popup
+
+      var request = http.MultipartRequest(
+        'POST', 
+        Uri.parse('https://glamouraika.com/api/upload_image')
+      )..fields['email'] = _userEmail!;
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'image', 
+        imageFile.path,
+        contentType: MediaType('image', 'jpeg'),
+      ));
+
+      final response = await request.send().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('The connection timed out');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final jsonResponse = json.decode(responseData);
+
+        if (jsonResponse['face_shape'] == null || jsonResponse['skin_tone'] == null) {
+          throw Exception('Could not detect face shape and skin tone. Please try again with a clearer photo.');
+        }
+
+        setState(() {
+          _faceShape = jsonResponse['face_shape'];
+          _skinTone = jsonResponse['skin_tone'];
+          _showResults = true;
+          _isLoading = false;
+        });
+
         if (mounted) {
           showDialog(
             context: context,
             barrierDismissible: false,
             builder: (BuildContext context) {
               return Dialog(
-                insetPadding: EdgeInsets.all(20),
+                insetPadding: const EdgeInsets.all(20),
                 backgroundColor: Colors.transparent,
                 child: Container(
                   decoration: BoxDecoration(
@@ -248,18 +380,18 @@ class _CameraPageState extends State<CameraPage> {
                   ),
                   child: Stack(
                     children: [
-                      // Glitter particles
                       Positioned.fill(
                         child: CustomPaint(
                           painter: _GlitterPainter(),
                         ),
                       ),
                       Padding(
-                        padding: EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(20),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Sparkle icon
                             ShaderMask(
                               shaderCallback: (Rect bounds) {
                                 return RadialGradient(
@@ -270,34 +402,34 @@ class _CameraPageState extends State<CameraPage> {
                                     Colors.purple.shade200,
                                     Colors.pink.shade400,
                                   ],
-                                  stops: [0.0, 0.5, 1.0],
+                                  stops: const [0.0, 0.5, 1.0],
                                 ).createShader(bounds);
                               },
-                              child: Icon(
+                              child: const Icon(
                                 Icons.auto_awesome,
                                 size: 60,
                                 color: Colors.white,
                               ),
                             ),
-                            SizedBox(height: 15),
-                            Text(
+                            const SizedBox(height: 15),
+                            const Text(
                               "Results Saved!",
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.pink.shade800,
+                                color: Colors.pink,
                               ),
                             ),
-                            SizedBox(height: 10),
-                            Text(
+                            const SizedBox(height: 10),
+                            const Text(
                               "Your face shape and skin tone results\nhave been saved to your profile",
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey.shade700,
+                                color: Colors.grey,
                               ),
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             ElevatedButton(
                               onPressed: () => Navigator.pop(context),
                               style: ElevatedButton.styleFrom(
@@ -305,13 +437,13 @@ class _CameraPageState extends State<CameraPage> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                padding: EdgeInsets.symmetric(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 30,
                                   vertical: 12,
                                 ),
                                 elevation: 3,
                               ),
-                              child: Text(
+                              child: const Text(
                                 "GOT IT",
                                 style: TextStyle(
                                   color: Colors.white,
@@ -331,190 +463,227 @@ class _CameraPageState extends State<CameraPage> {
           );
         }
       } else {
-      final errorData = await response.stream.bytesToString();
-      final errorMessage = json.decode(errorData)['message'] ?? 'Analysis failed. Please try again.';
-      throw Exception(errorMessage);
-    }
-  } catch (e) {
-    setState(() {
-      _isLoading = false;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+        final errorData = await response.stream.bytesToString();
+        final errorMessage = json.decode(errorData)['message'] ?? 'Analysis failed. Please try again.';
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     }
   }
-}
 
-
-@override
-Widget build(BuildContext context) {
-  _scaffoldContext = context;
-  final screenWidth = MediaQuery.of(context).size.width;
-  
-  return Scaffold(
-    body: Stack(
+  @override
+  Widget build(BuildContext context) {
+    _scaffoldContext = context;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    return Scaffold(
+      body: Stack(
+        children: [
+          if (_capturedImage == null)
+            FutureBuilder<void>(
+              future: _initializeControllerFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done || _controller == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CameraPreview(_controller!),
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: DashedOvalPainter(color: _ovalColor),
+                      ),
+                    ),
+                   Positioned(
+  bottom: 150,
+  left: 20,
+  child: Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.black54,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Show either camera preview or captured image
-        if (_capturedImage == null)
-          FutureBuilder<void>(
-            future: _initializeControllerFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done || _controller == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  CameraPreview(_controller!),
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: DashedOvalPainter(color: _ovalColor),
-                    ),
-                  ),
-                  // Add guidance text based on oval color
-                  if (_ovalColor == Colors.red)
-                    Positioned(
-                      top: MediaQuery.of(context).size.height * 0.3,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Text(
-                          'Please position your face within the frame',
-                          style: const TextStyle(
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: _faceDetected
+              ? (_faceInFrame
+                  ? (_isFaceStable
+                      ? const Text(
+                          'Warning: Ready to capture (Green)',
+                          key: ValueKey('debug_stable'),
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                           ),
-                        ),
-                      ),
-                    ),
-                  if (_ovalColor == Colors.green)
-                    Positioned(
-                      top: MediaQuery.of(context).size.height * 0.3,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Text(
-                          'Hold still and tap the capture button',
-                          style: const TextStyle(
+                        )
+                      : const Text(
+                          'Warning: Face in frame but moving (Orange)',
+                          key: ValueKey('debug_unstable'),
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                           ),
-                        ),
+                        ))
+                  : const Text(
+                      'Warning: Face detected but not in frame (Red)',
+                      key: ValueKey('debug_not_in_frame'),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                       ),
-                    ),
-                ],
-              );
-            },
-          )
-        else
-          Stack(
-            fit: StackFit.expand,
-            children: [
-              // Full screen image with explicit fit
-              Image.file(
-                _capturedImage!,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.low, // Helps with rendering performance
-              ),
-              
-              // Show loading or results
-              if (_isLoading)
-                Center(
-                  child: LoadingAnimationWidget.flickr(
-                    leftDotColor: Colors.pinkAccent,
-                    rightDotColor: Colors.pinkAccent,
-                    size: screenWidth * 0.1,
-                  ),
-                )
-              else if (_showResults && _faceShape != null && _skinTone != null)
-                Positioned(
-                  bottom: 120,
-                  left: 20,
-                  right: 20,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: _buildResultsPanel(),
+                    ))
+              : const Text(
+                  'Warning: No face detected (White)',
+                  key: ValueKey('debug_no_face'),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                   ),
                 ),
-            ],
-          ),
-
-        // App bar title - shown in both modes
-        Positioned(
-          top: 60,
-          left: 20,
-          right: 20,
-          child: Text(
-            _capturedImage == null ? "Capture your face" : "Your Captured Photo",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-            ),
-            textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Detailed Status:',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 12,
           ),
         ),
-
-        // Camera switch button - only visible when in camera mode
-        if (_capturedImage == null)
-          Positioned(
-            bottom: 70,
-            left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 36),
-              onPressed: _isProcessing ? null : _switchCamera,
-            ),
-          ),
-
-        // Capture button - only visible when in camera mode
-        if (_capturedImage == null)
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+        Text(
+          '• Detected: $_faceDetected',
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+        Text(
+          '• In Frame: $_faceInFrame',
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+        Text(
+          '• Stable: $_isFaceStable',
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+      ],
+    ),
+  ),
+),
+                  ],
+                );
+              },
+            )
+          else
+            Stack(
+              fit: StackFit.expand,
               children: [
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _isProcessing ? null : _takePicture,
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(20),
-                    backgroundColor: Colors.white.withOpacity(0.9),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    size: 50,
-                    color: Colors.black,
-                  ),
+                Image.file(
+                  _capturedImage!,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.low,
                 ),
-                if (_isProcessing)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 16),
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                if (_isLoading)
+                  Center(
+                    child: LoadingAnimationWidget.flickr(
+                      leftDotColor: Colors.pinkAccent,
+                      rightDotColor: Colors.pinkAccent,
+                      size: screenWidth * 0.1,
+                    ),
+                  )
+                else if (_showResults && _faceShape != null && _skinTone != null)
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: _buildResultsPanel(),
                     ),
                   ),
               ],
             ),
-          ),
-      ],
-    ),
-  );
-}
 
- Widget _buildResultsPanel() {
+          Positioned(
+            top: 60,
+            left: 20,
+            right: 20,
+            child: Text(
+              _capturedImage == null ? "Capture your face" : "Your Captured Photo",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          if (_capturedImage == null)
+            Positioned(
+              bottom: 70,
+              left: 20,
+              child: IconButton(
+                icon: const Icon(Icons.flip_camera_android, color: Colors.white, size: 36),
+                onPressed: _isProcessing ? null : _switchCamera,
+              ),
+            ),
+
+          if (_capturedImage == null)
+            Positioned(
+              bottom: 50,
+              left: 0,
+              right: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _isProcessing ? null : _takePicture,
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(20),
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      size: 50,
+                      color: Colors.black,
+                    ),
+                  ),
+                  if (_isProcessing)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultsPanel() {
     return Center(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.7,
+        width: MediaQuery.of(_scaffoldContext).size.width * 0.7,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -542,28 +711,28 @@ Widget build(BuildContext context) {
             const SizedBox(height: 8),
             Text(
               "Face Shape: ${_faceShape!.toUpperCase()}",
-              style: TextStyle(color: Colors.black, fontSize: 14),
+              style: const TextStyle(color: Colors.black, fontSize: 14),
             ),
             const SizedBox(height: 4),
             Text(
               "Skin Tone: ${_skinTone!.toUpperCase()}",
-              style: TextStyle(color: Colors.black, fontSize: 14),
+              style: const TextStyle(color: Colors.black, fontSize: 14),
             ),
             const SizedBox(height: 9),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MakeupHubPage(
-          skinTone: _skinTone!,
-          capturedImage: _capturedImage!, // Pass the File directly
-        ),
-      ),
-    );
-  },
+                onPressed: () {
+                  Navigator.push(
+                    _scaffoldContext,
+                    MaterialPageRoute(
+                      builder: (context) => MakeupHubPage(
+                        skinTone: _skinTone!,
+                        capturedImage: _capturedImage!,
+                      ),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.pink,
                   shape: RoundedRectangleBorder(
@@ -571,7 +740,7 @@ Widget build(BuildContext context) {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
-                child: Text(
+                child: const Text(
                   "Proceed",
                   style: TextStyle(
                     color: Colors.white,
@@ -591,7 +760,7 @@ Widget build(BuildContext context) {
 class DashedOvalPainter extends CustomPainter {
   final Color color;
   
-  DashedOvalPainter({this.color = Colors.white});
+  const DashedOvalPainter({this.color = Colors.white});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -641,7 +810,6 @@ class _GlitterPainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    // Draw random glitter particles
     for (int i = 0; i < 30; i++) {
       final x = random.nextDouble() * size.width;
       final y = random.nextDouble() * size.height;
