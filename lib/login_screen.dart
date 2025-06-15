@@ -279,8 +279,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             validator: _validatePassword,
                           ),
                           const SizedBox(height: 2),
-                          
-                          // Forgot password link
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(

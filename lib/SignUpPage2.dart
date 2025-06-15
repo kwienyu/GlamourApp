@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'login_screen.dart';
 
-// Moved ConfettiParticle to top level
 class ConfettiParticle {
   double x;
   double y;
@@ -61,7 +60,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
   bool _showConfetti = false;
   final List<ConfettiParticle> _confettiParticles = [];
 
-  // Create confetti explosion
   void _createConfetti() {
     final random = Random();
     final colors = [
@@ -517,7 +515,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
   }
 }
 
-// Moved _GlitterPainter to top level
 class _GlitterPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -538,7 +535,6 @@ class _GlitterPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// Moved _ConfettiPainter to top level
 class _ConfettiPainter extends CustomPainter {
   final List<ConfettiParticle> particles;
 

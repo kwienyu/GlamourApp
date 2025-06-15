@@ -14,7 +14,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Find Your Undertone",
-            style: TextStyle(fontSize: 20)), // Increased from default
+            style: TextStyle(fontSize: 20)), 
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -106,7 +106,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
         child: Row(
           children: [
             Icon(Icons.lightbulb_outline, 
-                color: Colors.amber.shade600, size: 24), // Increased from 20
+                color: Colors.amber.shade600, size: 24), 
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -128,7 +128,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: Colors.pink.shade700,
-              fontSize: 18, // Explicitly set larger size
+              fontSize: 18, 
             ));
   }
 
@@ -136,14 +136,14 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 16, // Increased from 14
+        fontSize: 16, 
         color: Colors.grey.shade600,
       ),
     );
   }
 
   Widget _buildImageWithLabel(String imagePath, String label, BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width - 40; // Account for padding
+    final screenWidth = MediaQuery.of(context).size.width - 40; 
     
     return FutureBuilder(
       future: _getImageSize(imagePath),
@@ -181,7 +181,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 14, // Increased from 12
+                  fontSize: 14, 
                   fontWeight: FontWeight.w500,
                   color: Colors.grey.shade700,
                 ),
@@ -196,7 +196,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
   }
 
   Widget buildFullWidthImage(String imagePath, BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width - 40; // Account for padding
+    final screenWidth = MediaQuery.of(context).size.width - 40; 
     
     return FutureBuilder(
       future: _getImageSize(imagePath),
@@ -268,14 +268,14 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
           title,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 17, // Increased size
+            fontSize: 17, 
           ),
         ),
         subtitle: Text(
           description,
           style: TextStyle(
             color: Colors.grey.shade700,
-            fontSize: 15, // Increased size
+            fontSize: 15, 
           ),
         ),
       ),

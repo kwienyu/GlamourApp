@@ -35,20 +35,19 @@ class _CameraPageState extends State<CameraPage> {
   bool _faceInFrame = false;
   Timer? _faceCheckTimer;
   
-  
   // Face detection properties
   FaceDetector? _faceDetector;
   bool _isFaceStable = false;
   DateTime? _lastFaceMovementTime;
   Rect? _lastFacePosition;
-  static const double _stabilityThreshold = 0.05;
-  static const int _stabilityDurationMs = 1000;
+  static const double _stabilityThreshold = 0.03; 
+  static const int _stabilityDurationMs = 1500;  
   bool _isProcessingFrame = false;
   bool _isTakingPicture = false;
   InputImageRotation _rotation = InputImageRotation.rotation0deg;
 
-  static const double _maxRotationThreshold = 15.0; // degrees
-  static const double _centerThreshold = 0.1; // 10% of oval size
+  static const double _maxRotationThreshold = 15.0; 
+  static const double _centerThreshold = 0.1; 
   bool isFaceAligned = false;
 
   @override
@@ -62,10 +61,10 @@ class _CameraPageState extends State<CameraPage> {
 
   void _initializeFaceDetector() {
   final options = FaceDetectorOptions(
-    performanceMode: FaceDetectorMode.accurate, // Changed from fast to accurate
-    enableContours: false,
-    enableClassification: false,
-    enableLandmarks: false,
+    performanceMode: FaceDetectorMode.accurate,
+    enableContours: true,
+    enableClassification: true,
+    enableLandmarks: true,
     enableTracking: true,
   );
   _faceDetector = FaceDetector(options: options);
@@ -76,7 +75,7 @@ void dispose() {
   _faceCheckTimer?.cancel();
   _controller?.dispose();
   _faceDetector?.close();
-  _isTakingPicture = false; // Add this
+  _isTakingPicture = false; 
   super.dispose();
 }
 
@@ -86,32 +85,27 @@ void dispose() {
         _controller!.value.isInitialized && 
         !_isProcessing && 
         _capturedImage == null &&
-        !_isTakingPicture) { // Add this check
+        !_isTakingPicture) { 
       _checkFacePosition();
     }
   });
 }
- Future<void> _checkFacePosition() async {
+Future<void> _checkFacePosition() async {
   if (_controller == null || 
       !_controller!.value.isInitialized || 
       _isProcessingFrame || 
       _isProcessing || 
       _capturedImage != null ||
-      _isTakingPicture) { // Add this check
+      _isTakingPicture) { 
     return;
   }
 
   try {
     _isProcessingFrame = true;
     
-    // Get the latest frame from camera
     final frame = await _controller!.takePicture();
     final inputImage = InputImage.fromFilePath(frame.path);
-    
-    // Process the image for face detection
     final faces = await _faceDetector!.processImage(inputImage);
-    
-    // Delete the temporary file immediately
     await File(frame.path).delete();
 
     setState(() {
@@ -125,9 +119,21 @@ void dispose() {
         _faceDetected = true;
         _faceInFrame = _isFaceInOval(face.boundingBox);
         
-        if (_faceInFrame) {
+        final isFaceCovered = _isFaceCovered(face);
+        
+        if (isFaceCovered) {
+          _faceDetected = false;
+          _faceInFrame = false;
+          _isFaceStable = false;
+          _ovalColor = Colors.red;
+        } else if (_faceInFrame) {
           _checkFaceStability(face.boundingBox);
-          _ovalColor = _isFaceStable ? Colors.green : Colors.orange;
+          // More sensitive movement detection
+          if (!_isFaceStable) {
+            _ovalColor = Colors.orange; // Show orange immediately when not stable
+          } else {
+            _ovalColor = Colors.green;
+          }
         } else {
           _ovalColor = Colors.red;
           _isFaceStable = false;
@@ -146,6 +152,48 @@ void dispose() {
     _isProcessingFrame = false;
   }
 }
+
+bool _isFaceCovered(Face face) {
+  // Check if eyes are closed or not detected
+  final leftEye = face.landmarks[FaceLandmarkType.leftEye];
+  final rightEye = face.landmarks[FaceLandmarkType.rightEye];
+  
+  // Check mouth landmarks
+  final mouthLeft = face.landmarks[FaceLandmarkType.leftMouth];
+  final mouthRight = face.landmarks[FaceLandmarkType.rightMouth];
+  final mouthBottom = face.landmarks[FaceLandmarkType.bottomMouth];
+  
+  // Check nose landmark
+  final noseBase = face.landmarks[FaceLandmarkType.noseBase];
+
+  // If any key landmarks are missing, face might be covered
+  if (leftEye == null || rightEye == null || 
+      mouthLeft == null || mouthRight == null || mouthBottom == null || 
+      noseBase == null) {
+    return true;
+  }
+  
+  // Check for closed eyes
+  if (face.leftEyeOpenProbability != null && face.rightEyeOpenProbability != null) {
+    if (face.leftEyeOpenProbability! < 0.3 || face.rightEyeOpenProbability! < 0.3) {
+      return true;
+    }
+  }
+  
+  // Calculate mouth center with proper double conversion
+  final faceRect = face.boundingBox;
+  final mouthCenter = Offset(
+    (mouthLeft.position.x.toDouble() + mouthRight.position.x.toDouble()) / 2.0,
+    mouthBottom.position.y.toDouble()
+  );
+  
+  // Calculate relative mouth position
+  final relativeMouthY = (mouthCenter.dy - faceRect.top.toDouble()) / faceRect.height.toDouble();
+  
+  // If mouth is not in the lower 40% of face, it might be covered
+  return relativeMouthY < 0.6;
+}
+
 bool checkFaceAlignment(Face face) {
   // Check if face is rotated too much (with null checks)
   final headEulerAngleY = face.headEulerAngleY ?? 0.0;
@@ -213,6 +261,7 @@ bool checkFaceAlignment(Face face) {
   
   return (normalizedX + normalizedY) <= 1.0;
 }
+
 void _checkFaceStability(Rect currentPosition) {
   final now = DateTime.now();
   
@@ -226,14 +275,20 @@ void _checkFaceStability(Rect currentPosition) {
   // Calculate relative movement (percentage of face size)
   final dx = (currentPosition.left - _lastFacePosition!.left).abs() / _lastFacePosition!.width;
   final dy = (currentPosition.top - _lastFacePosition!.top).abs() / _lastFacePosition!.height;
-  final movement = sqrt(dx * dx + dy * dy); // Use Euclidean distance
+  final movement = sqrt(dx * dx + dy * dy); 
 
   print('Face movement: ${movement.toStringAsFixed(4)}');
 
+  // More sensitive movement detection
   if (movement > _stabilityThreshold) {
     _lastFacePosition = currentPosition;
     _lastFaceMovementTime = now;
     _isFaceStable = false;
+    
+    // Show orange frame for smaller movements
+    if (movement > _stabilityThreshold * 0.7) { // 70% of threshold
+      _ovalColor = Colors.orange;
+    }
   } else if (_lastFaceMovementTime != null && 
             now.difference(_lastFaceMovementTime!).inMilliseconds > _stabilityDurationMs) {
     _isFaceStable = true;
@@ -272,7 +327,7 @@ void _checkFaceStability(Rect currentPosition) {
 
     _controller = CameraController(
       selectedCamera,
-      ResolutionPreset.medium, // Changed from high to medium for better performance
+      ResolutionPreset.medium,
       imageFormatGroup: ImageFormatGroup.yuv420,
     );
     
@@ -318,7 +373,7 @@ InputImageRotation _getRotation(int sensorOrientation) {
   }
 
  Future<void> _takePicture() async {
-  if (_isTakingPicture) return; // Prevent multiple captures
+  if (_isTakingPicture) return; 
   
   try {
     if (_userEmail == null || _userEmail!.isEmpty) {
@@ -330,7 +385,7 @@ InputImageRotation _getRotation(int sensorOrientation) {
     }
 
     setState(() {
-      _isTakingPicture = true; // Add this
+      _isTakingPicture = true; 
       _isProcessing = true;
       _showResults = false;
       _capturedImage = null;
@@ -360,7 +415,7 @@ InputImageRotation _getRotation(int sensorOrientation) {
   } finally {
     if (mounted) {
       setState(() {
-        _isTakingPicture = false; // Add this
+        _isTakingPicture = false; 
         _isProcessing = false;
       });
     }

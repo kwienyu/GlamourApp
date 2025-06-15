@@ -238,12 +238,10 @@ Future<void> _saveLook() async {
     final imageBytes = await widget.capturedImage.readAsBytes();
     final base64Image = base64Encode(imageBytes);
 
-    // Prepare the shades data in the format the API expects
+
     Map<String, List<String>> labeledShades = {};
-    
     selectedShades.forEach((productType, color) {
       if (color != null) {
-        // Convert Color to hex string (e.g., #FF5733)
         String hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
         labeledShades[productType] = [hexColor];
       }
@@ -271,7 +269,7 @@ Future<void> _saveLook() async {
           'makeup_look': widget.selectedMakeupLook,
           'shades': labeledShades,
           'image_data': base64Image,
-          'is_client_look': false, // Set this based on your needs
+          'is_client_look': false, 
         }),
       );
 
@@ -282,7 +280,7 @@ Future<void> _saveLook() async {
           responseData['saved_look_id'],
           widget.selectedMakeupLook!,
           base64Image,
-          labeledShades, // Fixed variable name from shadesData to labeledShades
+          labeledShades, 
         );
 
         setState(() {
@@ -318,7 +316,7 @@ Future<void> _saveLook() async {
   }
 
   Future<void> _cacheSavedLook(
-    dynamic lookId, // Changed from int to dynamic to handle different ID types
+    dynamic lookId, 
     String lookName, 
     String imageData,
     Map<String, dynamic> shades
@@ -326,7 +324,6 @@ Future<void> _saveLook() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('look_image_$lookId', imageData);
     
-    // You might want to cache other look details as well
     await prefs.setString('cached_look_$lookId', jsonEncode({
       'saved_look_id': lookId,
       'makeup_look_name': lookName,
@@ -396,7 +393,7 @@ Future<void> _saveLook() async {
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
-          if (isSelected) // Add glitter effect for selected shade
+          if (isSelected) 
             BoxShadow(
               color: Colors.white.withOpacity(0.8),
               blurRadius: 10,
