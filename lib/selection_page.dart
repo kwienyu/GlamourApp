@@ -291,6 +291,11 @@ class _SelectionPageState extends State<SelectionPage> {
 
 @override
 Widget build(BuildContext context) {
+
+  final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 350;
+
   return Scaffold(
     appBar: AppBar(
       backgroundColor: Colors.pinkAccent,
@@ -342,120 +347,134 @@ Widget build(BuildContext context) {
       ],
     ),
     body: SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 30),
-        Stack(
-  alignment: Alignment.center,
-  children: [
-    // Pink box container
-    Container(
-      width: 400,
-      height: 400,
-      margin: const EdgeInsets.only(top: 2), // Increased top margin to make space for avatar
-      decoration: const BoxDecoration(
-        color: Color.fromARGB(95, 239, 216, 230),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-        ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 80), // Adjusted to align content below avatar
-          // CircleAvatar removed from here
-        ],
-      ),
-    ),
-    // CircleAvatar positioned above the pink box
-    Positioned(
-      top: 30, // Adjust this value to move the avatar higher or lower
-      child: CircleAvatar(
-        radius: 55,
-        backgroundColor: const Color.fromARGB(255, 239, 79, 165),
-        child: CircleAvatar(
-          radius: 50,
-          backgroundImage: _newProfilePic != null
-              ? FileImage(_newProfilePic!)
-              : (profilePic != null
-                  ? (profilePic is Uint8List
-                      ? MemoryImage(profilePic!)
-                      : NetworkImage(profilePic.toString()) as ImageProvider)
-                  : null),
-          child: _newProfilePic == null && profilePic == null
-              ? const Icon(Icons.person, size: 60, color: Colors.grey)
-              : null,
-        ),
-      ),
-    ),
-    // Other content (face shape, skin tone, and user details)
-    Padding(
-      padding: const EdgeInsets.only(top: 150),
-      child: Column(
-        children: [
-          Container(
-            width: 250,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color.fromARGB(255, 247, 205, 227),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color.fromARGB(95, 238, 146, 203).withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
+        child: Column(
+          children: [
+            SizedBox(height: screenHeight * 0.02),
+            Stack(
+              alignment: Alignment.center,
               children: [
-                Text(
-                  "Face Shape: ${faceShape ?? "Loading..."}",
-                  style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
-                ),
-                Text(
-                  "Skin Tone: ${skinTone ?? "Loading..."}",
-                  style: const TextStyle(fontSize: 15, fontFamily: 'Serif'),
-                ),
-                const SizedBox(height: 15),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.pinkAccent,
-                  ),
-                  onPressed: _showEditProfileDialog,
-                  child: const Text(
-                    "Edit Profile",
-                    style: TextStyle(color: Colors.white),
+                // Pink box container
+                Container(
+                  width: screenWidth,
+                  height: screenHeight * 0.6,
+                  margin: EdgeInsets.only(top: screenHeight * 0.05),
+                  decoration: const BoxDecoration(
+                    color: Color.fromARGB(95, 239, 216, 230),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          // Transparent white container with user details (restored)
-          Container(
-            width: 400,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white, // White background
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color.fromARGB(255, 247, 205, 227),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color.fromARGB(95, 238, 146, 203).withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                // CircleAvatar positioned above the pink box
+                Positioned(
+                  top: screenHeight * 0.04,
+                  child: CircleAvatar(
+                    radius: screenWidth * 0.15,
+                    backgroundColor: const Color.fromARGB(255, 239, 79, 165),
+                    child: CircleAvatar(
+                      radius: screenWidth * 0.14,
+                      backgroundImage: _newProfilePic != null
+                          ? FileImage(_newProfilePic!)
+                          : (profilePic != null
+                              ? (profilePic is Uint8List
+                                  ? MemoryImage(profilePic!)
+                                  : NetworkImage(profilePic.toString()) as ImageProvider)
+                              : null),
+                      child: _newProfilePic == null && profilePic == null
+                          ? Icon(Icons.person, 
+                              size: screenWidth * 0.2, 
+                              color: Colors.grey)
+                          : null,
+                    ),
+                  ),
                 ),
-              ],
-            ),
+                // Other content (face shape, skin tone, and user details)
+                Padding(
+                  padding: EdgeInsets.only(top: screenHeight * 0.2),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: screenWidth * 0.8,
+                        padding: EdgeInsets.all(screenWidth * 0.04),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 247, 205, 227),
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color.fromARGB(95, 238, 146, 203).withOpacity(0.2),
+                              spreadRadius: 2,
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              "Face Shape: ${faceShape ?? "Loading..."}",
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontFamily: 'Serif',
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: screenHeight * 0.01),
+                            Text(
+                              "Skin Tone: ${skinTone ?? "Loading..."}",
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontFamily: 'Serif',
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: screenHeight * 0.02),
+                            SizedBox(
+                              width: screenWidth * 0.4,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.pinkAccent,
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: screenHeight * 0.015,
+                                  ),
+                                ),
+                                onPressed: _showEditProfileDialog,
+                                child: Text(
+                                  "Edit Profile",
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 14 : 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: screenHeight * 0.03),
+                      // User details container
+                      Container(
+                        width: screenWidth * 0.95,
+                        padding: EdgeInsets.all(screenWidth * 0.04),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 247, 205, 227),
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color.fromARGB(95, 238, 146, 203).withOpacity(0.2),
+                              spreadRadius: 2,
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

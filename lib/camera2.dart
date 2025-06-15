@@ -12,7 +12,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'makeuphub.dart';
 
 class CameraPage extends StatefulWidget {
-  const CameraPage({Key? key}) : super(key: key);
+  const CameraPage({super.key});
 
   @override
   _CameraPageState createState() => _CameraPageState();
@@ -44,7 +44,12 @@ class _CameraPageState extends State<CameraPage> {
   static const double _stabilityThreshold = 0.05;
   static const int _stabilityDurationMs = 1000;
   bool _isProcessingFrame = false;
+  bool _isTakingPicture = false;
   InputImageRotation _rotation = InputImageRotation.rotation0deg;
+
+  static const double _maxRotationThreshold = 15.0; // degrees
+  static const double _centerThreshold = 0.1; // 10% of oval size
+  bool isFaceAligned = false;
 
   @override
   void initState() {
@@ -66,28 +71,33 @@ class _CameraPageState extends State<CameraPage> {
   _faceDetector = FaceDetector(options: options);
 }
 
-  @override
-  void dispose() {
-    _faceCheckTimer?.cancel();
-    _controller?.dispose();
-    _faceDetector?.close();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _faceCheckTimer?.cancel();
+  _controller?.dispose();
+  _faceDetector?.close();
+  _isTakingPicture = false; // Add this
+  super.dispose();
+}
 
-  void _startFaceDetectionTimer() {
-    _faceCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (_controller != null && _controller!.value.isInitialized && !_isProcessing && _capturedImage == null) {
-        _checkFacePosition();
-      }
-    });
-  }
-
-  Future<void> _checkFacePosition() async {
+ void _startFaceDetectionTimer() {
+  _faceCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    if (_controller != null && 
+        _controller!.value.isInitialized && 
+        !_isProcessing && 
+        _capturedImage == null &&
+        !_isTakingPicture) { // Add this check
+      _checkFacePosition();
+    }
+  });
+}
+ Future<void> _checkFacePosition() async {
   if (_controller == null || 
       !_controller!.value.isInitialized || 
       _isProcessingFrame || 
       _isProcessing || 
-      _capturedImage != null) {
+      _capturedImage != null ||
+      _isTakingPicture) { // Add this check
     return;
   }
 
@@ -135,6 +145,44 @@ class _CameraPageState extends State<CameraPage> {
   } finally {
     _isProcessingFrame = false;
   }
+}
+bool checkFaceAlignment(Face face) {
+  // Check if face is rotated too much (with null checks)
+  final headEulerAngleY = face.headEulerAngleY ?? 0.0;
+  final headEulerAngleX = face.headEulerAngleX ?? 0.0;
+  
+  if (headEulerAngleY.abs() > _maxRotationThreshold || 
+      headEulerAngleX.abs() > _maxRotationThreshold) {
+    return false;
+  }
+
+  // Check if face is properly centered in the oval
+  final screenSize = MediaQuery.of(_scaffoldContext).size;
+  final ovalCenter = Offset(screenSize.width / 2, screenSize.height * 0.4);
+  final ovalWidth = screenSize.width * 0.75;
+  final ovalHeight = screenSize.height * 0.45;
+  
+  // Convert face rect coordinates to account for camera mirroring
+  final adjustedFaceRect = _isUsingFrontCamera 
+      ? Rect.fromLTRB(
+          screenSize.width - face.boundingBox.right,
+          face.boundingBox.top,
+          screenSize.width - face.boundingBox.left,
+          face.boundingBox.bottom,
+        )
+      : face.boundingBox;
+
+  // Calculate face center
+  final faceCenter = Offset(
+    adjustedFaceRect.left + adjustedFaceRect.width / 2,
+    adjustedFaceRect.top + adjustedFaceRect.height / 2,
+  );
+
+  // Check if face is centered within threshold
+  final xOffset = (faceCenter.dx - ovalCenter.dx).abs() / (ovalWidth / 2);
+  final yOffset = (faceCenter.dy - ovalCenter.dy).abs() / (ovalHeight / 2);
+
+  return xOffset <= _centerThreshold && yOffset <= _centerThreshold;
 }
 
   bool _isFaceInOval(Rect faceRect) {
@@ -269,48 +317,55 @@ InputImageRotation _getRotation(int sensorOrientation) {
     _initializeControllerFuture = _initializeCamera();
   }
 
-  Future<void> _takePicture() async {
-    try {
-      if (_userEmail == null || _userEmail!.isEmpty) {
-        throw Exception('Please login first to use this feature');
-      }
+ Future<void> _takePicture() async {
+  if (_isTakingPicture) return; // Prevent multiple captures
+  
+  try {
+    if (_userEmail == null || _userEmail!.isEmpty) {
+      throw Exception('Please login first to use this feature');
+    }
 
-      if (_ovalColor != Colors.green || !_isFaceStable) {
-        throw Exception('Please keep your face steady within the frame');
-      }
+    if (_ovalColor != Colors.green || !_isFaceStable) {
+      throw Exception('Please keep your face steady within the frame');
+    }
 
+    setState(() {
+      _isTakingPicture = true; // Add this
+      _isProcessing = true;
+      _showResults = false;
+      _capturedImage = null;
+    });
+    
+    await _initializeControllerFuture;
+    if (_controller == null || !_controller!.value.isInitialized) return;
+
+    final XFile file = await _controller!.takePicture();
+    final File imageFile = File(file.path);
+
+    if (!mounted) return;
+    
+    setState(() {
+      _capturedImage = imageFile;
+    });
+
+    await _analyzeImage(imageFile);
+    
+  } catch (e) {
+    print("Capture error: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  } finally {
+    if (mounted) {
       setState(() {
-        _isProcessing = true;
-        _showResults = false;
-        _capturedImage = null;
+        _isTakingPicture = false; // Add this
+        _isProcessing = false;
       });
-      
-      await _initializeControllerFuture;
-      if (_controller == null || !_controller!.value.isInitialized) return;
-
-      final XFile file = await _controller!.takePicture();
-      final File imageFile = File(file.path);
-
-      if (!mounted) return;
-      
-      setState(() {
-        _capturedImage = imageFile;
-      });
-
-      await _analyzeImage(imageFile);
-      
-    } catch (e) {
-      print("Capture error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
     }
   }
-
+}
   Future<void> _analyzeImage(File imageFile) async {
     try {
       setState(() {
@@ -502,7 +557,7 @@ InputImageRotation _getRotation(int sensorOrientation) {
                       ),
                     ),
                    Positioned(
-  bottom: 150,
+  bottom: 160,
   left: 20,
   child: Container(
     padding: const EdgeInsets.all(8),
@@ -519,7 +574,7 @@ InputImageRotation _getRotation(int sensorOrientation) {
               ? (_faceInFrame
                   ? (_isFaceStable
                       ? const Text(
-                          'Warning: Ready to capture (Green)',
+                          'Go: Ready to capture (Green)',
                           key: ValueKey('debug_stable'),
                           style: TextStyle(
                             color: Colors.white,

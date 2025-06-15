@@ -29,7 +29,7 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
 
   final List<String> undertones = ["Warm", "Neutral", "Cool"];
   final Map<String, List<String>> makeupLooks = {
-    'Casual': ['No-Makeup', 'Everyday Glow', 'Sun-Kissed Glow'],
+    'Casual': ['No-Makeup', 'Everyday Glow', 'SunKissed Glow'],
     'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
     'Heavy': ['Matte', 'Cut Crease', 'Glam Night'],
   };
@@ -257,7 +257,7 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
                 print("Request Payload: ${jsonEncode(requestBody)}");
 
                 final response = await http.post(
-                  Uri.parse('https://glamouraika.com/api/recommendation'),
+                  Uri.parse('https://glamouraika.com/api/recommendation'),   
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode(requestBody),
                 );

@@ -365,37 +365,63 @@ Future<void> _saveLook() async {
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
-  Widget _buildShadeItem(Color color) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
+ Widget _buildShadeItem(Color color) {
+  final isSelected = selectedShades[selectedProduct!] == color;
+  return GestureDetector(
+    onTap: () {
+      setState(() {
+        if (isSelected) {
+          // Unselect if already selected
+          selectedShades[selectedProduct!] = null;
+        } else {
+          // Select if not selected
           selectedShades[selectedProduct!] = color;
-        });
-      },
-      child: Container(
-        width: 50,
-        height: 50,
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selectedShades[selectedProduct!] == color 
-                ? Colors.pink 
-                : Colors.grey,
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+        }
+      });
+    },
+    child: Container(
+      width: 50,
+      height: 50,
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isSelected ? Colors.pink : Colors.grey,
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+          if (isSelected) // Add glitter effect for selected shade
+            BoxShadow(
+              color: Colors.white.withOpacity(0.8),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+        ],
       ),
-    );
-  }
+      child: isSelected
+          ? Center(
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.black,
+                  size: 20,
+                ),
+              ),
+            )
+          : null,
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -500,44 +526,70 @@ Future<void> _saveLook() async {
                       child: SingleChildScrollView(
                         child: Column(
                           children: orderedProductNames.where((product) => makeupShades.containsKey(product)).map((product) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedProduct = product;
-                                    showShades = true;
-                                  });
-                                },
-                                child: Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: [Colors.pink.shade100, Colors.pink.shade300],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                        blurRadius: 4,
-                                        offset: Offset(2, 2),
-                                      )
-                                    ],
-                                    border: Border.all(
-                                      color: selectedProduct == product ? Colors.red : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: _buildProductIcon(product),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedProduct = product;
+          showShades = true;
+        });
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Colors.pink.shade100, Colors.pink.shade300],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 4,
+                  offset: Offset(2, 2),
+                )
+              ],
+              border: Border.all(
+                color: selectedProduct == product 
+                  ? Colors.red 
+                  : selectedShades[product] != null
+                    ? Colors.green
+                    : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: _buildProductIcon(product),
+            ),
+          ),
+          if (selectedShades[product] != null)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}).toList(),
                         ),
                       ),
                     ),
@@ -546,55 +598,70 @@ Future<void> _saveLook() async {
               ),
             ),
           if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
-            Positioned(
-              right: 0,
-              top: 140,
-              bottom: 0,
-              child: Container(
-                width: 100,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10.0),
-                      child: Text(
-                        selectedProduct!,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          _buildShadeItem(makeupShades[selectedProduct]![0]),
-                          _buildShadeItem(makeupShades[selectedProduct]![1]),
-                          _buildShadeItem(makeupShades[selectedProduct]![2]),
-                        ],
-                      ),
-                    ),
-                  ],
+  Positioned(
+    right: 0,
+    top: 140,
+    bottom: 0,
+    child: Container(
+      width: 100,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 10.0),
+            child: Text(
+              selectedProduct!,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (selectedShades[selectedProduct] != null)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedShades[selectedProduct!] = null;
+                });
+              },
+              child: const Text(
+                'Clear',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
                 ),
               ),
             ),
+          const SizedBox(height: 2),
+          Expanded(
+            child: ListView(
+              children: [
+                _buildShadeItem(makeupShades[selectedProduct]![0]),
+                _buildShadeItem(makeupShades[selectedProduct]![1]),
+                _buildShadeItem(makeupShades[selectedProduct]![2]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
           Positioned(
             bottom: 20,
             left: MediaQuery.of(context).size.width * 0.2,

@@ -45,30 +45,51 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
     super.dispose();
   }
 
- Future<void> _selectDate(BuildContext context) async {
-  final now = DateTime.now();
-  final DateTime? picked = await showDatePicker(
-    context: context,
-    initialDate: DateTime(now.year - 16, now.month, now.day), // Changed from 12 to 16
-    firstDate: DateTime(1985),
-    lastDate: DateTime(now.year - 16, now.month, now.day), // Changed from 12 to 16
-    builder: (BuildContext context, Widget? child) {
-      return Theme(
-        data: ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: Color.fromARGB(255, 246, 67, 126),
+  Future<void> _selectDate(BuildContext context) async {
+    final now = DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(now.year - 16, now.month, now.day),
+      firstDate: DateTime(1985),
+      lastDate: DateTime(now.year - 16, now.month, now.day),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color.fromARGB(255, 246, 67, 126),
+            ),
           ),
-        ),
-        child: child!,
-      );
-    },
-  );
-  if (picked != null) {
-    setState(() {
-      dobController.text = "${picked.day}/${picked.month}/${picked.year}";
-    });
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        // Keep your original display format but store API format separately
+        dobController.text = "${picked.day}/${picked.month}/${picked.year}";
+      });
+    }
   }
-}
+
+  // New method to convert date to API format (YYYY-MM-DD)
+  String _getApiDobFormat() {
+    if (dobController.text.isEmpty) return '';
+    final parts = dobController.text.split('/');
+    if (parts.length != 3) return '';
+    final day = parts[0].padLeft(2, '0');
+    final month = parts[1].padLeft(2, '0');
+    final year = parts[2];
+    return '$year-$month-$day';
+  }
+
+  // New method to convert gender to API format
+  String? _getApiGenderValue() {
+    if (gender == null) return null;
+    if (gender == 'Male') return 'male';
+    if (gender == 'Female') return 'female';
+    if (gender == 'Other') return 'other';
+    return 'prefer_not_to_say';
+  }
 
   void _navigateToNextPage() {
     if (firstNameController.text.isEmpty ||
@@ -91,8 +112,8 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
           firstName: firstNameController.text,
           lastName: lastNameController.text,
           suffix: suffix,
-          dob: dobController.text,
-          gender: gender,
+          dob: _getApiDobFormat(), // Pass the API-formatted date
+          gender: _getApiGenderValue(), // Pass the API-formatted gender
         ),
       ),
     );
@@ -178,7 +199,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 80), // Reduced from 80 to move content up
+                  const SizedBox(height: 80),
                   Image.asset(
                     'assets/glam_logo.png',
                     height: 100,
@@ -186,7 +207,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(20.0),
-                    margin: const EdgeInsets.only(top: 1), // Moved container up
+                    margin: const EdgeInsets.only(top: 1),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(15),
@@ -262,29 +283,29 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                         ),
                         const SizedBox(height: 16),
                         Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Padding(
-      padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
-      child: Text(
-        'Gender',
-        style: TextStyle(
-          fontSize: 16,
-          color: Colors.black.withOpacity(0.6),
-        ),
-      ),
-    ),
-    Row(
-      children: [
-        _buildGenderCheckbox('Male'),
-        const SizedBox(width: 20),
-        _buildGenderCheckbox('Female'),
-        const SizedBox(width: 20),
-        _buildGenderCheckbox('other'),
-      ],
-    ),
-  ],
-),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                              child: Text(
+                                'Gender',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                _buildGenderCheckbox('Male'),
+                                const SizedBox(width: 20),
+                                _buildGenderCheckbox('Female'),
+                                const SizedBox(width: 20),
+                                _buildGenderCheckbox('Other'),
+                              ],
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: dobController,
@@ -343,7 +364,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
         return Colors.blueAccent;
       case 'Female':
         return Colors.pinkAccent;
-      case 'other':
+      case 'Other':
         return Colors.purpleAccent;
       default:
         return Colors.pinkAccent;

@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'profile_selection.dart';
 import 'makeup_tips_generator.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart'; 
 
 enum LookType { user, client }
 
@@ -16,7 +18,6 @@ class GlamVaultScreen extends StatefulWidget {
   @override
   _GlamVaultScreenState createState() => _GlamVaultScreenState();
 }
-
 
 class _GlamVaultScreenState extends State<GlamVaultScreen> {
   List<SavedLook> savedLooks = [];
@@ -31,7 +32,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     _fetchSavedLooks();
   }
 
-
   // Getter to filter looks based on selected tab
   List<SavedLook> get _filteredLooks {
     return savedLooks.where((look) {
@@ -40,7 +40,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       } else {
         return look.isClientLook;
       }
-    }).toList()..sort((a, b) => b.savedDate.compareTo(a.savedDate));
+    }).toList()..sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
   }
 
   Future<void> _fetchSavedLooks() async {
@@ -56,7 +56,37 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
 
         for (var lookData in data['saved_looks']) {
           try {
-            final look = SavedLook.fromJson(lookData);
+            // Parse the date string from the API
+            final dateString = lookData['saved_date'];
+            DateTime savedDate;
+            
+            // Handle different date formats
+            if (dateString is String) {
+              if (dateString.contains('T')) {
+                // ISO 8601 format with timezone
+                savedDate = DateTime.parse(dateString).toLocal();
+              } else {
+                // Custom format or timestamp
+                try {
+                  savedDate = DateTime.parse(dateString).toLocal();
+                } catch (e) {
+                  // Fallback to current date if parsing fails
+                  savedDate = DateTime.now().toLocal();
+                }
+              }
+            } else if (dateString is int) {
+              // Handle timestamp
+              savedDate = DateTime.fromMillisecondsSinceEpoch(dateString * 1000).toLocal();
+            } else {
+              // Fallback to current date
+              savedDate = DateTime.now().toLocal();
+            }
+
+            final look = SavedLook.fromJson({
+              ...lookData,
+              'saved_date': savedDate, // Use the parsed date
+            });
+            
             loadedLooks.add(look);
 
             if (look.imageData != null) {
@@ -245,7 +275,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     );
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
@@ -338,7 +368,12 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
               // Main content area
               Expanded(
                 child: isLoading
-                    ? Center(child: CircularProgressIndicator())
+                    ? Center(
+                        child: LoadingAnimationWidget.staggeredDotsWave(
+                          color: Colors.pinkAccent,
+                          size: 50,
+                        ),
+                      )
                     : _filteredLooks.isEmpty
                         ? Center(
                             child: Text(
@@ -434,34 +469,73 @@ class SavedLook {
   final String makeupLookName;
   final String? imageData;
   final bool isClientLook;
-  final DateTime savedDate;
+  final DateTime capturedDate;
 
   SavedLook({
     required this.savedLookId,
     required this.makeupLookName,
     this.imageData,
     this.isClientLook = false,
-    required this.savedDate,
+    required this.capturedDate,
   });
 
   factory SavedLook.fromJson(Map<String, dynamic> json) {
+    DateTime parseCapturedDate(dynamic date) {
+      if (date == null) return DateTime.now();
+      
+      try {
+        if (date is String) {
+          // Handle ISO format (2023-06-14T15:45:00Z)
+          if (date.contains('T')) {
+            return DateTime.parse(date).toLocal();
+          }
+          // Handle other string formats
+          try {
+            return DateFormat('yyyy-MM-dd HH:mm:ss').parse(date).toLocal();
+          } catch (e) {
+            debugPrint('Failed to parse date string: $date');
+          }
+        } else if (date is int) {
+          // Handle timestamp (seconds since epoch)
+          return DateTime.fromMillisecondsSinceEpoch(date * 1000).toLocal();
+        }
+      } catch (e) {
+        debugPrint('Error parsing date: $e');
+      }
+      return DateTime.now(); // Fallback
+    }
+
     return SavedLook(
       savedLookId: json['saved_look_id'],
       makeupLookName: json['makeup_look_name'],
       imageData: json['image_data'],
       isClientLook: json['is_client_look'] ?? false,
-      savedDate: json['saved_date'] != null
-          ? DateTime.parse(json['saved_date'])
-          : DateTime.now(),
+      capturedDate: parseCapturedDate(json['captured_date'] ?? json['saved_date']),
     );
   }
 
-  // Getter for formatted date
   String get formattedDate {
-    return '${savedDate.month}/${savedDate.day}/${savedDate.year} ${savedDate.hour}:${savedDate.minute.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    String formatTime(DateTime date) {
+      return DateFormat('h:mm a').format(date); // Formats like 3:45 PM
+    }
+
+    if (capturedDate.year == now.year && 
+        capturedDate.month == now.month && 
+        capturedDate.day == now.day) {
+      return 'Today at ${formatTime(capturedDate)}';
+    } else if (capturedDate.year == yesterday.year && 
+               capturedDate.month == yesterday.month && 
+               capturedDate.day == yesterday.day) {
+      return 'Yesterday at ${formatTime(capturedDate)}';
+    } else {
+      return DateFormat('MM/dd/yyyy').format(capturedDate);
+    }
   }
 }
-
 class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;

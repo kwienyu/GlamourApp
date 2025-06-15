@@ -47,6 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _showErrorMessage('Both email/username and password are required');
       } else if (response.statusCode == 401) {
         _showErrorMessage('Invalid credentials. Please try again.');
+      } else if (response.statusCode == 403) {
+        // Handle unverified email case
+        _showVerificationSentDialog(responseBody['message']);
       } else {
         _showErrorMessage(responseBody['message'] ?? 'Login failed. Please try again later.');
       }
@@ -62,6 +65,34 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => isLoading = false);
       }
     }
+  }
+
+  void _showVerificationSentDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Email Not Verified'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(message),
+              const SizedBox(height: 20),
+              const Text('Please check your email for the verification link.'),
+              const SizedBox(height: 20),
+              Image.asset('assets/email_icon.png', height: 80),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _handleSuccessResponse(Map<String, dynamic> responseData) async {
@@ -93,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Color.fromARGB(255, 238, 148, 195),
+        backgroundColor: const Color.fromARGB(255, 238, 148, 195),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
