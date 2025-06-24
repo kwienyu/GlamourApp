@@ -128,9 +128,9 @@ Future<void> _checkFacePosition() async {
           _ovalColor = Colors.red;
         } else if (_faceInFrame) {
           _checkFaceStability(face.boundingBox);
-          // More sensitive movement detection
+          //sensitive movement detection
           if (!_isFaceStable) {
-            _ovalColor = Colors.orange; // Show orange immediately when not stable
+            _ovalColor = Colors.orange;
           } else {
             _ovalColor = Colors.green;
           }
@@ -286,7 +286,7 @@ void _checkFaceStability(Rect currentPosition) {
     _isFaceStable = false;
     
     // Show orange frame for smaller movements
-    if (movement > _stabilityThreshold * 0.7) { // 70% of threshold
+    if (movement > _stabilityThreshold * 0.7) {
       _ovalColor = Colors.orange;
     }
   } else if (_lastFaceMovementTime != null && 

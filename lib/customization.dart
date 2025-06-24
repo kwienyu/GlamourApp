@@ -362,61 +362,111 @@ Future<void> _saveLook() async {
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
- Widget _buildShadeItem(Color color) {
+Widget _buildShadeItem(Color color, int index) {
   final isSelected = selectedShades[selectedProduct!] == color;
-  return GestureDetector(
-    onTap: () {
-      setState(() {
-        if (isSelected) {
-          // Unselect if already selected
-          selectedShades[selectedProduct!] = null;
-        } else {
-          // Select if not selected
-          selectedShades[selectedProduct!] = color;
-        }
-      });
-    },
-    child: Container(
-      width: 50,
-      height: 50,
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: isSelected ? Colors.pink : Colors.grey,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-          if (isSelected) 
-            BoxShadow(
-              color: Colors.white.withOpacity(0.8),
-              blurRadius: 10,
-              spreadRadius: 2,
+  final isRecommended = index == 0;
+  final size = isRecommended ? 60.0 : 50.0;
+  final hexCode = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (isRecommended)
+        Transform.translate(
+          offset: const Offset(0, 1), // Adjusted recommended label position
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.green,
+              borderRadius: BorderRadius.circular(12),
             ),
-        ],
-      ),
-      child: isSelected
-          ? Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.7),
+            child: const Text(
+              'Recommended',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      GestureDetector(
+        onTap: () {
+          setState(() {
+            selectedShades[selectedProduct!] = isSelected ? null : color;
+          });
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: size,
+              height: size,
+              margin: const EdgeInsets.only(bottom: 4), // Reduced bottom margin
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.pink : 
+                        isRecommended ? Colors.green : Colors.grey,
+                  width: isRecommended ? 3 : 2,
                 ),
-                child: const Icon(
-                  Icons.check,
-                  color: Colors.black,
-                  size: 20,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                  if (isSelected) 
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.8),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          color: Colors.black,
+                          size: size * 0.4,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            Transform.translate(
+              offset: const Offset(0, -6), // Moves hex code up closer to circle
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: color.withOpacity(0.5),
+                    width: 1.5,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withOpacity(0.3),
+                ),
+                child: Text(
+                  hexCode,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: const Color.fromARGB(255, 4, 4, 4),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            )
-          : null,
-    ),
+            ),
+          ],
+        ),
+      ),
+    ],
   );
 }
 
@@ -647,14 +697,12 @@ Future<void> _saveLook() async {
             ),
           const SizedBox(height: 2),
           Expanded(
-            child: ListView(
-              children: [
-                _buildShadeItem(makeupShades[selectedProduct]![0]),
-                _buildShadeItem(makeupShades[selectedProduct]![1]),
-                _buildShadeItem(makeupShades[selectedProduct]![2]),
-              ],
-            ),
-          ),
+  child: ListView(
+    children: makeupShades[selectedProduct]!.asMap().entries.map((entry) {
+      return _buildShadeItem(entry.value, entry.key);
+    }).toList(),
+  ),
+),
         ],
       ),
     ),

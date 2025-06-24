@@ -13,7 +13,6 @@ void main() {
 
   runApp(const GlamourApp());
 }
-
 class GlamourApp extends StatelessWidget {
   const GlamourApp({super.key});
 
