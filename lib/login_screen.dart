@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 import 'profile_selection.dart';
 import 'signup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -67,34 +68,151 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showVerificationSentDialog(String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Email Not Verified'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(message),
-              const SizedBox(height: 20),
-              const Text('Please check your email for the verification link.'),
-              const SizedBox(height: 20),
-              Image.asset('assets/email_icon.png', height: 80),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+void _showVerificationSentDialog(String message) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        insetPadding: const EdgeInsets.all(20),
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.pink.shade50,
+                    Colors.purple.shade50,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.pink.withOpacity(0.2),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _GlitterPainter(),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return RadialGradient(
+                                  center: Alignment.center,
+                                  radius: 0.5,
+                                  colors: [
+                                    Colors.pink.shade200,
+                                    Colors.purple.shade200,
+                                    Colors.pink.shade400,
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                ).createShader(bounds);
+                              },
+                              child: const Icon(
+                                Icons.mail_outline,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Email Not Verified',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.pink.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            'Please check your email for the verification link.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 25),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color.fromARGB(255, 246, 67, 126),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 30,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 5,
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text(
+                            'OK',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
-
+        ),
+      );
+    },
+  );
+}
   Future<void> _handleSuccessResponse(Map<String, dynamic> responseData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_id', responseData['user_id'].toString());
@@ -365,4 +483,23 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
+class _GlitterPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = Random();
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.8)
+      ..blendMode = BlendMode.plus;
+
+    for (int i = 0; i < 50; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 2 + 1;
+      canvas.drawCircle(Offset(x, y), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-
 class SelectionPage extends StatefulWidget {
   final String userId;
   const SelectionPage({super.key, required this.userId});
@@ -11,9 +10,13 @@ class SelectionPage extends StatefulWidget {
 }
 
 class _SelectionPageState extends State<SelectionPage> {
+  String _selectedSkinTone = 'morena'; // Default to morena
   String _selectedShadeCategory = 'foundation';
 
-  // Define the category order explicitly
+  // Define the skin tone options
+  final List<String> _skinToneOptions = ['morena', 'chinita', 'mestiza'];
+
+  // Define the category order
   final List<String> _categoryOrder = [
     'foundation',
     'concealer',
@@ -25,57 +28,62 @@ class _SelectionPageState extends State<SelectionPage> {
     'highlighter'
   ];
 
-  final Map<String, List<Map<String, dynamic>>> _shadesData = {
-    'foundation': [
-      {'hex_code': '#D4A373', 'match_count': 876},
-      {'hex_code': '#F3D7C4', 'match_count': 754},
-      {'hex_code': '#8B5A3C', 'match_count': 689},
-    ],
-    'concealer': [
-      {'hex_code': '#F5E0D0', 'match_count': 932},
-      {'hex_code': '#F7C7A2', 'match_count': 821},
-      {'hex_code': '#E0B896', 'match_count': 723},
-    ],
-    'contour': [
-      {'hex_code': '#8B6B4D', 'match_count': 652},
-      {'hex_code': '#6B4C3A', 'match_count': 543},
-      {'hex_code': '#A78B71', 'match_count': 487},
-    ],
-    'eyeshadow': [
-      {'hex_code': '#6A5ACD', 'match_count': 720},
-      {'hex_code': '#9370DB', 'match_count': 680},
-      {'hex_code': '#483D8B', 'match_count': 590},
-    ],
-    'blush': [
-      {'hex_code': '#FF9F9F', 'match_count': 987},
-      {'hex_code': '#F5B2C1', 'match_count': 876},
-      {'hex_code': '#D46A6A', 'match_count': 765},
-    ],
-    'lipstick': [
-      {'hex_code': '#FF004F', 'match_count': 1203},
-      {'hex_code': '#F5C3C2', 'match_count': 980},
-      {'hex_code': '#C93756', 'match_count': 876},
-    ],
-    'eyebrow': [
-      {'hex_code': '#B7A99B', 'match_count': 723},
-      {'hex_code': '#6B4E3D', 'match_count': 615},
-      {'hex_code': '#3A2D24', 'match_count': 587},
-    ],
-    'highlighter': [
-      {'hex_code': '#F3E0C0', 'match_count': 765},
-      {'hex_code': '#F5F0E1', 'match_count': 654},
-      {'hex_code': '#FFE6B5', 'match_count': 543},
-    ],
+  // Updated shades data organized by skin tone
+  final Map<String, Map<String, List<Map<String, dynamic>>>> _shadesData = {
+    'morena': {
+      'foundation': [
+        {'hex_code': '#C68642', 'match_count': 876, 'shade_name': 'Warm Caramel'},
+        {'hex_code': '#D3905D', 'match_count': 754, 'shade_name': 'Golden Tan'},
+        {'hex_code': '#7B4A34', 'match_count': 689, 'shade_name': 'Deep Espresso'},
+      ],
+      'concealer': [
+        {'hex_code': '#D3905D', 'match_count': 932, 'shade_name': 'Warm Sand'},
+        {'hex_code': '#E8D1BD', 'match_count': 821, 'shade_name': 'Natural Beige'},
+        {'hex_code': '#F2D4C1', 'match_count': 723, 'shade_name': 'Light Honey'},
+      ],
+      'contour': [
+        {'hex_code': '#7B4A34', 'match_count': 652, 'shade_name': 'Cocoa'},
+        {'hex_code': '#906642', 'match_count': 543, 'shade_name': 'Mocha'},
+        {'hex_code': '#5E463B', 'match_count': 487, 'shade_name': 'Dark Walnut'},
+      ],
+    },
+    'chinita': {
+      'foundation': [
+        {'hex_code': '#ECD4C4', 'match_count': 876, 'shade_name': 'Porcelain'},
+        {'hex_code': '#F2D4C1', 'match_count': 754, 'shade_name': 'Ivory'},
+        {'hex_code': '#E7C7B2', 'match_count': 689, 'shade_name': 'Natural Beige'},
+      ],
+      'concealer': [
+        {'hex_code': '#F2D4C1', 'match_count': 932, 'shade_name': 'Light'},
+        {'hex_code': '#E8D1BD', 'match_count': 821, 'shade_name': 'Medium'},
+        {'hex_code': '#FAE7DB', 'match_count': 723, 'shade_name': 'Fair'},
+      ],
+      'contour': [
+        {'hex_code': '#906642', 'match_count': 652, 'shade_name': 'Soft Tan'},
+        {'hex_code': '#C0A697', 'match_count': 543, 'shade_name': 'Warm Taupe'},
+        {'hex_code': '#A88D7C', 'match_count': 487, 'shade_name': 'Muted Brown'},
+      ],
+    },
+    'mestiza': {
+      'foundation': [
+        {'hex_code': '#E7C7B2', 'match_count': 876, 'shade_name': 'Warm Beige'},
+        {'hex_code': '#F2D4C1', 'match_count': 754, 'shade_name': 'Golden Ivory'},
+        {'hex_code': '#D4A373', 'match_count': 689, 'shade_name': 'Caramel'},
+      ],
+      'concealer': [
+        {'hex_code': '#F2D4C1', 'match_count': 932, 'shade_name': 'Light Beige'},
+        {'hex_code': '#F5E0D0', 'match_count': 821, 'shade_name': 'Fair Warm'},
+        {'hex_code': '#FAE7DB', 'match_count': 723, 'shade_name': 'Ivory'},
+      ],
+      'contour': [
+        {'hex_code': '#C0A697', 'match_count': 652, 'shade_name': 'Taupe'},
+        {'hex_code': '#8B6B4D', 'match_count': 543, 'shade_name': 'Warm Brown'},
+        {'hex_code': '#6B4C3A', 'match_count': 487, 'shade_name': 'Cocoa'},
+      ],
+    },
   };
 
-  final Map<String, List<double>> _categoryTrends = {
-    'Week 1': [22, 15, 18, 20, 28, 35, 12, 10],
-    'Week 2': [25, 18, 20, 22, 25, 40, 14, 12],
-    'Week 3': [30, 20, 22, 25, 30, 45, 16, 15],
-    'Week 4': [28, 22, 25, 23, 32, 38, 18, 18],
-  };
-
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -107,14 +115,147 @@ class _SelectionPageState extends State<SelectionPage> {
             ),
           ),
           const SizedBox(height: 16),
+          _buildSkinToneSelector(),
+          const SizedBox(height: 16),
           _buildShadeCategoryTabs(),
           const SizedBox(height: 16),
           _buildTopShadesList(),
           const SizedBox(height: 20),
-          _buildTrendGraph(),
+          _buildCircularUsageGraph(),
           const SizedBox(height: 16),
           _buildViewAnalyticsButton(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSkinToneSelector() {
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _skinToneOptions.length,
+        itemBuilder: (context, index) {
+          final skinTone = _skinToneOptions[index];
+          final displayName = skinTone[0].toUpperCase() + skinTone.substring(1);
+          
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                displayName,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _selectedSkinTone == skinTone 
+                      ? Colors.white 
+                      : Colors.pinkAccent,
+                ),
+              ),
+              selected: _selectedSkinTone == skinTone,
+              selectedColor: Colors.pinkAccent,
+              backgroundColor: Colors.pink[50],
+              onSelected: (selected) {
+                setState(() => _selectedSkinTone = skinTone);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCircularUsageGraph() {
+    final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
+    if (shades.isEmpty) return Container();
+
+    // Calculate total match count for percentages
+    final total = shades.fold(0, (sum, shade) => sum + (shade['match_count'] as int));
+    
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Shade Usage Distribution',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.pink[800],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections: shades.asMap().entries.map((entry) {
+                          final shade = entry.value;
+                          final percentage = (shade['match_count'] as int) / total * 100;
+                          return PieChartSectionData(
+                            color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                            value: percentage,
+                            title: '${percentage.toStringAsFixed(1)}%',
+                            radius: 20,
+                            titleStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _getContrastColor(shade['hex_code']),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: shades.asMap().entries.map((entry) {
+                        final shade = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  shade['shade_name'] ?? shade['hex_code'],
+                                  style: const TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -163,11 +304,19 @@ class _SelectionPageState extends State<SelectionPage> {
                 ),
               ),
               const SizedBox(height: 16),
+              Text(
+                'For ${_selectedSkinTone[0].toUpperCase() + _selectedSkinTone.substring(1)} skin tone',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 8),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _buildTrendGraph(),
+                      _buildCircularUsageGraph(),
                       const SizedBox(height: 16),
                       Text(
                         'Top Shades Across Categories',
@@ -178,19 +327,22 @@ class _SelectionPageState extends State<SelectionPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      ..._shadesData.entries.map((entry) {
+                      ..._categoryOrder.map((category) {
+                        final shades = _shadesData[_selectedSkinTone]?[category] ?? [];
+                        if (shades.isEmpty) return Container();
+                        
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
+                              '${category[0].toUpperCase()}${category.substring(1)}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.pinkAccent,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            ...entry.value.map((shade) {
+                            ...shades.map((shade) {
                               return _buildDetailedShadeItem(shade);
                             }).toList(),
                             const Divider(),
@@ -220,7 +372,8 @@ class _SelectionPageState extends State<SelectionPage> {
           border: Border.all(color: Colors.grey.shade300),
         ),
       ),
-      title: Text(shade['hex_code']),
+      title: Text(shade['shade_name'] ?? shade['hex_code']),
+      subtitle: Text(shade['hex_code']),
       trailing: Text('${shade['match_count']} matches'),
       onTap: () {
         _showShadeDetails(shade);
@@ -228,244 +381,76 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
- void _showShadeDetails(Map<String, dynamic> shade) {
-  showModalBottomSheet(
-    context: context,
-    builder: (context) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                borderRadius: BorderRadius.circular(12),
+  void _showShadeDetails(Map<String, dynamic> shade) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    shade['hex_code'],
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _getContrastColor(shade['hex_code']),
+                    ),
+                  ),
+                ),
               ),
-              child: Center(
-                child: Text(
-                  shade['hex_code'],
-                  style: TextStyle(
+              const SizedBox(height: 16),
+              if (shade['shade_name'] != null)
+                Text(
+                  shade['shade_name'],
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: _getContrastColor(shade['hex_code']),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Match Count: ${shade['match_count']}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.pinkAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Try-on feature coming soon!')),
-                );
-              },
-              child: const Text(
-                'Try This Shade',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                'Match Count: ${shade['match_count']}',
+                style: const TextStyle(
+                  fontSize: 16,
                 ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
- Widget _buildTrendGraph() {
-    final List<Color> distinctColors = [
-      Colors.blue.shade400,
-      Colors.green.shade400,
-      Colors.orange.shade400,
-      Colors.purple.shade400,
-      Colors.red.shade400,
-      Colors.teal.shade400,
-      Colors.pink.shade400,
-      Colors.brown.shade400,
-    ];
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Weekly Shade Popularity Trends',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.pink[800],
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 250,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  groupsSpace: 12,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final category = _categoryOrder[rodIndex];
-                        return BarTooltipItem(
-                          '$category\n${rod.toY.toInt()}%',
-                          TextStyle(
-                            color: distinctColors[rodIndex],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      },
-                    ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.pinkAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              _categoryTrends.keys.elementAt(value.toInt()),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          );
-                        },
-                        reservedSize: 28,
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            '${value.toInt()}%',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[600],
-                            ),
-                          );
-                        },
-                        interval: 20,
-                        reservedSize: 28,
-                      ),
-                    ),
-                    rightTitles: AxisTitles(),
-                    topTitles: AxisTitles(),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 20,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: Colors.grey.withOpacity(0.2),
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  borderData: FlBorderData(
-                    show: false,
-                  ),
-                  barGroups: _categoryTrends.entries.map((week) {
-                    final weekIndex = _categoryTrends.keys.toList().indexOf(week.key);
-                    return BarChartGroupData(
-                      x: weekIndex,
-                      barsSpace: 4,
-                      barRods: week.value.asMap().entries.map((category) {
-                        return BarChartRodData(
-                          toY: category.value,
-                          color: distinctColors[category.key],
-                          width: 8,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4),
-                          ),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: 50,
-                            color: Colors.grey.withOpacity(0.1),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  }).toList(),
+                  minimumSize: const Size(double.infinity, 50),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Centered legend with all categories
-            Center(
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: _categoryOrder.asMap().entries.map((entry) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: distinctColors[entry.key].withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: distinctColors[entry.key],
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          entry.value[0].toUpperCase() + entry.value.substring(1),
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Try-on feature coming soon!')),
                   );
-                }).toList(),
+                },
+                child: const Text(
+                  'Try This Shade',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -505,6 +490,15 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   Widget _buildShadeItem(Map<String, dynamic> shade, int rank) {
+    String getRankLabel(int rank) {
+      switch (rank) {
+        case 1: return '🥇';
+        case 2: return '🥈';
+        case 3: return '🥉';
+        default: return '$rank';
+      }
+    }
+
     return GestureDetector(
       onTap: () => _showShadeDetails(shade),
       child: Padding(
@@ -515,12 +509,8 @@ class _SelectionPageState extends State<SelectionPage> {
               width: 24,
               height: 24,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.pink[100],
-              ),
               child: Text(
-                '$rank',
+                getRankLabel(rank),
                 style: TextStyle(
                   color: Colors.pink[800],
                   fontWeight: FontWeight.bold,
@@ -550,12 +540,25 @@ class _SelectionPageState extends State<SelectionPage> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: LinearProgressIndicator(
-                value: shade['match_count'] / 1500,
-                backgroundColor: Colors.grey[200],
-                color: Colors.pinkAccent,
-                minHeight: 8,
-                borderRadius: BorderRadius.circular(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (shade['shade_name'] != null)
+                    Text(
+                      shade['shade_name'],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  LinearProgressIndicator(
+                    value: (shade['match_count'] as int) / 1500,
+                    backgroundColor: Colors.grey[200],
+                    color: Colors.pinkAccent,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 12),
@@ -579,7 +582,7 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   Widget _buildTopShadesList() {
-    final shades = _shadesData[_selectedShadeCategory] ?? [];
+    final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
 
     return Card(
       elevation: 4,
