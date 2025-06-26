@@ -46,7 +46,8 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   Map<String, dynamic>? _monthlyTopShadesData;
   bool _isLoadingShades = false;
   String? _userSkinTone;
-  String _selectedShadeCategory = 'foundation';
+  String _selectedWeeklyShadeCategory = 'foundation';
+  String _selectedMonthlyShadeCategory = 'foundation';
   final List<String> _categoryOrder = [
     'foundation',
     'concealer',
@@ -81,42 +82,59 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     try {
       // Fetch weekly shades
       final weeklyResponse = await http.get(
-        Uri.parse('https://glamouraika.com/api/top_shades_by_type_and_skintone?period=week'),
+        Uri.parse('https://glamouraika.com/api/top_3_shades_by_type_and_skintone?period=week'),
       );
 
       // Fetch monthly shades
       final monthlyResponse = await http.get(
-        Uri.parse('https://glamouraika.com/api/top_shades_by_type_and_skintone?period=month'),
+        Uri.parse('https://glamouraika.com/api/top_3_shades_by_type_and_skintone?period=month'),
       );
 
       if (weeklyResponse.statusCode == 200 && monthlyResponse.statusCode == 200) {
         final weeklyData = jsonDecode(weeklyResponse.body);
         final monthlyData = jsonDecode(monthlyResponse.body);
         
-        final weeklyTopShades = weeklyData['top_shades_by_skin_tone_and_type'][_userSkinTone];
-        final monthlyTopShades = monthlyData['top_shades_by_skin_tone_and_type'][_userSkinTone];
-
-        // Convert the API data to match our existing format
+        // Process weekly data
+        final weeklyTopShades = weeklyData['top_3_shades_by_skin_tone_and_type'][_userSkinTone];
         final convertedWeeklyData = <String, List<Map<String, dynamic>>>{};
+        
+        if (weeklyTopShades != null) {
+          weeklyTopShades.forEach((category, shadeList) {
+            final topShade = (shadeList as List)
+                .firstWhere((shade) => shade['rank'] == 1, orElse: () => null);
+            if (topShade != null) {
+              convertedWeeklyData[category.toLowerCase()] = [
+                {
+                  'hex_code': topShade['hex_code'],
+                  'match_count': topShade['times_used'],
+                  'rank': topShade['rank'],
+                  'shade_name': topShade['shade_name'],
+                }
+              ];
+            }
+          });
+        }
+
+        // Process monthly data
+        final monthlyTopShades = monthlyData['top_3_shades_by_skin_tone_and_type'][_userSkinTone];
         final convertedMonthlyData = <String, List<Map<String, dynamic>>>{};
         
-        weeklyTopShades?.forEach((category, shadeData) {
-          convertedWeeklyData[category.toLowerCase()] = [
-            {
-              'hex_code': shadeData['hex_code'],
-              'match_count': shadeData['times_used'],
+        if (monthlyTopShades != null) {
+          monthlyTopShades.forEach((category, shadeList) {
+            final topShade = (shadeList as List)
+                .firstWhere((shade) => shade['rank'] == 1, orElse: () => null);
+            if (topShade != null) {
+              convertedMonthlyData[category.toLowerCase()] = [
+                {
+                  'hex_code': topShade['hex_code'],
+                  'match_count': topShade['times_used'],
+                  'rank': topShade['rank'],
+                  'shade_name': topShade['shade_name'],
+                }
+              ];
             }
-          ];
-        });
-
-        monthlyTopShades?.forEach((category, shadeData) {
-          convertedMonthlyData[category.toLowerCase()] = [
-            {
-              'hex_code': shadeData['hex_code'],
-              'match_count': shadeData['times_used'],
-            }
-          ];
-        });
+          });
+        }
 
         setState(() {
           _weeklyTopShadesData = convertedWeeklyData;
@@ -786,9 +804,9 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               ),
             ),
           const SizedBox(height: 8),
-          _buildShadeCategoryTabs(),
+          _buildShadeCategoryTabs('weekly'),
           const SizedBox(height: 16),
-          _buildTopShadesList(_weeklyTopShadesData),
+          _buildTopShadesList(_weeklyTopShadesData, _selectedWeeklyShadeCategory),
           const SizedBox(height: 20),
           _buildViewAnalyticsButton(_weeklyTopShadesData, 'Weekly'),
           
@@ -812,9 +830,9 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               ),
             ),
           const SizedBox(height: 8),
-          _buildShadeCategoryTabs(),
+          _buildShadeCategoryTabs('monthly'),
           const SizedBox(height: 16),
-          _buildTopShadesList(_monthlyTopShadesData),
+          _buildTopShadesList(_monthlyTopShadesData, _selectedMonthlyShadeCategory),
           const SizedBox(height: 20),
           _buildViewAnalyticsButton(_monthlyTopShadesData, 'Monthly'),
         ],
@@ -822,7 +840,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildShadeCategoryTabs() {
+  Widget _buildShadeCategoryTabs(String period) {
     return SizedBox(
       height: 40,
       child: ListView.builder(
@@ -831,6 +849,9 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         itemBuilder: (context, index) {
           final category = _categoryOrder[index];
           final displayName = category[0].toUpperCase() + category.substring(1);
+          final isSelected = period == 'weekly' 
+              ? _selectedWeeklyShadeCategory == category
+              : _selectedMonthlyShadeCategory == category;
           
           return Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -839,16 +860,20 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 displayName,
                 style: TextStyle(
                   fontSize: 12,
-                  color: _selectedShadeCategory == category 
-                      ? Colors.white 
-                      : Colors.pinkAccent,
+                  color: isSelected ? Colors.white : Colors.pinkAccent,
                 ),
               ),
-              selected: _selectedShadeCategory == category,
+              selected: isSelected,
               selectedColor: Colors.pinkAccent,
               backgroundColor: Colors.pink[50],
               onSelected: (selected) {
-                setState(() => _selectedShadeCategory = category);
+                setState(() {
+                  if (period == 'weekly') {
+                    _selectedWeeklyShadeCategory = category;
+                  } else {
+                    _selectedMonthlyShadeCategory = category;
+                  }
+                });
               },
             ),
           );
@@ -857,7 +882,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildTopShadesList(Map<String, dynamic>? shadesData) {
+  Widget _buildTopShadesList(Map<String, dynamic>? shadesData, String selectedCategory) {
     if (_isLoadingShades) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -866,7 +891,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       return const Center(child: Text('No shade data available'));
     }
 
-    final shades = shadesData[_selectedShadeCategory] ?? [];
+    final shades = shadesData[selectedCategory] ?? [];
 
     return Card(
       elevation: 4,
@@ -878,7 +903,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         child: Column(
           children: [
             if (shades.isNotEmpty)
-              _buildShadeItem(shades[0], 1),
+              _buildShadeItem(shades[0]),
             if (shades.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
@@ -893,40 +918,13 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildShadeItem(Map<String, dynamic> shade, int rank) {
-    String getRankLabel(int rank) {
-      switch (rank) {
-        case 1:
-          return 'Top Match';
-        default:
-          return '#$rank';
-      }
-    }
-
+  Widget _buildShadeItem(Map<String, dynamic> shade) {
     return GestureDetector(
       onTap: () => _showShadeDetails(shade),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
-            Container(
-              width: 80,
-              height: 24,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.pink[100],
-              ),
-              child: Text(
-                getRankLabel(rank),
-                style: TextStyle(
-                  color: Colors.pink[800],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
             Container(
               width: 80,
               height: 40,
@@ -951,12 +949,20 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'Top Match',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.pink[800],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   if (shade['shade_name'] != null)
                     Text(
                       shade['shade_name'],
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
                       ),
                     ),
                   LinearProgressIndicator(
@@ -1007,77 +1013,78 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  void _showDetailedAnalytics(Map<String, dynamic>? shadesData, String period) {
-    if (shadesData == null) return;
+ void _showDetailedAnalytics(Map<String, dynamic>? shadesData, String period) {
+  if (shadesData == null) return;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$period Shade Analytics',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.pink[800],
-                ),
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$period Top Shade Recommendations',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.pink[800],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'For $_userSkinTone skin tone',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'For $_userSkinTone skin tone',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Text(
-                        'Top Shades Across Categories',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.pink[800],
-                        ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Text(
+                      'Top Shades Across Categories',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.pink[800],
                       ),
-                      const SizedBox(height: 8),
-                      ...shadesData.entries.map((entry) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.pinkAccent,
-                              ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...shadesData.entries.map((entry) {
+                      if (entry.value.isEmpty) return const SizedBox();
+                      final shade = entry.value[0];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.pinkAccent,
                             ),
-                            const SizedBox(height: 8),
-                            if (entry.value.isNotEmpty)
-                              _buildDetailedShadeItem(entry.value[0], 1),
-                            const Divider(),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildDetailedShadeItem(shade, 1),
+                          const Divider(),
+                        ],
+                      );
+                    }).toList(),
+                  ],
                 ),
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildDetailedShadeItem(Map<String, dynamic> shade, int rank) {
     return ListTile(
@@ -1092,11 +1099,9 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         ),
       ),
       title: Text(shade['shade_name'] ?? shade['hex_code']),
-      subtitle: Text(shade['hex_code']),
+      subtitle: Text('${shade['hex_code']} • Rank #$rank'),
       trailing: Text('${shade['match_count'] ?? 0} matches'),
-      onTap: () {
-        _showShadeDetails(shade);
-      },
+      onTap: () => _showShadeDetails(shade),
     );
   }
 
