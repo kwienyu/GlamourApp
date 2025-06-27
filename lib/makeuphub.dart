@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart'; 
 import 'customization.dart'; 
 import 'undertone_tutorial.dart'; 
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class MakeupHubPage extends StatefulWidget {
   const MakeupHubPage({
@@ -26,6 +27,8 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
   String? selectedMakeupLook;
   String? userSkinTone;
   bool isLoadingSkinTone = false;
+  bool isProcessingMakeupLook = false;
+  String? currentlyProcessingLook; // Track which look is being processed
 
   final List<String> undertones = ["Warm", "Neutral", "Cool"];
   final Map<String, List<String>> makeupLooks = {
@@ -85,101 +88,142 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
         backgroundColor: Colors.pinkAccent,
       ),
       backgroundColor: const Color.fromARGB(255, 245, 244, 244),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 20.0, left: 10.0),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: const Text(
-                  "Note: click (i) for identifying your undertone.",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 50),
-              if (isLoadingSkinTone)
-                const CircularProgressIndicator(),
-              if (userSkinTone != null && !isLoadingSkinTone)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: Text(
-                    "Your skin tone: $userSkinTone",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.pink,
-                    ),
-                  ),
-                ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20.0, left: 10.0),
+              child: Column(
                 children: [
-                  _buildSectionTitle("Select Undertone"),
-                  const SizedBox(width: 5),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const UndertoneTutorial()),
-                      );
-                    },
-                    child: const Icon(
-                      Icons.info_outline,
-                      size: 20,
-                      color: Colors.pinkAccent,
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: const Text(
+                      "Note: click (i) for identifying your undertone.",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 50),
+                  if (isLoadingSkinTone)
+                    Center(
+                      child: LoadingAnimationWidget.staggeredDotsWave(
+                        color: Colors.pinkAccent,
+                        size: 50,
+                      ),
+                    ),
+                  if (userSkinTone != null && !isLoadingSkinTone)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Text(
+                        "Your skin tone: $userSkinTone",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.pink,
+                        ),
+                      ),
+                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildSectionTitle("Select Undertone"),
+                      const SizedBox(width: 5),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const UndertoneTutorial()),
+                          );
+                        },
+                        child: const Icon(
+                          Icons.info_outline,
+                          size: 20,
+                          color: Colors.pinkAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _buildSegmentedControl(undertones, selectedUndertone, (value) {
+                    setState(() => selectedUndertone = value);
+                  }),
+                  const SizedBox(height: 20),
+                  if (selectedUndertone != null)
+                    Text(
+                      "You selected: $selectedUndertone undertone",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 12, 12, 12),
+                      ),
+                    ),
+                  const SizedBox(height: 30),
+                  _buildSectionTitle("Select Makeup Type"),
+                  _buildSegmentedControl(makeupLooks.keys.toList(), selectedMakeupType, (value) {
+                    if (selectedUndertone == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Please select your undertone first."),
+                          backgroundColor: Colors.pinkAccent,
+                        ),
+                      );
+                    } else {
+                      setState(() {
+                        selectedMakeupType = value;
+                        selectedMakeupLook = null;
+                      });
+                    }
+                  }),
+                  const SizedBox(height: 20),
+                  if (selectedUndertone != null && selectedMakeupType != null && makeupLooks.containsKey(selectedMakeupType)) ...[
+                    _buildSectionTitle("Choose Your Makeup Look"),
+                    Column(
+                      children: makeupLooks[selectedMakeupType]!
+                          .map((look) => _buildMakeupLookButton(look))
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 10),
-              _buildSegmentedControl(undertones, selectedUndertone, (value) {
-                setState(() => selectedUndertone = value);
-              }),
-              const SizedBox(height: 20),
-              if (selectedUndertone != null)
-                Text(
-                  "You selected: $selectedUndertone undertone",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 12, 12, 12),
-                  ),
-                ),
-              const SizedBox(height: 30),
-              _buildSectionTitle("Select Makeup Type"),
-              _buildSegmentedControl(makeupLooks.keys.toList(), selectedMakeupType, (value) {
-                if (selectedUndertone == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Please select your undertone first."),
-                      backgroundColor: Colors.pinkAccent,
-                    ),
-                  );
-                } else {
-                  setState(() {
-                    selectedMakeupType = value;
-                    selectedMakeupLook = null;
-                  });
-                }
-              }),
-              const SizedBox(height: 20),
-              if (selectedUndertone != null && selectedMakeupType != null && makeupLooks.containsKey(selectedMakeupType)) ...[
-                _buildSectionTitle("Choose Your Makeup Look"),
-                Column(
-                  children: makeupLooks[selectedMakeupType]!
-                      .map((look) => _buildMakeupLookButton(look))
-                      .toList(),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
+          if (isProcessingMakeupLook)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    LoadingAnimationWidget.staggeredDotsWave(
+                      color: Colors.pinkAccent,
+                      size: 50,
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Wait a minute...",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Processing $currentlyProcessingLook look",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -233,8 +277,12 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 20),
       child: ElevatedButton(
         onPressed: () async {
+          if (isProcessingMakeupLook) return; // Prevent multiple clicks
+          
           setState(() {
             selectedMakeupLook = look;
+            isProcessingMakeupLook = true;
+            currentlyProcessingLook = look;
           });
 
           print("Selected Values:");
@@ -243,69 +291,70 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
           print("- Makeup Look: $look");
           print("- Skin Tone: $userSkinTone");
 
-          if (selectedUndertone != null && selectedMakeupType != null) {
-            try {
-              final userId = await getUserId();
-              if (userId != null) {
-                final requestBody = {
-                  'user_id': userId,
-                  'undertone': selectedUndertone,
-                  'makeup_type': selectedMakeupType,
-                  'makeup_look': look,
-                  'skin_tone': userSkinTone,
-                };
-                print("Request Payload: ${jsonEncode(requestBody)}");
+          try {
+            final userId = await getUserId();
+            if (userId != null) {
+              final requestBody = {
+                'user_id': userId,
+                'undertone': selectedUndertone,
+                'makeup_type': selectedMakeupType,
+                'makeup_look': look,
+                'skin_tone': userSkinTone,
+              };
+              print("Request Payload: ${jsonEncode(requestBody)}");
 
-                final response = await http.post(
-                  Uri.parse('https://glamouraika.com/api/recommendation'),   
-                  headers: {'Content-Type': 'application/json'},
-                  body: jsonEncode(requestBody),
-                );
+              final response = await http.post(
+                Uri.parse('https://glamouraika.com/api/recommendation'),   
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode(requestBody),
+              );
 
-                print("API Response:");
-                print("- Status Code: ${response.statusCode}");
-                print("- Body: ${response.body}");
-                print("- Headers: ${response.headers}");
+              print("API Response:");
+              print("- Status Code: ${response.statusCode}");
+              print("- Body: ${response.body}");
+              print("- Headers: ${response.headers}");
 
-                if (response.statusCode == 200) {
-                  final responseData = json.decode(response.body);
-                  if (responseData['success'] == true) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CustomizationPage(
-                          capturedImage: widget.capturedImage,
-                          selectedMakeupType: selectedMakeupType!,
-                          selectedMakeupLook: selectedMakeupLook!,
-                          userId: userId,
-                          undertone: selectedUndertone!,
-                          skinTone: userSkinTone,
-                          recommendationData: responseData,
-                        ),
+              if (response.statusCode == 200) {
+                final responseData = json.decode(response.body);
+                if (responseData['success'] == true) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CustomizationPage(
+                        capturedImage: widget.capturedImage,
+                        selectedMakeupType: selectedMakeupType!,
+                        selectedMakeupLook: selectedMakeupLook!,
+                        userId: userId,
+                        undertone: selectedUndertone!,
+                        skinTone: userSkinTone,
+                        recommendationData: responseData,
                       ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(responseData['message'] ?? 'Request failed')),
-                    );
-                  }
+                    ),
+                  );
                 } else {
-                  _handleApiError(response);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(responseData['message'] ?? 'Request failed')),
+                  );
                 }
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('User ID not found')),
-                );
+                _handleApiError(response);
               }
-            } catch (e) {
+            } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ${e.toString()}')),
+                const SnackBar(content: Text('User ID not found')),
               );
             }
-          } else {
+          } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please select all required fields')),
+              SnackBar(content: Text('Error: ${e.toString()}')),
             );
+          } finally {
+            if (mounted) {
+              setState(() {
+                isProcessingMakeupLook = false;
+                currentlyProcessingLook = null;
+              });
+            }
           }
         },
         style: ElevatedButton.styleFrom(

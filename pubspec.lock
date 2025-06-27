@@ -302,6 +302,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.5.2"
+  flutter_animated_button:
+    dependency: "direct main"
+    description:
+      name: flutter_animated_button
+      sha256: "340770308cf72cfc380c421727d98691bb12a5596871954f289b0bafdd356256"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.4"
   flutter_expandable_fab:
     dependency: "direct main"
     description:

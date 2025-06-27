@@ -6,7 +6,7 @@ class FaceShapesApp extends StatelessWidget {
   final String userId;
   const FaceShapesApp({super.key, required this.userId});
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -42,6 +42,7 @@ class FaceShapesWidget extends StatefulWidget {
 
 class _FaceShapesWidgetState extends State<FaceShapesWidget> {
   Map<String, String>? _selectedShape;
+  int? _selectedIndex;
 
   final faceShapes = [
     {
@@ -60,7 +61,7 @@ class _FaceShapesWidgetState extends State<FaceShapesWidget> {
       'icon': 'assets/heart.png',
       'image': 'assets/heart2_image.png',
       'name': 'Heart Face Shape',
-      'description': 'A heart-shaped face has a wide forehead and high cheekbones that narrow down to a small, pointed chin. It may also have a widow’s peak (a V-shaped hairline). This shape looks like an upside-down triangle.'
+      'description': 'A heart-shaped face has a wide forehead and high cheekbones that narrow down to a small, pointed chin. It may also have a widows peak (a V-shaped hairline). This shape looks like an upside-down triangle.'
     },
     {
       'icon': 'assets/square.png',
@@ -76,31 +77,30 @@ class _FaceShapesWidgetState extends State<FaceShapesWidget> {
     },
   ];
 
-  void _onShapeTap(Map<String, String> shape) {
+  void _onShapeTap(Map<String, String> shape, int index) {
     setState(() {
       _selectedShape = shape;
+      _selectedIndex = index;
     });
   }
 
   @override
-Widget build(BuildContext context) {
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      final screenWidth = constraints.maxWidth;
-      final iconSize = screenWidth * 0.20;
-      final padding = screenWidth * 0.06;
-      final displayImageSize = screenWidth * 0.70;
-      final fontSizeTitle = screenWidth * 0.08;
-      final fontSizeName = screenWidth * 0.05;
-      final fontSizeDescription = screenWidth * 0.045;
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final iconSize = screenWidth * 0.20;
+        final padding = screenWidth * 0.06;
+        final displayImageSize = screenWidth * 0.70;
+        final fontSizeTitle = screenWidth * 0.08;
+        final fontSizeName = screenWidth * 0.05;
+        final fontSizeDescription = screenWidth * 0.045;
 
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Increased space below AppBar
               SizedBox(height: padding * 1),
-              // Centered "Face Shape Details" text with fade animation
               FadeTransitionWidget(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: padding),
@@ -113,39 +113,54 @@ Widget build(BuildContext context) {
                   ),
                 ),
               ),
-              // Main content with icons on left and details on right
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: padding * 0.3, vertical: padding),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Left side: Icons
                     SizedBox(
                       width: iconSize + padding * 2,
                       child: Column(
-                        children: faceShapes.map((shape) {
+                        children: faceShapes.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final shape = entry.value;
+                          final isSelected = index == _selectedIndex;
+                          
                           return Padding(
                             padding: EdgeInsets.only(bottom: padding),
                             child: GestureDetector(
-                              onTap: () => _onShapeTap(shape),
-                              child: Container(
+                              onTap: () => _onShapeTap(shape, index),
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 200),
                                 width: iconSize,
                                 height: iconSize,
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.8),
-                                  border: Border.all(color: Colors.grey, width: 1),
+                                  border: Border.all(
+                                    color: isSelected ? Colors.pinkAccent : Colors.grey,
+                                    width: isSelected ? 3 : 1,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.pinkAccent.withOpacity(0.3),
+                                            blurRadius: 10,
+                                            spreadRadius: 2,
+                                          )
+                                        ]
+                                      : null,
                                 ),
-                                child: Image.asset(
-                                  shape['icon']!,
-                                  width: iconSize,
-                                  height: iconSize,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Icon(Icons.error, color: Colors.white),
-                                    );
-                                  },
+                                child: Center(
+                                  child: Image.asset(
+                                    shape['icon']!,
+                                    width: iconSize * 0.8,
+                                    height: iconSize * 0.8,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(Icons.error, color: Colors.white);
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
@@ -153,7 +168,6 @@ Widget build(BuildContext context) {
                         }).toList(),
                       ),
                     ),
-                    // Right side: Selected shape details with slide animation
                     Expanded(
                       child: _selectedShape != null
                           ? PageTransitionSwitcher(
@@ -205,7 +219,7 @@ Widget build(BuildContext context) {
                                         textAlign: TextAlign.justify,
                                       ),
                                     ),
-                                    SizedBox(height: padding * 3), // Extra space for scrolling
+                                    SizedBox(height: padding * 3),
                                   ],
                                 ),
                               ),
@@ -234,7 +248,6 @@ Widget build(BuildContext context) {
   }
 }
 
-// Widget for FadeTransition with controller
 class FadeTransitionWidget extends StatefulWidget {
   final Widget child;
 

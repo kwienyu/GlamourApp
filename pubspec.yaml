@@ -55,6 +55,7 @@ dependencies:
   animated_size_and_fade: ^5.1.1
   http_parser: ^4.1.2
   fl_chart: ^1.0.0
+  flutter_animated_button: ^2.0.4
   
 
   
@@ -129,9 +130,9 @@ flutter:
     - assets/Mestiza-tone.jpg
     - assets/Chinita-tone.jpg
     - assets/Morena-tone.jpg
-    - assets/mestiza-ic.png
-    - assets/morena-ic2.png
-    - assets/chinita-ic.png
+    - assets/mestiza_button.png
+    - assets/morena_button.png
+    - assets/chinita_button.png
     - assets/vein_step1.jpg
     - assets/vein_step2.jpg
     - assets/vein_step3.jpg
@@ -141,6 +142,9 @@ flutter:
     - assets/jewelry_step3.jpg
     - assets/jewelry_step4.jpg
     - assets/jewelry_step5.jpg
+    - assets/top_report.png
+    - assets/cloth1.jpg
+    - assets/cloth2.jpg
     
 
 

@@ -51,10 +51,10 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
             const SizedBox(height: 30),
             
             // Option 2 Section
+            _buildSectionHeader("Option 2: Jewelry Test"),
+            const SizedBox(height: 20),
             _buildSectionDescription(
                 "Determine whether gold or silver jewelry complements you better"),
-            const SizedBox(height: 20),
-            _buildSectionHeader("Option 2: Jewelry Test"),
             const SizedBox(height: 10),
             _buildImageWithLabel('assets/jewelry_step1.jpg', "Step 1: Prepare your skin", context),
             const SizedBox(height: 25),
@@ -65,6 +65,20 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
             _buildImageWithLabel('assets/jewelry_step4.jpg', "Step 4: Try on gold jewelry", context),
              const SizedBox(height: 25),
             _buildImageWithLabel('assets/jewelry_step5.jpg', "Step 4: Compare", context),
+            
+            // Option 3 Section
+            const SizedBox(height: 30),
+            _buildSectionHeader("Option 3: Clothing Test"),
+            const SizedBox(height: 10),
+            _buildSectionDescription(
+                "See which color clothing looks better on you - warm or cool tones"),
+            const SizedBox(height: 20),
+            _buildImageWithLabel('assets/cloth1.jpg', "Step 1: Check your undertone using white cloth", context),
+            const SizedBox(height: 25),
+            _buildImageWithLabel('assets/cloth2.jpg', "Step 2: Observe the undertone glow", context),
+            const SizedBox(height: 25),
+            _buildSectionDescription(
+                "Which one makes your skin look more vibrant and healthy?"),
             
             // Interpretation Guide
             const SizedBox(height: 30),

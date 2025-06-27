@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ProfileSelection extends StatefulWidget {
   final String userId;
@@ -652,10 +653,6 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       child: PageView(
         controller: _pageController,
         children: [
-          _buildProfileCard(context, 'assets/profile.png', "Your Profile", SelectionPage(userId: widget.userId))
-              .animate()
-              .fadeIn(delay: 200.ms)
-              .scaleXY(begin: 0.8, end: 1),
           _buildProfileCard(context, 'assets/camera.png', "Test My Look", CameraPage())
               .animate()
               .fadeIn(delay: 300.ms)
@@ -663,6 +660,10 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           _buildProfileCard(context, Icons.star, "Glam Vault", GlamVaultScreen(userId: parsedUserId))
               .animate()
               .fadeIn(delay: 400.ms)
+              .scaleXY(begin: 0.8, end: 1),
+              _buildProfileCard(context, 'assets/top_report.png', "Top Shades Recommendation", SelectionPage(userId: widget.userId))
+              .animate()
+              .fadeIn(delay: 200.ms)
               .scaleXY(begin: 0.8, end: 1),
         ],
       ),
@@ -882,41 +883,46 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildTopShadesList(Map<String, dynamic>? shadesData, String selectedCategory) {
-    if (_isLoadingShades) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (shadesData == null || shadesData.isEmpty) {
-      return const Center(child: Text('No shade data available'));
-    }
-
-    final shades = shadesData[selectedCategory] ?? [];
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            if (shades.isNotEmpty)
-              _buildShadeItem(shades[0]),
-            if (shades.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text(
-                  'No shades available for this category',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-          ],
-        ),
+ Widget _buildTopShadesList(Map<String, dynamic>? shadesData, String selectedCategory) {
+  if (_isLoadingShades) {
+    return Center(
+      child: LoadingAnimationWidget.staggeredDotsWave(
+        color: Colors.pinkAccent,
+        size: 50,
       ),
     );
   }
+
+  if (shadesData == null || shadesData.isEmpty) {
+    return const Center(child: Text('No shade data available'));
+  }
+
+  final shades = shadesData[selectedCategory] ?? [];
+
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          if (shades.isNotEmpty)
+            _buildShadeItem(shades[0]),
+          if (shades.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                'No shades available for this category',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildShadeItem(Map<String, dynamic> shade) {
     return GestureDetector(
@@ -1036,7 +1042,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
             ),
             const SizedBox(height: 16),
             Text(
-              'For $_userSkinTone skin tone',
+              'Based on your $_userSkinTone skin tone',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -1099,7 +1105,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         ),
       ),
       title: Text(shade['shade_name'] ?? shade['hex_code']),
-      subtitle: Text('${shade['hex_code']} • Rank #$rank'),
+      subtitle: Text('${shade['hex_code']} • Top #$rank'),
       trailing: Text('${shade['match_count'] ?? 0} matches'),
       onTap: () => _showShadeDetails(shade),
     );
@@ -1149,28 +1155,6 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                 ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.pinkAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Try-on feature coming soon!')),
-                  );
-                },
-                child: const Text(
-                  'Try This Shade',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
             ],
           ),
         );

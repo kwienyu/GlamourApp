@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class SelectionPage extends StatefulWidget {
   final String userId;
@@ -30,12 +31,18 @@ class _SelectionPageState extends State<SelectionPage> {
     'highlighter'
   ];
 
+  // Map of skin tone to image asset
+  final Map<String, String> _skinToneImages = {
+    'morena': 'assets/morena_button.png',
+    'chinita': 'assets/chinita_button.png',
+    'mestiza': 'assets/mestiza_button.png',
+  };
+
   @override
   void initState() {
     super.initState();
     _fetchTopShades();
   }
-
   Future<void> _fetchTopShades() async {
     setState(() {
       _isLoading = true;
@@ -102,52 +109,55 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   Widget _buildBodyContent() {
-    if (_isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading recommendations...'),
-          ],
-        ),
-      );
-    }
-
-    if (_hasError || _shadesData.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-            const SizedBox(height: 16),
-            const Text('Failed to load data'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _fetchTopShades,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
+  if (_isLoading) {
+    return Center(
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildShadeRecommendationsSection(context),
+          LoadingAnimationWidget.staggeredDotsWave(
+            color: Colors.pinkAccent,
+            size: 50,
+          ),
+          const SizedBox(height: 16),
+          const Text('Loading recommendations...'),
         ],
       ),
     );
   }
 
+  if (_hasError || _shadesData.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+          const SizedBox(height: 16),
+          const Text('Failed to load data'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _fetchTopShades,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  return SingleChildScrollView(
+    child: Column(
+      children: [
+        _buildShadeRecommendationsSection(context),
+      ],
+    ),
+  );
+}
   Widget _buildShadeRecommendationsSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 20), // Added extra space at the top
           Text(
             'Top Shade Recommendations',
             style: TextStyle(
@@ -156,23 +166,24 @@ class _SelectionPageState extends State<SelectionPage> {
               color: Colors.pink[800],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 25), // Increased this spacing
           _buildSkinToneSelector(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 25), // Increased this spacing
           _buildShadeCategoryTabs(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 25), // Increased this spacing
           _buildTopShadesList(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 25), // Increased this spacing
           _buildCircularUsageGraph(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 25), // Increased this spacing
           _buildViewAnalyticsButton(context),
         ],
       ),
     );
   }
-  Widget _buildSkinToneSelector() {
+
+Widget _buildSkinToneSelector() {
     return SizedBox(
-      height: 40,
+      height: 140, // Increased height to accommodate larger images
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _skinToneOptions.length,
@@ -180,29 +191,98 @@ class _SelectionPageState extends State<SelectionPage> {
           final skinTone = _skinToneOptions[index];
           final displayName = skinTone[0].toUpperCase() + skinTone.substring(1);
           
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(
-                displayName,
-                style: TextStyle(
-                  fontSize: 12,
+          return GestureDetector(
+            onTap: () {
+              setState(() => _selectedSkinTone = skinTone);
+            },
+            child: Container(
+              width: 110, // Increased width
+              margin: const EdgeInsets.only(right: 15), // Increased margin
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
                   color: _selectedSkinTone == skinTone 
-                      ? Colors.white 
-                      : Colors.pinkAccent,
+                      ? Colors.pinkAccent 
+                      : Colors.transparent,
+                  width: 3,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ],
               ),
-              selected: _selectedSkinTone == skinTone,
-              selectedColor: Colors.pinkAccent,
-              backgroundColor: Colors.pink[50],
-              onSelected: (selected) {
-                setState(() => _selectedSkinTone = skinTone);
-              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start, // Align to top
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Container(
+                      height: 100, // Increased height for the image
+                      width: double.infinity,
+                      color: _getSkinToneColor(skinTone),
+                      child: _skinToneImages.containsKey(skinTone)
+                          ? Image.asset(
+                              _skinToneImages[skinTone]!,
+                              fit: BoxFit.contain, // Changed to contain to prevent cutting
+                              alignment: Alignment.bottomCenter, // Align image to bottom
+                            )
+                          : Center(
+                              child: Text(
+                                displayName[0],
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8), // Increased padding
+                    decoration: BoxDecoration(
+                      color: _selectedSkinTone == skinTone
+                          ? Colors.pinkAccent.withOpacity(0.1)
+                          : Colors.white,
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                    ),
+                    child: Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 13, // Slightly larger font
+                        fontWeight: FontWeight.bold,
+                        color: _selectedSkinTone == skinTone
+                            ? Colors.pinkAccent
+                            : Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
       ),
     );
+  }
+
+
+  // Helper method to get a color for each skin tone (fallback if image not available)
+  Color _getSkinToneColor(String skinTone) {
+    switch (skinTone) {
+      case 'morena':
+        return const Color(0xFF8D5524);
+      case 'chinita':
+        return const Color(0xFFFFDBAC);
+      case 'mestiza':
+        return const Color(0xFFE0AC69);
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildShadeCategoryTabs() {
@@ -240,92 +320,102 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  Widget _buildShadeItem(Map<String, dynamic> shade, int rank) {
-    String getRankLabel(int rank) {
-      switch (rank) {
-        case 1: return '🥇';
-        case 2: return '🥈';
-        case 3: return '🥉';
-        default: return '$rank';
-      }
-    }
-
-    return GestureDetector(
-      onTap: () => _showShadeDetails(shade),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
+ Widget _buildShadeItem(Map<String, dynamic> shade, int rank) {
+  return GestureDetector(
+    onTap: () => _showShadeDetails(shade),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          // Fire icon with rank number
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            child: Stack(
               alignment: Alignment.center,
-              child: Text(
-                getRankLabel(rank),
-                style: TextStyle(
-                  color: Colors.pink[800],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+              children: [
+                Icon(
+                  Icons.local_fire_department,
+                  color: _getFireColor(rank),
+                  size: 24,
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              width: 80,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Center(
-                child: Text(
-                  shade['hex_code'],
+                Text(
+                  '$rank',
                   style: TextStyle(
+                    color: const Color.fromARGB(255, 10, 10, 10),
                     fontSize: 10,
-                    color: _getContrastColor(shade['hex_code']),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 80,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Center(
+              child: Text(
+                shade['hex_code'],
+                style: TextStyle(
+                  fontSize: 10,
+                  color: _getContrastColor(shade['hex_code']),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (shade['shade_name'] != null)
-                    Text(
-                      shade['shade_name'],
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (shade['shade_name'] != null)
+                  Text(
+                    shade['shade_name'],
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
-                  LinearProgressIndicator(
-                    value: (shade['match_count'] as int) / 1500,
-                    backgroundColor: Colors.grey[200],
-                    color: Colors.pinkAccent,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
                   ),
-                ],
-              ),
+                LinearProgressIndicator(
+                  value: (shade['match_count'] as int) / 1500,
+                  backgroundColor: Colors.grey[200],
+                  color: Colors.pinkAccent,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Text(
-              '${shade['match_count']}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${shade['match_count']}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
+Color _getFireColor(int rank) {
+  switch (rank) {
+    case 1: return Colors.red;
+    case 2: return Colors.orange;
+    case 3: return Colors.amber;
+    default: return Colors.grey;
+  }
+}
   Widget _buildTopShadesList() {
     final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
 
@@ -633,28 +723,6 @@ class _SelectionPageState extends State<SelectionPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.pinkAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Try-on feature coming soon!')),
-                  );
-                },
-                child: const Text(
-                  'Try This Shade',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
             ],
           ),
         );

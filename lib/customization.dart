@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/animation.dart';
@@ -549,7 +548,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
           }),
           Positioned(
             left: 10,
-            top: 100,
+            top: 95,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -946,6 +945,7 @@ class _FeedbackDialogState extends State<FeedbackDialog> with TickerProviderStat
     super.dispose();
   }
 
+
   Widget _buildGlitterEffect() {
     return AnimatedBuilder(
       animation: _glitterController,
@@ -980,254 +980,397 @@ class _FeedbackDialogState extends State<FeedbackDialog> with TickerProviderStat
     );
   }
 
-  Future<void> _submitFeedback() async {
-    if (_rating == 0) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a rating')),
-      );
-      return;
-    }
 
-    setState(() => _isSubmitting = true);
-
-    try {
-      final response = await http.post(
-        Uri.parse('https://glamouraika.com/api/submit_feedback'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'recommendation_id': widget.recommendationId,
-          'user_id': widget.userId,
-          'rating': _rating,
-          'comment': _feedbackController.text.isNotEmpty ? _feedbackController.text : null,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      if (!mounted) return;
-
-      final responseData = jsonDecode(response.body);
-      
-      if (response.statusCode == 200) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Feedback submitted successfully')),
-        );
-      } else if (response.statusCode == 400) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Missing required fields')),
-        );
-      } else if (response.statusCode == 404) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Recommendation not found')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Failed to submit feedback')),
-        );
-      }
-    } on TimeoutException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request timed out')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
-    }
+Future<void> _submitFeedback() async {
+  if (_rating == 0) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select a rating')),
+    );
+    return;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-      ),
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.85,
-          height: MediaQuery.of(context).size.height * 0.46, // Adjusted height
-          padding: const EdgeInsets.all(20), // Reduced padding
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                 Colors.pink.shade200,
+  setState(() => _isSubmitting = true);
+
+  try {
+    final response = await http.post(
+      Uri.parse('https://glamouraika.com/api/submit_feedback'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': widget.userId,
+        'recommendation_id': widget.recommendationId,
+        'rating': _rating,
+        'feedback_text': _feedbackController.text,
+        'timestamp': DateTime.now().toIso8601String(),
+      }),
+    );
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200) {
+      // Show success popup with glitter effect
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          // Auto-close after 3 seconds
+          Future.delayed(const Duration(seconds: 3), () {
+            Navigator.of(context).pop(); // Close success popup
+            Navigator.of(context).pop(); // Close feedback dialog
+          });
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Stack(
+              children: [
+                // Main content
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.pink.shade100,
+                        Colors.purpleAccent.shade100,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.pink.withOpacity(0.3),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Animated checkmark
+                      ScaleTransition(
+                        scale: Tween(begin: 0.0, end: 1.0).animate(
+                          CurvedAnimation(
+                            parent: ModalRoute.of(context)!.animation!,
+                            curve: Curves.elasticOut,
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.pink.shade300,
+                                Colors.purple.shade300,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.pink.withOpacity(0.4),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Message text
+                      Text(
+                        "Thank You!",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          foreground: Paint()
+                            ..shader = LinearGradient(
+                              colors: [
+                                Colors.pink.shade700,
+                                Colors.purple.shade700,
+                              ],
+                            ).createShader(const Rect.fromLTWH(0, 0, 200, 20)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Your feedback was submitted successfully",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.pink.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Glitter effects
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: RotationTransition(
+                    turns: Tween(begin: 0.0, end: 1.0).animate(
+                      CurvedAnimation(
+                        parent: _glitterController,
+                        curve: Curves.linear,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.star,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 20,
+                  left: 20,
+                  child: RotationTransition(
+                    turns: Tween(begin: 1.0, end: 0.0).animate(
+                      CurvedAnimation(
+                        parent: _glitterController,
+                        curve: Curves.linear,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.star,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 40,
+                  left: 30,
+                  child: FadeTransition(
+                    opacity: Tween(begin: 0.5, end: 1.0).animate(
+                      CurvedAnimation(
+                        parent: _glitterController,
+                        curve: Curves.easeInOut,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.star_border,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.pink.withOpacity(0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-              ),
+          );
+        },
+      );
+    } else {
+      final errorData = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorData['error'] ?? 'Failed to submit feedback')),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+    }
+  }
+}
+ @override
+Widget build(BuildContext context) {
+  return Dialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(28),
+    ),
+    elevation: 0,
+    backgroundColor: Colors.transparent,
+    child: ScaleTransition(
+      scale: _scaleAnimation,
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.85,
+        height: MediaQuery.of(context).size.height * 0.46, // Adjusted height
+        padding: const EdgeInsets.all(20), // Reduced padding
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.pink.shade100,
+              Colors.purpleAccent.shade100,
             ],
           ),
-          child: Stack(
-            children: [
-              _buildGlitterEffect(),
-              SingleChildScrollView( // Added for scrollable content
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        colors: [Colors.pink, Colors.purple],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ).createShader(bounds),
-                      child: const Icon(
-                        Icons.favorite,
-                        size: 36, // Slightly smaller icon
-                        color: Colors.white,
-                      ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.pink.withOpacity(0.3),
+              blurRadius: 30,
+              spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            _buildGlitterEffect(),
+            SingleChildScrollView( // Added for scrollable content
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: [Colors.pink, Colors.purple],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(bounds),
+                    child: const Icon(
+                      Icons.favorite,
+                      size: 36, // Slightly smaller icon
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 10), // Reduced spacing
-                    Text(
-                      'Share Your Glam Experience',
-                      style: TextStyle(
-                        fontSize: 18, // Slightly smaller font
-                        fontWeight: FontWeight.bold,
-                        foreground: Paint()
-                          ..shader = LinearGradient(
-                            colors: [Colors.pink.shade700, Colors.purple.shade700],
-                          ).createShader(const Rect.fromLTWH(0, 0, 200, 20)),
-                      ),
-                      textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10), // Reduced spacing
+                  Text(
+                    'Share Your Glam Experience',
+                    style: TextStyle(
+                      fontSize: 18, // Slightly smaller font
+                      fontWeight: FontWeight.bold,
+                      foreground: Paint()
+                        ..shader = LinearGradient(
+                          colors: [Colors.pink.shade700, Colors.purple.shade700],
+                        ).createShader(const Rect.fromLTWH(0, 0, 200, 20)),
                     ),
-                    const SizedBox(height: 15), // Reduced spacing
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _rating = index + 1;
-                              _glitterController.forward(from: 0);
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 4), // Tighter spacing
-                            transform: Matrix4.identity()
-                              ..scale(_rating == index + 1 ? 1.2 : 1.0),
-                            child: ShaderMask(
-                              shaderCallback: (bounds) => LinearGradient(
-                                colors: _rating > index
-                                    ? [Colors.amber, Colors.amber.shade700]
-                                    : [Colors.grey.shade400, Colors.grey],
-                              ).createShader(bounds),
-                              child: const Icon(
-                                Icons.star,
-                                size: 32, // Slightly smaller stars
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 15), // Reduced spacing
-                    Container(
-                      height: 90, // Fixed height for text field
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.pink.withOpacity(0.1),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _feedbackController,
-                        maxLines: 3, // Reduced max lines
-                        decoration: InputDecoration(
-                          hintText: 'Your thoughts...',
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.8),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.all(14),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15), // Reduced spacing
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10), // Smaller buttons
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            backgroundColor: Colors.white.withOpacity(0.7),
-                          ),
-                          child: Text(
-                            'Maybe Later',
-                            style: TextStyle(
-                              color: Colors.pink.shade800,
-                              fontSize: 13, // Smaller font
-                              fontWeight: FontWeight.w600,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 15), // Reduced spacing
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _rating = index + 1;
+                            _glitterController.forward(from: 0);
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4), // Tighter spacing
+                          transform: Matrix4.identity()
+                            ..scale(_rating == index + 1 ? 1.2 : 1.0),
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => LinearGradient(
+                              colors: _rating > index
+                                  ? [Colors.amber, Colors.amber.shade700]
+                                  : [Colors.grey.shade400, Colors.grey],
+                            ).createShader(bounds),
+                            child: const Icon(
+                              Icons.star,
+                              size: 32, // Slightly smaller stars
+                              color: Colors.white,
                             ),
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: _isSubmitting ? null : _submitFeedback,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10), // Smaller buttons
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            backgroundColor: Colors.pinkAccent,
-                            elevation: 4,
-                          ),
-                          child: _isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : ShaderMask(
-                                  shaderCallback: (bounds) => LinearGradient(
-                                    colors: [Colors.white, Colors.white.withOpacity(0.7)],
-                                  ).createShader(bounds),
-                                  child: const Text(
-                                    'Submit',
-                                    style: TextStyle(
-                                      fontSize: 13, // Smaller font
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 15), // Reduced spacing
+                  Container(
+                    height: 90, // Fixed height for text field
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.pink.withOpacity(0.1),
+                          blurRadius: 10,
+                          spreadRadius: 2,
                         ),
                       ],
                     ),
-                  ],
-                ),
+                    child: TextField(
+                      controller: _feedbackController,
+                      maxLines: 3, // Reduced max lines
+                      decoration: InputDecoration(
+                        hintText: 'Your thoughts...',
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15), // Reduced spacing
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10), // Smaller buttons
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: Colors.white.withOpacity(0.7),
+                        ),
+                        child: Text(
+                          'Maybe Later',
+                          style: TextStyle(
+                            color: Colors.pink.shade800,
+                            fontSize: 13, // Smaller font
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitFeedback,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10), // Smaller buttons
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: Colors.pinkAccent,
+                          elevation: 4,
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : ShaderMask(
+                                shaderCallback: (bounds) => LinearGradient(
+                                  colors: [Colors.white, Colors.white.withOpacity(0.7)],
+                                ).createShader(bounds),
+                                child: const Text(
+                                  'Submit',
+                                  style: TextStyle(
+                                    fontSize: 13, // Smaller font
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
