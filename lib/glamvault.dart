@@ -596,35 +596,51 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     });
   }
 
-  Widget _buildShadeChip(dynamic shade) {
-    try {
-      final hexCode = shade['hex_code']?.toString() ?? '';
-      final colorValue = hexCode.isNotEmpty
-          ? int.parse(
-              hexCode.startsWith('#') ? hexCode.substring(1, 7) : hexCode,
-              radix: 16) + 0xFF000000
-          : 0xFFCCCCCC;
+ Widget _buildShadeChip(dynamic shade) {
+  try {
+    final hexCode = shade['hex_code']?.toString() ?? '';
+    final colorValue = hexCode.isNotEmpty
+        ? int.parse(
+            hexCode.startsWith('#') ? hexCode.substring(1, 7) : hexCode,
+            radix: 16) + 0xFF000000
+        : 0xFFCCCCCC;
 
-      return Container(
-        width: screenWidth * 0.12,
-        height: screenWidth * 0.12,
-        decoration: BoxDecoration(
-          color: Color(colorValue),
-          borderRadius: BorderRadius.circular(screenWidth * 0.06),
-          border: Border.all(color: Colors.black12),
+    return Container(
+      width: screenWidth * 0.15,  // Increased from 0.12 to 0.15
+      height: screenWidth * 0.15, // Increased from 0.12 to 0.15
+      decoration: BoxDecoration(
+        color: Color(colorValue),
+        borderRadius: BorderRadius.circular(screenWidth * 0.075), // Adjusted to match new size
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Center(
+        child: Text(
+          hexCode.isNotEmpty ? hexCode : '', // Now includes the #
+          style: TextStyle(
+            fontSize: screenWidth * 0.025, // Slightly larger text
+            color: _getContrastColor(hexCode),
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        child: shade['shade_name'] != null
-            ? Tooltip(
-                message: shade['shade_name'].toString(),
-                child: Container(),
-              )
-            : null,
-      );
-    } catch (e) {
-      debugPrint('Error rendering shade: $e');
-      return Container();
-    }
+      ),
+    );
+  } catch (e) {
+    debugPrint('Error rendering shade: $e');
+    return Container();
   }
+}
+
+Color _getContrastColor(String hexColor) {
+  if (hexColor.isEmpty) return Colors.black;
+  
+  try {
+    final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));
+    final brightness = color.computeLuminance();
+    return brightness > 0.5 ? Colors.black : Colors.white;
+  } catch (e) {
+    return Colors.black;
+  }
+}
 
  Widget _buildTipsBox() {
   if (!_showTipsBox || _currentTip == null || _currentProductName == null) {

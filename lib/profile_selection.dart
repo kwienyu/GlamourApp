@@ -661,7 +661,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               .animate()
               .fadeIn(delay: 400.ms)
               .scaleXY(begin: 0.8, end: 1),
-              _buildProfileCard(context, 'assets/top_report.png', "Top Shades Recommendation", SelectionPage(userId: widget.userId))
+              _buildProfileCard(context, 'assets/top_report.png', "Top Recommended Shades", SelectionPage(userId: widget.userId))
               .animate()
               .fadeIn(delay: 200.ms)
               .scaleXY(begin: 0.8, end: 1),
@@ -788,7 +788,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
         children: [
           // Weekly Recommendations Section
           Text(
-            'Weekly Top Shade Recommendations',
+            'Weekly Top Recommended Shade',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -798,7 +798,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           const SizedBox(height: 16),
           if (_userSkinTone != null)
             Text(
-              'For $_userSkinTone skin tone',
+              'Based on your $_userSkinTone skin tone',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -814,7 +814,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           // Monthly Recommendations Section
           const SizedBox(height: 40),
           Text(
-            'Monthly Top Shade Recommendations',
+            'Monthly Top Recommended Shade',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -824,7 +824,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           const SizedBox(height: 16),
           if (_userSkinTone != null)
             Text(
-              'For $_userSkinTone skin tone',
+              'Based on your $_userSkinTone skin tone',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -1033,7 +1033,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$period Top Shade Recommendations',
+              '$period Top Shades',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -1080,7 +1080,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                           const Divider(),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),

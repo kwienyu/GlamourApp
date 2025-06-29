@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/animation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
@@ -42,6 +41,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
   bool _showHeart = true;
+  Map<String, bool> expandedProducts = {};
 
   Map<String, Color?> selectedShades = {
     'Foundation': null,
@@ -82,30 +82,35 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   final String? _apiToken = null;
 
   @override
-  void initState() {
-    super.initState();
-    _processRecommendationData();
-    _fetchRecommendations();
-    
-    // Heart animation setup
-    _heartController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _heartAnimation = TweenSequence<double>(
-      <TweenSequenceItem<double>>[
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.0, end: 1.08),
-          weight: 50,
-        ),
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.1, end: 1.0),
-          weight: 50,
-        ),
-      ],
-    ).animate(_heartController);
+void initState() {
+  super.initState();
+  _processRecommendationData();
+  _fetchRecommendations();
+  
+  // Initialize all products as not expanded
+  for (var product in orderedProductNames) {
+    expandedProducts[product] = false;
   }
+
+  // Heart animation setup remains the same
+  _heartController = AnimationController(
+    duration: const Duration(milliseconds: 1500),
+    vsync: this,
+  )..repeat(reverse: true);
+  
+  _heartAnimation = TweenSequence<double>(
+    <TweenSequenceItem<double>>[
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.0, end: 1.08),
+        weight: 50,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.1, end: 1.0),
+        weight: 50,
+      ),
+    ],
+  ).animate(_heartController);
+}
 
   @override
   void dispose() {
@@ -114,33 +119,44 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   }
 
   void _processRecommendationData() {
-    if (widget.recommendationData != null) {
-      final recommendations = widget.recommendationData!['recommendations'] as Map<String, dynamic>?;
-      if (recommendations != null) {
-        setState(() {
-          makeupShades.clear();
-          shadeHexCodes.clear();
-          recommendations.forEach((category, shadeMap) {
-            if (shadeMap is Map) {
-              final shadeTypes = ['Light', 'Medium', 'Dark'];
-              shadeHexCodes[category] = [];
-              makeupShades[category] = [];
-              
-              for (var shadeType in shadeTypes) {
-                if (shadeMap.containsKey(shadeType)) {
-                  final hexCode = shadeMap[shadeType] as String;
+  if (widget.recommendationData != null) {
+    final recommendations = widget.recommendationData!['recommendations'] as Map<String, dynamic>?;
+    if (recommendations != null) {
+      setState(() {
+        makeupShades.clear();
+        shadeHexCodes.clear();
+        recommendations.forEach((category, shadeMap) {
+          if (shadeMap is Map) {
+            // Store all shades including Primary
+            shadeHexCodes[category] = [];
+            makeupShades[category] = [];
+            
+            // Process Primary shade first if exists
+            if (shadeMap.containsKey('Primary')) {
+              final hexCode = shadeMap['Primary'] as String;
+              shadeHexCodes[category]!.add(hexCode);
+              makeupShades[category]!.add(_parseHexColor(hexCode));
+            }
+            
+            // Process other shades (Light, Medium, Dark)
+            final shadeTypes = ['Light', 'Medium', 'Dark'];
+            for (var shadeType in shadeTypes) {
+              if (shadeMap.containsKey(shadeType)) {
+                final hexCode = shadeMap[shadeType] as String;
+                // Only add if not already added as Primary
+                if (!shadeHexCodes[category]!.contains(hexCode)) {
                   shadeHexCodes[category]!.add(hexCode);
                   makeupShades[category]!.add(_parseHexColor(hexCode));
                 }
               }
             }
-          });
+          }
         });
-      }
+      });
     }
   }
-
-  Color _parseHexColor(String hexColor) {
+}
+ Color _parseHexColor(String hexColor) {
     try {
       if (!RegExp(r'^#[0-9A-Fa-f]{6,8}$').hasMatch(hexColor)) {
         return Colors.transparent;
@@ -151,57 +167,62 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     }
   }
 
-  Future<void> _fetchRecommendations() async {
-    setState(() {
-      isLoading = true;
-    });
+Future<void> _fetchRecommendations() async {
+  setState(() {
+    isLoading = true;
+  });
 
-    try {
-      final url = Uri.parse('https://glamouraika.com/api/recommendation');
-      final headers = {
-        'Content-Type': 'application/json',
-        if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
-      };
+  try {
+    final url = Uri.parse('https://glamouraika.com/api/recommendation');
+    final headers = {
+      'Content-Type': 'application/json',
+      if (_apiToken != null) 'Authorization': 'Bearer $_apiToken',
+    };
 
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: jsonEncode({
-          'user_id': widget.userId,
-          'undertone': widget.undertone,
-          'makeup_type': widget.selectedMakeupType,
-          'makeup_look': widget.selectedMakeupLook,
-        }),
-      ).timeout(const Duration(seconds: 10));
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode({
+        'user_id': widget.userId,
+        'undertone': widget.undertone,
+        'makeup_type': widget.selectedMakeupType,
+        'makeup_look': widget.selectedMakeupLook,
+      }),
+    ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final recommendations = data['recommendations'] as Map<String, dynamic>?;
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final recommendations = data['recommendations'] as Map<String, dynamic>?;
 
-        if (recommendations == null) {
-          throw Exception('Invalid API response: missing recommendations');
-        }
+      if (recommendations == null) {
+        throw Exception('Invalid API response: missing recommendations');
+      }
 
-        setState(() {
-          makeupShades.clear();
-          shadeHexCodes.clear();
-          recommendations.forEach((category, shadeMap) {
-            if (shadeMap is Map) {
-              final shadeTypes = ['Light', 'Medium', 'Dark'];
-              shadeHexCodes[category] = [];
-              makeupShades[category] = [];
-              
-              for (var shadeType in shadeTypes) {
-                if (shadeMap.containsKey(shadeType)) {
-                  final hexCode = shadeMap[shadeType] as String;
-                  shadeHexCodes[category]!.add(hexCode);
-                  makeupShades[category]!.add(_parseHexColor(hexCode));
-                }
+      setState(() {
+        makeupShades.clear();
+        shadeHexCodes.clear();
+        recommendations.forEach((category, shadeMap) {
+          if (shadeMap is Map) {
+            // First add the Primary shade if it exists
+            if (shadeMap.containsKey('Primary')) {
+              final hexCode = shadeMap['Primary'] as String;
+              shadeHexCodes[category] = [hexCode];
+              makeupShades[category] = [_parseHexColor(hexCode)];
+            }
+            
+            // Then add other shades (Light, Medium, Dark)
+            final shadeTypes = ['Light', 'Medium', 'Dark'];
+            for (var shadeType in shadeTypes) {
+              if (shadeMap.containsKey(shadeType)) {
+                final hexCode = shadeMap[shadeType] as String;
+                shadeHexCodes[category]?.add(hexCode);
+                makeupShades[category]?.add(_parseHexColor(hexCode));
               }
             }
-          });
+          }
         });
-      } else if (response.statusCode == 400) {
+      });
+    }  else if (response.statusCode == 400) {
         final errorData = jsonDecode(response.body);
         if (errorData['message'] == 'User profile incomplete') {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -225,16 +246,16 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
           SnackBar(content: Text('Failed to load recommendations: ${response.statusCode}')),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching recommendations: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
+    }  catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching recommendations: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
   Future<String> compressAndEncodeImage(File imageFile) async {
     try {
@@ -391,112 +412,103 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   }
 
   Widget _buildShadeItem(Color color, int index) {
-    final isSelected = selectedShades[selectedProduct!] == color;
-    final isRecommended = index == 0;
-    final size = isRecommended ? 60.0 : 50.0;
-    final hexCode = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+  final isSelected = selectedShades[selectedProduct!] == color;
+  final isPrimary = index == 0;
+  final size = isPrimary ? 70.0 : 50.0; // Primary is bigger
+  final hexCode = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+  final fontSize = isPrimary ? 10.0 : 8.0; // Font size adjustment
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (isRecommended)
-          Transform.translate(
-            offset: const Offset(0, 1),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Recommended',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (isPrimary)
+        Transform.translate(
+          offset: const Offset(0, 1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.green,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'Recommended',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-        GestureDetector(
-          onTap: () {
-            setState(() {
-              selectedShades[selectedProduct!] = isSelected ? null : color;
-            });
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: size,
-                height: size,
-                margin: const EdgeInsets.only(bottom: 4),
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected ? Colors.pink : 
-                          isRecommended ? Colors.green : Colors.grey,
-                    width: isRecommended ? 3 : 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                    if (isSelected) 
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.8),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                  ],
-                ),
-                child: isSelected
-                    ? Center(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.7),
-                          ),
-                          child: Icon(
-                            Icons.check,
-                            color: Colors.black,
-                            size: size * 0.4,
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
-              Transform.translate(
-                offset: const Offset(0, -6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: color.withOpacity(0.5),
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.white.withOpacity(0.3),
-                  ),
-                  child: Text(
-                    hexCode,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: const Color.fromARGB(255, 4, 4, 4),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
-      ],
-    );
-  }
+      GestureDetector(
+        onTap: () {
+          setState(() {
+            selectedShades[selectedProduct!] = isSelected ? null : color;
+            if (isPrimary) {
+              expandedProducts[selectedProduct!] = !expandedProducts[selectedProduct!]!;
+            }
+          });
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: size,
+              height: size,
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.green: 
+                        isPrimary ? Colors.green: Colors.grey,
+                  width: isPrimary ? 3 : 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                  if (isSelected) 
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.8),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Text(
+                      hexCode, // Now includes the # symbol
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        color: _getContrastColor(color),
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+// Helper function to get contrasting text color
+Color _getContrastColor(Color color) {
+  // Calculate the perceptive luminance
+  double luminance = (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) / 255;
+  return luminance > 0.5 ? Colors.black : Colors.white;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -672,69 +684,80 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
                 ),
               ),
             ),
-          if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
-            Positioned(
-              right: 0,
-              top: 140,
-              bottom: 0,
-              child: Container(
-                width: 100,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
+         if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
+  Positioned(
+    right: 0,
+    top: 140,
+    bottom: 0,
+    child: Container(
+      width: 110, // Slightly wider to accommodate larger primary shade
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 10.0),
+              child: Text(
+                selectedProduct!,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10.0),
-                      child: Text(
-                        selectedProduct!,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    if (selectedShades[selectedProduct] != null)
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedShades[selectedProduct!] = null;
-                          });
-                        },
-                        child: const Text(
-                          'Clear',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 2),
-                    Expanded(
-                      child: ListView(
-                        children: makeupShades[selectedProduct]!.asMap().entries.map((entry) {
-                          return _buildShadeItem(entry.value, entry.key);
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
+                textAlign: TextAlign.center,
               ),
             ),
+            if (selectedShades[selectedProduct] != null)
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    selectedShades[selectedProduct!] = null;
+                  });
+                },
+                child: const Text(
+                  'Clear',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8), // Increased spacing
+            
+            // Always show the primary shade
+            if (makeupShades[selectedProduct]!.isNotEmpty)
+              _buildShadeItem(makeupShades[selectedProduct]![0], 0),
+            
+            // Automatically show other shades when primary is clicked
+            if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
+              ...makeupShades[selectedProduct]!
+                  .asMap()
+                  .entries
+                  .where((entry) => entry.key > 0) // Skip primary shade
+                  .map((entry) => Padding(
+                    padding: const EdgeInsets.only(top: 12.0), // Increased spacing
+                    child: _buildShadeItem(entry.value, entry.key),
+                  ))
+                  ,
+          ],
+        ),
+      ),
+    ),
+  ),
           Positioned(
             bottom: 20,
             left: MediaQuery.of(context).size.width * 0.2,
@@ -1237,7 +1260,7 @@ Widget build(BuildContext context) {
                   ),
                   const SizedBox(height: 10), // Reduced spacing
                   Text(
-                    'Share Your Glam Experience',
+                    'How satisfied are you with the makeup shade recommendations provided by Glamour?',
                     style: TextStyle(
                       fontSize: 18, // Slightly smaller font
                       fontWeight: FontWeight.bold,

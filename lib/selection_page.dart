@@ -68,14 +68,14 @@ class _SelectionPageState extends State<SelectionPage> {
             final categoryKey = category.toLowerCase();
             convertedData[skinToneKey]![categoryKey] = [];
             
-            (shades as List<dynamic>).forEach((shade) {
+            for (var shade in (shades as List<dynamic>)) {
               convertedData[skinToneKey]![categoryKey]!.add({
                 'hex_code': shade['hex_code'],
                 'match_count': shade['times_used'],
                 'shade_name': shade['shade_name'],
                 'rank': shade['rank'],
               });
-            });
+            }
           });
         });
 
@@ -159,7 +159,7 @@ class _SelectionPageState extends State<SelectionPage> {
         children: [
           const SizedBox(height: 20), // Added extra space at the top
           Text(
-            'Top Shade Recommendations',
+            'Top Recommended Shades',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -642,11 +642,11 @@ Color _getFireColor(int rank) {
                             const SizedBox(height: 8),
                             ...shades.map((shade) {
                               return _buildDetailedShadeItem(shade);
-                            }).toList(),
+                            }),
                             const Divider(),
                           ],
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
