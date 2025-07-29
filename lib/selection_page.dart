@@ -13,7 +13,7 @@ class SelectionPage extends StatefulWidget {
 }
 
 class _SelectionPageState extends State<SelectionPage> {
-  String _selectedSkinTone = 'morena';
+  String _selectedSkinTone = 'morena'; 
   String _selectedShadeCategory = 'foundation';
   bool _isLoading = true;
   bool _hasError = false;
@@ -159,7 +159,7 @@ class _SelectionPageState extends State<SelectionPage> {
         children: [
           const SizedBox(height: 20), // Added extra space at the top
           Text(
-            'Top Recommended Shades',
+            'Top Shades',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,

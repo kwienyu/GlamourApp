@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'selection_page.dart';
 import 'camera2.dart';
 import 'glamvault.dart';
-import 'makeup_guide.dart';
+import 'makeup_artistform.dart';
 import 'faceshapes.dart';
 import 'skintone.dart';
 import 'package:http/http.dart' as http;
@@ -472,7 +472,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     }
   }
 
-  AppBar _buildAppBar(BuildContext context) {
+ AppBar _buildAppBar(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return AppBar(
@@ -489,14 +489,17 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       centerTitle: true,
       actions: [
         IconButton(
-          icon: const Icon(Icons.help_outline, color: Colors.black)
+          icon: Image.asset(
+            'assets/facscan_icon.gif',
+            height: screenHeight * 0.05,
+          )
               .animate()
               .fadeIn(delay: 300.ms)
               .slide(begin: Offset(-0.5, 0), end: Offset.zero),
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => MakeupGuide(userId: widget.userId),
+              builder: (context) => MakeupArtistForm(userId: int.parse(widget.userId)),
             ),
           ),
         ),

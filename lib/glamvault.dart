@@ -2,13 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
-import 'profile_selection.dart';
-import 'makeup_tips_generator.dart';
 import 'package:intl/intl.dart';
+import 'makeup_tips_generator.dart';
+import 'profile_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart'; 
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'makeup_guide.dart';  // Added import
 
 enum LookType { user, client }
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Glam Vault',
+      theme: ThemeData(
+        primarySwatch: Colors.pink,
+      ),
+      home: const GlamVaultScreen(userId: 1),
+    );
+  }
+}
 
 class GlamVaultScreen extends StatefulWidget {
   final int userId;
@@ -32,7 +52,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     _fetchSavedLooks();
   }
 
-  // Getter to filter looks based on selected tab
   List<SavedLook> get _filteredLooks {
     return savedLooks.where((look) {
       if (_selectedLookType == LookType.user) {
@@ -40,7 +59,8 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       } else {
         return look.isClientLook;
       }
-    }).toList()..sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
+    }).toList()
+      ..sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
   }
 
   Future<void> _fetchSavedLooks() async {
@@ -188,7 +208,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       debugPrint('Error loading shades for look $savedLookId: $e');
     }
   }
-
   void _navigateToLookDetails(SavedLook look) {
     final shades = lookShades[look.savedLookId] ?? {};
     final imageBytes = lookImages[look.savedLookId];
@@ -206,36 +225,36 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   }
 
   Widget _buildLookImage(Uint8List? imageBytes, double screenWidth) {
-  if (imageBytes == null || imageBytes.isEmpty) {
-    return _buildPlaceholder(screenWidth);
-  }
+    if (imageBytes == null || imageBytes.isEmpty) {
+      return _buildPlaceholder(screenWidth);
+    }
 
-  try {
-    return Image.memory(
-      imageBytes,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded) {
-          return child;
-        }
-        return AnimatedOpacity(
-          opacity: frame == null ? 0 : 1,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          child: child,
-        );
-      },
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('Image.memory error: $error');
-        return _buildErrorPlaceholder(screenWidth);
-      },
-    );
-  } catch (e) {
-    debugPrint('Error building image: $e');
-    return _buildErrorPlaceholder(screenWidth);
+    try {
+      return Image.memory(
+        imageBytes,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) {
+            return child;
+          }
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Image.memory error: $error');
+          return _buildErrorPlaceholder(screenWidth);
+        },
+      );
+    } catch (e) {
+      debugPrint('Error building image: $e');
+      return _buildErrorPlaceholder(screenWidth);
+    }
   }
-}
 
   Widget _buildPlaceholder(double screenWidth) {
     return Container(
@@ -243,7 +262,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       child: Center(
         child: Icon(
           Icons.photo_library,
-          size: screenWidth * 0.1, 
+          size: screenWidth * 0.1,
           color: Colors.grey,
         ),
       ),
@@ -260,13 +279,13 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
             Icon(
               Icons.error_outline,
               color: Colors.red,
-              size: screenWidth * 0.1, 
+              size: screenWidth * 0.1,
             ),
             Text(
               'Invalid image',
               style: TextStyle(
                 color: Colors.red,
-                fontSize: screenWidth * 0.035, 
+                fontSize: screenWidth * 0.035,
               ),
             ),
           ],
@@ -275,7 +294,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     );
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
@@ -288,7 +307,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
           icon: Icon(
             Icons.arrow_back,
             color: Colors.black,
-            size: screenWidth * 0.06, 
+            size: screenWidth * 0.06,
           ),
           onPressed: () async {
             final prefs = await SharedPreferences.getInstance();
@@ -302,23 +321,36 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         title: Center(
           child: Image.asset(
             'assets/glam_logo.png',
-            height: screenHeight * 0.08, 
+            height: screenHeight * 0.09,
             fit: BoxFit.contain,
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+               Icons.face_retouching_natural,
+              color: Colors.black,
+              size: screenWidth * 0.08,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MakeupGuide(userId: widget.userId.toString())),
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: Colors.pinkAccent[50],
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Column(
             children: [
-              // Tab navigation
               Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: screenWidth * 0.04, 
-                  vertical: screenHeight * 0.01, 
-                ),
+                  horizontal: screenWidth * 0.04,
+                  vertical: screenHeight * 0.01),
                 child: Row(
                   children: [
                     Expanded(
@@ -326,7 +358,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                         label: Text(
                           'My Looks',
                           style: TextStyle(
-                            fontSize: screenWidth * 0.04, 
+                            fontSize: screenWidth * 0.04,
                             color: _selectedLookType == LookType.user
                                 ? Colors.white
                                 : Colors.black,
@@ -341,13 +373,13 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                         selectedColor: Colors.pinkAccent,
                       ),
                     ),
-                    SizedBox(width: screenWidth * 0.025), 
+                    SizedBox(width: screenWidth * 0.025),
                     Expanded(
                       child: ChoiceChip(
                         label: Text(
                           'Client Looks',
                           style: TextStyle(
-                            fontSize: screenWidth * 0.04, 
+                            fontSize: screenWidth * 0.04,
                             color: _selectedLookType == LookType.client
                                 ? Colors.white
                                 : Colors.black,
@@ -365,7 +397,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                   ],
                 ),
               ),
-              // Main content area
               Expanded(
                 child: isLoading
                     ? Center(
@@ -378,68 +409,86 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                         ? Center(
                             child: Text(
                               'No ${_selectedLookType == LookType.user ? 'user' : 'client'} looks yet!',
-                              style: TextStyle(fontSize: screenWidth * 0.045), 
+                              style: TextStyle(fontSize: screenWidth * 0.045),
                             ),
                           )
                         : Padding(
-                            padding: EdgeInsets.all(screenWidth * 0.025), 
+                            padding: EdgeInsets.all(screenWidth * 0.025),
                             child: CustomScrollView(
                               slivers: [
                                 SliverGrid(
-                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: (screenWidth > 600) ? 3 : 2, 
-                                    crossAxisSpacing: screenWidth * 0.02, 
-                                    mainAxisSpacing: screenWidth * 0.02, 
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        (screenWidth > 600) ? 3 : 2,
+                                    crossAxisSpacing: screenWidth * 0.02,
+                                    mainAxisSpacing: screenWidth * 0.02,
                                     childAspectRatio: 0.7,
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                       final look = _filteredLooks[index];
                                       return GestureDetector(
-                                        onTap: () => _navigateToLookDetails(look),
+                                        onTap: () =>
+                                            _navigateToLookDetails(look),
                                         child: Card(
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(screenWidth * 0.04), 
+                                            borderRadius: BorderRadius.circular(
+                                                screenWidth * 0.04),
                                           ),
                                           child: Column(
                                             children: [
                                               Expanded(
                                                 child: ClipRRect(
-                                                  borderRadius: BorderRadius.vertical(
-                                                    top: Radius.circular(screenWidth * 0.04), 
+                                                  borderRadius:
+                                                      BorderRadius.vertical(
+                                                    top: Radius.circular(
+                                                        screenWidth * 0.04),
                                                   ),
-                                                  child: _buildLookImage(lookImages[look.savedLookId], screenWidth),
+                                                  child: _buildLookImage(
+                                                      lookImages[
+                                                          look.savedLookId],
+                                                      screenWidth),
                                                 ),
                                               ),
                                               Padding(
-                                                padding: EdgeInsets.all(screenWidth * 0.02), 
+                                                padding: EdgeInsets.all(
+                                                    screenWidth * 0.02),
                                                 child: Text(
                                                   look.makeupLookName,
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    fontSize: screenWidth * 0.035, 
+                                                    fontSize:
+                                                        screenWidth * 0.035,
                                                   ),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               Padding(
-                                                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.02), 
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal:
+                                                        screenWidth * 0.02),
                                                 child: Text(
                                                   look.formattedDate,
                                                   style: TextStyle(
-                                                    fontSize: screenWidth * 0.025, 
+                                                    fontSize:
+                                                        screenWidth * 0.025,
                                                     color: Colors.grey,
                                                   ),
                                                 ),
                                               ),
                                               if (look.isClientLook)
                                                 Padding(
-                                                  padding: EdgeInsets.only(bottom: screenWidth * 0.01), 
+                                                  padding: EdgeInsets.only(
+                                                      bottom:
+                                                          screenWidth * 0.01),
                                                   child: Text(
                                                     'Client Look',
                                                     style: TextStyle(
-                                                      fontSize: screenWidth * 0.03, 
+                                                      fontSize:
+                                                          screenWidth * 0.03,
                                                       color: Colors.grey[600],
                                                     ),
                                                   ),
@@ -463,7 +512,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     );
   }
 }
-
 class SavedLook {
   final int savedLookId;
   final String makeupLookName;
@@ -482,27 +530,24 @@ class SavedLook {
   factory SavedLook.fromJson(Map<String, dynamic> json) {
     DateTime parseCapturedDate(dynamic date) {
       if (date == null) return DateTime.now();
-      
+
       try {
         if (date is String) {
-          // Handle ISO format (2023-06-14T15:45:00Z)
           if (date.contains('T')) {
             return DateTime.parse(date).toLocal();
           }
-          // Handle other string formats
           try {
             return DateFormat('yyyy-MM-dd HH:mm:ss').parse(date).toLocal();
           } catch (e) {
             debugPrint('Failed to parse date string: $date');
           }
         } else if (date is int) {
-          // Handle timestamp (seconds since epoch)
           return DateTime.fromMillisecondsSinceEpoch(date * 1000).toLocal();
         }
       } catch (e) {
         debugPrint('Error parsing date: $e');
       }
-      return DateTime.now(); // Fallback
+      return DateTime.now();
     }
 
     return SavedLook(
@@ -520,22 +565,23 @@ class SavedLook {
     final yesterday = today.subtract(const Duration(days: 1));
 
     String formatTime(DateTime date) {
-      return DateFormat('h:mm a').format(date); // Formats like 3:45 PM
+      return DateFormat('h:mm a').format(date);
     }
 
-    if (capturedDate.year == now.year && 
-        capturedDate.month == now.month && 
+    if (capturedDate.year == now.year &&
+        capturedDate.month == now.month &&
         capturedDate.day == now.day) {
       return 'Today at ${formatTime(capturedDate)}';
-    } else if (capturedDate.year == yesterday.year && 
-               capturedDate.month == yesterday.month && 
-               capturedDate.day == yesterday.day) {
+    } else if (capturedDate.year == yesterday.year &&
+        capturedDate.month == yesterday.month &&
+        capturedDate.day == yesterday.day) {
       return 'Yesterday at ${formatTime(capturedDate)}';
     } else {
       return DateFormat('MM/dd/yyyy').format(capturedDate);
     }
   }
 }
+
 class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;
@@ -580,9 +626,9 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     });
   }
 
-  void _toggleTipsBox(String productName) {
+  void toggleTipsBox(String productName) {
     final tip = MakeupTipsGenerator.getTip(_userFaceShape, productName);
-    
+
     setState(() {
       if (_showTipsBox && _currentProductName == productName) {
         _showTipsBox = false;
@@ -596,125 +642,146 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     });
   }
 
- Widget _buildShadeChip(dynamic shade) {
-  try {
-    final hexCode = shade['hex_code']?.toString() ?? '';
-    final colorValue = hexCode.isNotEmpty
-        ? int.parse(
-            hexCode.startsWith('#') ? hexCode.substring(1, 7) : hexCode,
-            radix: 16) + 0xFF000000
-        : 0xFFCCCCCC;
+  Widget _buildShadeChip(dynamic shade) {
+    try {
+      final hexCode = shade['hex_code']?.toString() ?? '';
+      final isSelected = shade['is_selected'] ?? false;
+      final colorValue = hexCode.isNotEmpty
+          ? int.parse(
+              hexCode.startsWith('#') ? hexCode.substring(1, 7) : hexCode,
+              radix: 16) +
+              0xFF000000
+          : 0xFFCCCCCC;
 
-    return Container(
-      width: screenWidth * 0.15,  // Increased from 0.12 to 0.15
-      height: screenWidth * 0.15, // Increased from 0.12 to 0.15
-      decoration: BoxDecoration(
-        color: Color(colorValue),
-        borderRadius: BorderRadius.circular(screenWidth * 0.075), // Adjusted to match new size
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Center(
-        child: Text(
-          hexCode.isNotEmpty ? hexCode : '', // Now includes the #
-          style: TextStyle(
-            fontSize: screenWidth * 0.025, // Slightly larger text
-            color: _getContrastColor(hexCode),
-            fontWeight: FontWeight.bold,
+      return Container(
+        width: screenWidth * 0.15,
+        height: screenWidth * 0.15,
+        decoration: BoxDecoration(
+          color: Color(colorValue),
+          borderRadius: BorderRadius.circular(screenWidth * 0.075),
+          border: Border.all(
+            color: isSelected ? Colors.green : Colors.black12,
+            width: isSelected ? 3 : 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Text(
+                hexCode.isNotEmpty ? hexCode : '',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.025,
+                  color: _getContrastColor(hexCode),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Icon(
+                  Icons.check_circle,
+                  color: Colors.green[800],
+                  size: screenWidth * 0.04,
+                ),
+              ),
+          ],
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error rendering shade: $e');
+      return Container();
+    }
+  }
+
+  Color _getContrastColor(String hexColor) {
+    if (hexColor.isEmpty) return Colors.black;
+
+    try {
+      final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));
+      final brightness = color.computeLuminance();
+      return brightness > 0.5 ? Colors.black : Colors.white;
+    } catch (e) {
+      return Colors.black;
+    }
+  }
+
+  Widget _buildTipsBox() {
+    if (!_showTipsBox || _currentTip == null || _currentProductName == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      right: screenWidth * 0.02,
+      top: screenHeight * 0.60,
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: screenWidth * 0.6,
+          padding: EdgeInsets.all(screenWidth * 0.03),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.pinkAccent[100]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$_currentProductName Tips',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: screenWidth * 0.04,
+                  color: Colors.pinkAccent,
+                ),
+              ),
+              SizedBox(height: screenHeight * 0.01),
+              Text(
+                _currentTip!,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.035,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
-  } catch (e) {
-    debugPrint('Error rendering shade: $e');
-    return Container();
-  }
-}
-
-Color _getContrastColor(String hexColor) {
-  if (hexColor.isEmpty) return Colors.black;
-  
-  try {
-    final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));
-    final brightness = color.computeLuminance();
-    return brightness > 0.5 ? Colors.black : Colors.white;
-  } catch (e) {
-    return Colors.black;
-  }
-}
-
- Widget _buildTipsBox() {
-  if (!_showTipsBox || _currentTip == null || _currentProductName == null) {
-    return const SizedBox.shrink();
   }
 
-  return Positioned(
-    right: screenWidth * 0.02,
-    top: screenHeight * 0.60,
-    child: Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: screenWidth * 0.6,
-        padding: EdgeInsets.all(screenWidth * 0.03),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.pinkAccent[100]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$_currentProductName Tips',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: screenWidth * 0.04,
-              color: Colors.pinkAccent,
-            ),
-          ),
-          SizedBox(height: screenHeight * 0.01),
-          Text(
-            _currentTip!,
-            style: TextStyle(
-              fontSize: screenWidth * 0.035,
-            ),
-          ),
-        ],
-      ),
-    ),
-    ),
+ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
+  final selectedShade = shades.firstWhere(
+    (shade) => shade['is_selected'] == true,
+    orElse: () => null,
   );
-}
 
-Widget _buildProductWithTips(String productName, List<dynamic> shades) {
   return Padding(
     padding: EdgeInsets.only(top: screenHeight * 0.02),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              productName,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: screenWidth * 0.04,
-                fontFamily: 'Serif',
-              ),
-            ),
-            SizedBox(width: screenWidth * 0.02),
-            GestureDetector(
-              onTap: () => _toggleTipsBox(productName),
-              child: Icon(
-                Icons.lightbulb_outline,
-                size: screenWidth * 0.06,
-                color: _showTipsBox && _currentProductName == productName 
-                    ? Colors.yellow[700] 
-                    : Colors.grey[600],
-              ),
-            ),
-          ],
+        Text(
+          productName,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: screenWidth * 0.04,
+            fontFamily: 'Serif',
+          ),
         ),
+        if (selectedShade != null)
+          Padding(
+            padding: EdgeInsets.only(top: screenHeight * 0.005),
+            child: Text(
+              'Selected: ${selectedShade['shade_name']}',
+              style: TextStyle(
+                fontSize: screenWidth * 0.03,
+                color: Colors.green[800],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
         SizedBox(height: screenHeight * 0.01),
         Wrap(
           spacing: screenWidth * 0.02,
@@ -725,6 +792,7 @@ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
     ),
   );
 }
+
   Widget _buildPlaceholder() {
     return Container(
       color: Colors.grey[200],
@@ -765,8 +833,10 @@ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
 
   @override
   Widget build(BuildContext context) {
-    final safeScreenWidth = screenWidth > 0 ? screenWidth : MediaQuery.of(context).size.width;
-    final safeScreenHeight = screenHeight > 0 ? screenHeight : MediaQuery.of(context).size.height;
+    final safeScreenWidth =
+        screenWidth > 0 ? screenWidth : MediaQuery.of(context).size.width;
+    final safeScreenHeight =
+        screenHeight > 0 ? screenHeight : MediaQuery.of(context).size.height;
 
     return Scaffold(
       appBar: AppBar(
@@ -788,6 +858,23 @@ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.lightbulb_outline,
+              size: safeScreenWidth * 0.06,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MakeupTipsPage(faceShape: _userFaceShape),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -868,7 +955,7 @@ Widget _buildProductWithTips(String productName, List<dynamic> shades) {
               ],
             ),
           ),
-           _buildTipsBox(),
+          _buildTipsBox(),
         ],
       ),
     );

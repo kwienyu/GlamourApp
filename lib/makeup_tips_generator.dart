@@ -1,3 +1,210 @@
+import 'package:flutter/material.dart';
+
+class MakeupTipsPage extends StatelessWidget {
+  final String faceShape;
+
+  const MakeupTipsPage({super.key, required this.faceShape});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Makeup Tips for $faceShape Face',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFDF2F8),
+              Color(0xFFFAF5FF),
+            ],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              _buildFaceShapeCard(faceShape, theme),
+              const SizedBox(height: 30),
+              ..._buildAllTipCards(context, faceShape),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFaceShapeCard(String faceShape, ThemeData theme) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(
+          color: Colors.pink.shade100,
+          width: 1.5,
+        ),
+      ),
+      color: Colors.white.withOpacity(0.7),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text(
+              'Your Face Shape:',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.pink.shade800,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              faceShape,
+              style: theme.textTheme.displaySmall?.copyWith(
+                color: Colors.pink.shade600,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Icon(
+              _getFaceShapeIcon(faceShape),
+              size: 50,
+              color: Colors.pink.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildAllTipCards(BuildContext context, String faceShape) {
+    final categories = [
+      'Foundation',
+      'Concealer',
+      'Blush',
+      'Contour',
+      'Eyeshadow',
+      'Highlighter',
+      'Lipstick',
+      'Eyebrow',
+    ];
+
+    return categories.map((category) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 15),
+        child: _buildTipCard(
+          context,
+          category,
+          MakeupTipsGenerator.getTip(faceShape, category),
+          _getCategoryIcon(category),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildTipCard(
+      BuildContext context, String title, String tip, IconData icon) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      color: Colors.white.withOpacity(0.9),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.pink.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: Colors.pink.shade400,
+          ),
+        ),
+        title: Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.pink.shade800,
+              ),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Text(
+              tip,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade700,
+                    height: 1.5,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'foundation':
+        return Icons.face_retouching_natural;
+      case 'concealer':
+        return Icons.hide_source;
+      case 'blush':
+        return Icons.brush;
+      case 'contour':
+        return Icons.auto_fix_high;
+      case 'eyeshadow':
+        return Icons.remove_red_eye;
+      case 'highlighter':
+        return Icons.wb_sunny;
+      case 'lipstick':
+        return Icons.loyalty;
+      case 'eyebrow':
+        return Icons.face;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  IconData _getFaceShapeIcon(String faceShape) {
+    switch (faceShape.toLowerCase()) {
+      case 'oval':
+        return Icons.circle_outlined;
+      case 'round':
+        return Icons.lens_outlined;
+      case 'square':
+        return Icons.crop_square_outlined;
+      case 'heart':
+        return Icons.favorite_border;
+      case 'oblong':
+        return Icons.rectangle_outlined;
+      default:
+        return Icons.face;
+    }
+  }
+}
+
 class MakeupTipsGenerator {
   static final Map<String, Map<String, String>> _tipsByFaceShape = {
     'Oval': {
@@ -11,14 +218,14 @@ class MakeupTipsGenerator {
       'eyebrow': 'Follow your natural brow arch. Keep them softly curved.'
     },
     'Round': {
-      'blush': '	Apply blush just above the apples of the cheeks and blend diagonally upward. Avoid placing too close to the nose.',
+      'blush': 'Apply blush just above the apples of the cheeks and blend diagonally upward. Avoid placing too close to the nose.',
       'concealer': 'Brighten the center of face (forehead, under eyes, chin) to elongate.',
-      'contour': '	Contour under cheekbones in a diagonal line from mid-ear to mouth corner. Lightly contour the jawline and sides of forehead.',
-      'eyeshadow': 'lend shadow or eyeliner going outwards (like a cat-eye).',
-      'foundation': '	Apply a slightly darker shade on the sides of the face (temples to jawline) to create shadows and slim the face.',
+      'contour': 'Contour under cheekbones in a diagonal line from mid-ear to mouth corner. Lightly contour the jawline and sides of forehead.',
+      'eyeshadow': 'Blend shadow or eyeliner going outwards (like a cat-eye).',
+      'foundation': 'Apply a slightly darker shade on the sides of the face (temples to jawline) to create shadows and slim the face.',
       'highlighter': 'Focus on cheekbones and down the nose bridge for a lifted look. Avoid placing on round parts of the face.',
-      'lipstick': 'Slightly overline the top lip, especially the Cupid’s bow, to bring vertical balance.',
-      'eyebrow': 'Arched brows help lift your face. Don’t make them round.'
+      'lipstick': 'Slightly overline the top lip, especially the Cupid\'s bow, to bring vertical balance.',
+      'eyebrow': 'Arched brows help lift your face. Don\'t make them round.'
     },
     'Square': {
       'blush': 'Apply blush in a rounded motion on the apples of the cheeks. Avoid sharp diagonal strokes.',
@@ -36,14 +243,14 @@ class MakeupTipsGenerator {
       'contour': 'Lightly contour sides of the forehead and under the chin.',
       'eyeshadow': 'Blended shadows and winged eyeliner help even out your look.',
       'foundation': 'Use a slightly darker shade on the sides of the forehead to narrow it. Keep center bright.',
-      'highlighter': 'ighlight cheekbones and brow bones only. Avoid the chin to prevent focus on it.',
+      'highlighter': 'Highlight cheekbones and brow bones only. Avoid the chin to prevent focus on it.',
       'lipstick': 'Slightly overline or add gloss to the lower lip to balance the narrow chin.',
       'eyebrow': 'Keep brows soft and slightly curved. Avoid sharp high arches.',
     },
     'Oblong': {
       'blush': 'Apply horizontally across cheeks to add width (not upward).',
       'concealer': 'Brighten under the eyes and cheek area (not forehead or chin) to add focus to the center.',
-      'contour': '	Contour top of forehead, under chin, and temples to shorten and widen face. Avoid harsh cheek contour.',
+      'contour': 'Contour top of forehead, under chin, and temples to shorten and widen face. Avoid harsh cheek contour.',
       'eyeshadow': 'Focus on horizontal blending (not upward) to widen eyes.',
       'foundation': 'Apply darker shade at top of forehead and chin to reduce length. Keep cheeks bright.',
       'highlighter': 'Use on cheekbones only. Avoid forehead and chin highlight.',
@@ -57,4 +264,3 @@ class MakeupTipsGenerator {
         'No tips available for $productType.';
   }
 }
-

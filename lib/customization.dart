@@ -131,19 +131,25 @@ void initState() {
             shadeHexCodes[category] = [];
             makeupShades[category] = [];
             
-            // Process Primary shade first if exists
-            if (shadeMap.containsKey('Primary')) {
+            // Ensure Light shade comes first if it exists
+            if (shadeMap.containsKey('Light')) {
+              final hexCode = shadeMap['Light'] as String;
+              shadeHexCodes[category]!.insert(0, hexCode); // Insert at beginning
+              makeupShades[category]!.insert(0, _parseHexColor(hexCode));
+            }
+            
+            // Then add Primary if it exists and isn't already added
+            if (shadeMap.containsKey('Primary') && !shadeHexCodes[category]!.contains(shadeMap['Primary'])) {
               final hexCode = shadeMap['Primary'] as String;
               shadeHexCodes[category]!.add(hexCode);
               makeupShades[category]!.add(_parseHexColor(hexCode));
             }
             
-            // Process other shades (Light, Medium, Dark)
-            final shadeTypes = ['Light', 'Medium', 'Dark'];
+            // Then add other shades (Medium, Dark)
+            final shadeTypes = ['Medium', 'Dark'];
             for (var shadeType in shadeTypes) {
               if (shadeMap.containsKey(shadeType)) {
                 final hexCode = shadeMap[shadeType] as String;
-                // Only add if not already added as Primary
                 if (!shadeHexCodes[category]!.contains(hexCode)) {
                   shadeHexCodes[category]!.add(hexCode);
                   makeupShades[category]!.add(_parseHexColor(hexCode));
@@ -201,26 +207,30 @@ Future<void> _fetchRecommendations() async {
       setState(() {
         makeupShades.clear();
         shadeHexCodes.clear();
-        recommendations.forEach((category, shadeMap) {
-          if (shadeMap is Map) {
-            // First add the Primary shade if it exists
-            if (shadeMap.containsKey('Primary')) {
-              final hexCode = shadeMap['Primary'] as String;
-              shadeHexCodes[category] = [hexCode];
-              makeupShades[category] = [_parseHexColor(hexCode)];
-            }
-            
-            // Then add other shades (Light, Medium, Dark)
-            final shadeTypes = ['Light', 'Medium', 'Dark'];
-            for (var shadeType in shadeTypes) {
-              if (shadeMap.containsKey(shadeType)) {
-                final hexCode = shadeMap[shadeType] as String;
-                shadeHexCodes[category]?.add(hexCode);
-                makeupShades[category]?.add(_parseHexColor(hexCode));
-              }
-            }
-          }
-        });
+        // Inside _fetchRecommendations, modify the shade processing:
+recommendations.forEach((category, shadeMap) {
+  if (shadeMap is Map) {
+    // First add the Light shade if it exists
+    if (shadeMap.containsKey('Light')) {
+      final hexCode = shadeMap['Light'] as String;
+      shadeHexCodes[category] = [hexCode];
+      makeupShades[category] = [_parseHexColor(hexCode)];
+    }
+    
+    // Then add other shades in order
+    final shadeOrder = ['Primary', 'Medium', 'Dark'];
+    for (var shadeType in shadeOrder) {
+      if (shadeMap.containsKey(shadeType)) {
+        final hexCode = shadeMap[shadeType] as String;
+        // Only add if not already present as Light shade
+        if (!shadeHexCodes[category]!.contains(hexCode)) {
+          shadeHexCodes[category]?.add(hexCode);
+          makeupShades[category]?.add(_parseHexColor(hexCode));
+        }
+      }
+    }
+  }
+});
       });
     }  else if (response.statusCode == 400) {
         final errorData = jsonDecode(response.body);
@@ -276,21 +286,23 @@ Future<void> _fetchRecommendations() async {
   }
 
  Future<void> _saveLook() async {
-    if (widget.selectedMakeupLook == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No makeup look selected')),
-      );
-      return;
-    }
+  if (widget.selectedMakeupLook == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No makeup look selected')),
+    );
+    return;
+  }
 
-    final imageBytes = await widget.capturedImage.readAsBytes();
-    final base64Image = base64Encode(imageBytes);
+  setState(() {
+    isLoading = true;
+  });
 
-
+  try {
+    // Prepare the labeled shades data
     Map<String, List<String>> labeledShades = {};
     selectedShades.forEach((productType, color) {
       if (color != null) {
-        String hexColor = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
+        String hexColor = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
         labeledShades[productType] = [hexColor];
       }
     });
@@ -302,66 +314,57 @@ Future<void> _fetchRecommendations() async {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    final imageBytes = await widget.capturedImage.readAsBytes();
+    final base64Image = base64Encode(imageBytes);
 
-    try {
-      final url = Uri.parse('https://glamouraika.com/api/saved_looks');
-      
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': widget.userId,
-          'makeup_look': widget.selectedMakeupLook,
-          'shades': labeledShades,
-          'image_data': base64Image,
-          'is_client_look': false, 
-        }),
+    final url = Uri.parse('https://glamouraika.com/api/saved_looks');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': widget.userId,
+        'makeup_look': widget.selectedMakeupLook,
+        'shades': labeledShades,
+        'image_data': base64Image,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      setState(() {
+        isSaved = true;
+      });
+
+      // Cache the saved look locally
+      await _cacheSavedLook(
+        responseData['saved_look_id'],
+        widget.selectedMakeupLook!,
+        base64Image,
+        labeledShades,
       );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-        await _cacheSavedLook(
-          responseData['saved_look_id'],
-          widget.selectedMakeupLook!,
-          base64Image,
-          labeledShades, 
-        );
-
-        setState(() {
-          isSaved = true;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Look saved successfully to the glamvault!")),
-        );
-
-        // Navigate to GlamVault after saving
+      // Navigate to GlamVault after saving
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId)),
         ),
       );
-      
-      } else {
-        final errorData = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? response.body}')),
-        );
-      }
-    } catch (e) {
+    } else {
+      final errorData = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving look: $e')),
+        SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? 'Unknown error'}')),
       );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error saving look: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
 
   Future<void> _cacheSavedLook(
@@ -411,17 +414,17 @@ Future<void> _fetchRecommendations() async {
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
-  Widget _buildShadeItem(Color color, int index) {
+ Widget _buildShadeItem(Color color, int index) {
   final isSelected = selectedShades[selectedProduct!] == color;
-  final isPrimary = index == 0;
-  final size = isPrimary ? 70.0 : 50.0; // Primary is bigger
-  final hexCode = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
-  final fontSize = isPrimary ? 10.0 : 8.0; // Font size adjustment
+  final isFirstShade = index == 0;
+  final size = isFirstShade ? 70.0 : 50.0;
+  final hexCode = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+  final fontSize = isFirstShade ? 10.0 : 8.0;
 
   return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      if (isPrimary)
+      if (isFirstShade)
         Transform.translate(
           offset: const Offset(0, 1),
           child: Container(
@@ -444,7 +447,7 @@ Future<void> _fetchRecommendations() async {
         onTap: () {
           setState(() {
             selectedShades[selectedProduct!] = isSelected ? null : color;
-            if (isPrimary) {
+            if (isFirstShade) {
               expandedProducts[selectedProduct!] = !expandedProducts[selectedProduct!]!;
             }
           });
@@ -460,9 +463,9 @@ Future<void> _fetchRecommendations() async {
                 color: color,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? Colors.green: 
-                        isPrimary ? Colors.green: Colors.grey,
-                  width: isPrimary ? 3 : 2,
+                  color: isSelected ? Colors.green : 
+                        isFirstShade ? Colors.green : Colors.grey,
+                  width: isFirstShade ? 3 : 2,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -484,7 +487,7 @@ Future<void> _fetchRecommendations() async {
                   child: Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: Text(
-                      hexCode, // Now includes the # symbol
+                      hexCode,
                       style: TextStyle(
                         fontSize: fontSize,
                         color: _getContrastColor(color),
@@ -604,7 +607,7 @@ Color _getContrastColor(Color color) {
                       child: Text(
                         'Products',
                         style: TextStyle(
-                          color: Colors.black,
+                          color: Color.fromARGB(255, 250, 249, 249),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -684,13 +687,13 @@ Color _getContrastColor(Color color) {
                 ),
               ),
             ),
-         if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
+  if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
   Positioned(
     right: 0,
     top: 140,
     bottom: 0,
     child: Container(
-      width: 110, // Slightly wider to accommodate larger primary shade
+      width: 110,
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -714,7 +717,7 @@ Color _getContrastColor(Color color) {
               child: Text(
                 selectedProduct!,
                 style: const TextStyle(
-                  color: Colors.black,
+                  color: Color.fromARGB(255, 250, 250, 250),
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -736,23 +739,22 @@ Color _getContrastColor(Color color) {
                   ),
                 ),
               ),
-            const SizedBox(height: 8), // Increased spacing
+            const SizedBox(height: 8),
             
-            // Always show the primary shade
+            // Always show the primary (first) shade first
             if (makeupShades[selectedProduct]!.isNotEmpty)
               _buildShadeItem(makeupShades[selectedProduct]![0], 0),
             
-            // Automatically show other shades when primary is clicked
+            // Show other shades when expanded
             if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
               ...makeupShades[selectedProduct]!
                   .asMap()
                   .entries
-                  .where((entry) => entry.key > 0) // Skip primary shade
+                  .where((entry) => entry.key > 0) // Skip the first shade
                   .map((entry) => Padding(
-                    padding: const EdgeInsets.only(top: 12.0), // Increased spacing
+                    padding: const EdgeInsets.only(top: 12.0),
                     child: _buildShadeItem(entry.value, entry.key),
-                  ))
-                  ,
+                  )),
           ],
         ),
       ),
