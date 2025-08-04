@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import 'makeup_tips_generator.dart';
 import 'profile_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'makeup_guide.dart';  // Added import
+
 
 enum LookType { user, client }
 
@@ -32,8 +34,13 @@ class MyApp extends StatelessWidget {
 
 class GlamVaultScreen extends StatefulWidget {
   final int userId;
+  final File? initialImage;
 
-  const GlamVaultScreen({super.key, required this.userId});
+  const GlamVaultScreen({
+    super.key, 
+    required this.userId,
+    this.initialImage,
+  });
 
   @override
   _GlamVaultScreenState createState() => _GlamVaultScreenState();
@@ -45,10 +52,12 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   Map<int, Map<String, dynamic>> lookShades = {};
   Map<int, Uint8List?> lookImages = {};
   LookType _selectedLookType = LookType.user;
+  File? _currentImage;
 
   @override
   void initState() {
     super.initState();
+    _currentImage = widget.initialImage;
     _fetchSavedLooks();
   }
 
@@ -61,6 +70,250 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       }
     }).toList()
       ..sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
+  }
+
+  Widget _buildImagePreview(File imageFile, double screenWidth) {
+    return Padding(
+      padding: EdgeInsets.all(screenWidth * 0.04),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.file(
+          imageFile,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.pinkAccent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: Colors.black,
+            size: screenWidth * 0.06,
+          ),
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            final userId = prefs.getString('user_id') ?? '';
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfileSelection(userId: userId),
+              ),
+            );
+          },
+        ),
+        title: Center(
+          child: Image.asset(
+            'assets/glam_logo.png',
+            height: screenHeight * 0.09,
+            fit: BoxFit.contain,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.face_retouching_natural,
+              color: Colors.black,
+              size: screenWidth * 0.08,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MakeupGuide(userId: widget.userId.toString()),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      backgroundColor: Colors.pinkAccent[50],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.04,
+                  vertical: screenHeight * 0.01),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        label: Text(
+                          'My Looks',
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.04,
+                            color: _selectedLookType == LookType.user
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                        ),
+                        selected: _selectedLookType == LookType.user,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedLookType = LookType.user;
+                          });
+                        },
+                        selectedColor: Colors.pinkAccent,
+                      ),
+                    ),
+                    SizedBox(width: screenWidth * 0.025),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: Text(
+                          'Client Looks',
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.04,
+                            color: _selectedLookType == LookType.client
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                        ),
+                        selected: _selectedLookType == LookType.client,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedLookType = LookType.client;
+                          });
+                        },
+                        selectedColor: Colors.pinkAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: isLoading
+                    ? Center(
+                        child: LoadingAnimationWidget.staggeredDotsWave(
+                          color: Colors.pinkAccent,
+                          size: 50,
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          if (_currentImage != null)
+                            _buildImagePreview(_currentImage!, screenWidth),
+                          Expanded(
+                            child: _filteredLooks.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'No ${_selectedLookType == LookType.user ? 'user' : 'client'} looks yet!',
+                                      style: TextStyle(fontSize: screenWidth * 0.045),
+                                    ),
+                                  )
+                                : Padding(
+                                    padding: EdgeInsets.all(screenWidth * 0.025),
+                                    child: CustomScrollView(
+                                      slivers: [
+                                        SliverGrid(
+                                          gridDelegate:
+                                              SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount:
+                                                (screenWidth > 600) ? 3 : 2,
+                                            crossAxisSpacing: screenWidth * 0.02,
+                                            mainAxisSpacing: screenWidth * 0.02,
+                                            childAspectRatio: 0.7,
+                                          ),
+                                          delegate: SliverChildBuilderDelegate(
+                                            (context, index) {
+                                              final look = _filteredLooks[index];
+                                              return GestureDetector(
+                                                onTap: () =>
+                                                    _navigateToLookDetails(look),
+                                                child: Card(
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(
+                                                        screenWidth * 0.04),
+                                                  ),
+                                                  child: Column(
+                                                    children: [
+                                                      Expanded(
+                                                        child: ClipRRect(
+                                                          borderRadius:
+                                                              BorderRadius.vertical(
+                                                            top: Radius.circular(
+                                                                screenWidth * 0.04),
+                                                          ),
+                                                          child: _buildLookImage(
+                                                              lookImages[
+                                                                  look.savedLookId],
+                                                              screenWidth),
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding: EdgeInsets.all(
+                                                            screenWidth * 0.02),
+                                                        child: Text(
+                                                          look.makeupLookName,
+                                                          style: TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize:
+                                                                screenWidth * 0.035,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow.ellipsis,
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding: EdgeInsets.symmetric(
+                                                            horizontal:
+                                                                screenWidth * 0.02),
+                                                        child: Text(
+                                                          look.formattedDate,
+                                                          style: TextStyle(
+                                                            fontSize:
+                                                                screenWidth * 0.025,
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      if (look.isClientLook)
+                                                        Padding(
+                                                          padding: EdgeInsets.only(
+                                                              bottom:
+                                                                  screenWidth * 0.01),
+                                                          child: Text(
+                                                            'Client Look',
+                                                            style: TextStyle(
+                                                              fontSize:
+                                                                  screenWidth * 0.03,
+                                                              color: Colors.grey[600],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            childCount: _filteredLooks.length,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _fetchSavedLooks() async {
@@ -76,35 +329,28 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
 
         for (var lookData in data['saved_looks']) {
           try {
-            // Parse the date string from the API
             final dateString = lookData['saved_date'];
             DateTime savedDate;
             
-            // Handle different date formats
             if (dateString is String) {
               if (dateString.contains('T')) {
-                // ISO 8601 format with timezone
                 savedDate = DateTime.parse(dateString).toLocal();
               } else {
-                // Custom format or timestamp
                 try {
                   savedDate = DateTime.parse(dateString).toLocal();
                 } catch (e) {
-                  // Fallback to current date if parsing fails
                   savedDate = DateTime.now().toLocal();
                 }
               }
             } else if (dateString is int) {
-              // Handle timestamp
               savedDate = DateTime.fromMillisecondsSinceEpoch(dateString * 1000).toLocal();
             } else {
-              // Fallback to current date
               savedDate = DateTime.now().toLocal();
             }
 
             final look = SavedLook.fromJson({
               ...lookData,
-              'saved_date': savedDate, // Use the parsed date
+              'saved_date': savedDate,
             });
             
             loadedLooks.add(look);
@@ -147,7 +393,6 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     SharedPreferences prefs
   ) async {
     try {
-      // Check if we have a cached version
       final cachedKey = 'look_image_$lookId';
       final cachedImage = prefs.getString(cachedKey);
       
@@ -160,10 +405,8 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         }
       }
 
-      // Process new image data
       Uint8List? imageBytes;
       if (imageData.startsWith('data:image')) {
-        // Handle data URI format
         final base64String = imageData.split(',').last;
         imageBytes = base64Decode(base64String);
       } else {
@@ -208,6 +451,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       debugPrint('Error loading shades for look $savedLookId: $e');
     }
   }
+
   void _navigateToLookDetails(SavedLook look) {
     final shades = lookShades[look.savedLookId] ?? {};
     final imageBytes = lookImages[look.savedLookId];
@@ -293,225 +537,8 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.pinkAccent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-            size: screenWidth * 0.06,
-          ),
-          onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            final userId = prefs.getString('user_id') ?? '';
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ProfileSelection(userId: userId)),
-            );
-          },
-        ),
-        title: Center(
-          child: Image.asset(
-            'assets/glam_logo.png',
-            height: screenHeight * 0.09,
-            fit: BoxFit.contain,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-               Icons.face_retouching_natural,
-              color: Colors.black,
-              size: screenWidth * 0.08,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => MakeupGuide(userId: widget.userId.toString())),
-              );
-            },
-          ),
-        ],
-      ),
-      backgroundColor: Colors.pinkAccent[50],
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: screenWidth * 0.04,
-                  vertical: screenHeight * 0.01),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        label: Text(
-                          'My Looks',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.04,
-                            color: _selectedLookType == LookType.user
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                        ),
-                        selected: _selectedLookType == LookType.user,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedLookType = LookType.user;
-                          });
-                        },
-                        selectedColor: Colors.pinkAccent,
-                      ),
-                    ),
-                    SizedBox(width: screenWidth * 0.025),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: Text(
-                          'Client Looks',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.04,
-                            color: _selectedLookType == LookType.client
-                                ? Colors.white
-                                : Colors.black,
-                          ),
-                        ),
-                        selected: _selectedLookType == LookType.client,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedLookType = LookType.client;
-                          });
-                        },
-                        selectedColor: Colors.pinkAccent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: isLoading
-                    ? Center(
-                        child: LoadingAnimationWidget.staggeredDotsWave(
-                          color: Colors.pinkAccent,
-                          size: 50,
-                        ),
-                      )
-                    : _filteredLooks.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No ${_selectedLookType == LookType.user ? 'user' : 'client'} looks yet!',
-                              style: TextStyle(fontSize: screenWidth * 0.045),
-                            ),
-                          )
-                        : Padding(
-                            padding: EdgeInsets.all(screenWidth * 0.025),
-                            child: CustomScrollView(
-                              slivers: [
-                                SliverGrid(
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount:
-                                        (screenWidth > 600) ? 3 : 2,
-                                    crossAxisSpacing: screenWidth * 0.02,
-                                    mainAxisSpacing: screenWidth * 0.02,
-                                    childAspectRatio: 0.7,
-                                  ),
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) {
-                                      final look = _filteredLooks[index];
-                                      return GestureDetector(
-                                        onTap: () =>
-                                            _navigateToLookDetails(look),
-                                        child: Card(
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                                screenWidth * 0.04),
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              Expanded(
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.vertical(
-                                                    top: Radius.circular(
-                                                        screenWidth * 0.04),
-                                                  ),
-                                                  child: _buildLookImage(
-                                                      lookImages[
-                                                          look.savedLookId],
-                                                      screenWidth),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: EdgeInsets.all(
-                                                    screenWidth * 0.02),
-                                                child: Text(
-                                                  look.makeupLookName,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize:
-                                                        screenWidth * 0.035,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                    horizontal:
-                                                        screenWidth * 0.02),
-                                                child: Text(
-                                                  look.formattedDate,
-                                                  style: TextStyle(
-                                                    fontSize:
-                                                        screenWidth * 0.025,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (look.isClientLook)
-                                                Padding(
-                                                  padding: EdgeInsets.only(
-                                                      bottom:
-                                                          screenWidth * 0.01),
-                                                  child: Text(
-                                                    'Client Look',
-                                                    style: TextStyle(
-                                                      fontSize:
-                                                          screenWidth * 0.03,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    childCount: _filteredLooks.length,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 }
+
 class SavedLook {
   final int savedLookId;
   final String makeupLookName;
@@ -751,47 +778,47 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     );
   }
 
- Widget _buildProductWithTips(String productName, List<dynamic> shades) {
-  final selectedShade = shades.firstWhere(
-    (shade) => shade['is_selected'] == true,
-    orElse: () => null,
-  );
+  Widget _buildProductWithTips(String productName, List<dynamic> shades) {
+    final selectedShade = shades.firstWhere(
+      (shade) => shade['is_selected'] == true,
+      orElse: () => null,
+    );
 
-  return Padding(
-    padding: EdgeInsets.only(top: screenHeight * 0.02),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          productName,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: screenWidth * 0.04,
-            fontFamily: 'Serif',
-          ),
-        ),
-        if (selectedShade != null)
-          Padding(
-            padding: EdgeInsets.only(top: screenHeight * 0.005),
-            child: Text(
-              'Selected: ${selectedShade['shade_name']}',
-              style: TextStyle(
-                fontSize: screenWidth * 0.03,
-                color: Colors.green[800],
-                fontStyle: FontStyle.italic,
-              ),
+    return Padding(
+      padding: EdgeInsets.only(top: screenHeight * 0.02),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            productName,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: screenWidth * 0.04,
+              fontFamily: 'Serif',
             ),
           ),
-        SizedBox(height: screenHeight * 0.01),
-        Wrap(
-          spacing: screenWidth * 0.02,
-          runSpacing: screenWidth * 0.02,
-          children: shades.map((shade) => _buildShadeChip(shade)).toList(),
-        ),
-      ],
-    ),
-  );
-}
+          if (selectedShade != null)
+            Padding(
+              padding: EdgeInsets.only(top: screenHeight * 0.005),
+              child: Text(
+                'Selected: ${selectedShade['shade_name']}',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.03,
+                  color: Colors.green[800],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          SizedBox(height: screenHeight * 0.01),
+          Wrap(
+            spacing: screenWidth * 0.02,
+            runSpacing: screenWidth * 0.02,
+            children: shades.map((shade) => _buildShadeChip(shade)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildPlaceholder() {
     return Container(
