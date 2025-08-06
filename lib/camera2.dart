@@ -222,33 +222,6 @@ class _CameraPageState extends State<CameraPage> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 15),
-                        const Text(
-                          "Historical Data",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.pink,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 120,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListView(
-                            children: _accuracyReports.reversed.take(5).map((report) => 
-                              _buildHistoryRow(
-                                report['timestamp'].toString().substring(0, 16),
-                                "${(report['light_level'] * 100).toStringAsFixed(0)}%",
-                                "${report['confidence'].toStringAsFixed(0)}%"
-                              )
-                            ).toList(),
-                          ),
-                        ),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: () => Navigator.pop(context),
@@ -312,7 +285,7 @@ Widget _buildReportRow(String label, String value) {
   );
 }
 
-Widget _buildHistoryRow(String time, String light, String confidence) {
+Widget buildHistoryRow(String time, String light, String confidence) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
