@@ -145,8 +145,8 @@ class MakeupOverlayEngine {
     // Create an oval around the eye position
     final eyeRect = Rect.fromCenter(
       center: Offset(eyePosition.x.toDouble(), eyePosition.y.toDouble()),
-      width: 40,  
-      height: 20, 
+      width: 60,  
+      height: 30, 
     );
     
     // Offset slightly differently for left vs right eye
@@ -179,8 +179,8 @@ class MakeupOverlayEngine {
     // Create a simple oval for lips centered at bottom mouth position
     final lipRect = Rect.fromCenter(
       center: Offset(bottomMouth.x.toDouble(), bottomMouth.y.toDouble()),
-      width: 60,  // Adjust based on your needs
-      height: 30, // Adjust based on your needs
+      width: 60,  
+      height: 40,
     );
     
     canvas.drawOval(lipRect, paint);
@@ -229,7 +229,7 @@ class MakeupOverlayEngine {
     );
   }
 }
-// ==================== UPDATED MAKEUP API SERVICE ====================
+// API makeup
 class MakeupOverlayApiService {
   Future<Map<String, dynamic>> applyMakeup({
     required File imageFile,
@@ -242,7 +242,6 @@ class MakeupOverlayApiService {
     required String makeupType,
   }) async {
     try {
-      // First try API call
       final apiResponse = await _callMakeupApi(
         imageFile,
         eyeshadowColor,
@@ -255,8 +254,6 @@ class MakeupOverlayApiService {
       );
       
       if (apiResponse != null) return apiResponse;
-
-      // Fallback to local processing
       return await _applyLocalMakeup(
         imageFile: imageFile,
         eyeshadowColor: eyeshadowColor,
@@ -418,15 +415,25 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   Map<String, List<String>> shadeHexCodes = {};
 
   final Map<String, String> productIcons = {
+    'Foundation': 'assets/foundation.png',
+    'Concealer': 'assets/concelear.png',
+    'Contour': 'assets/contour.png',
     'Eyeshadow': 'assets/eyeshadow.png',
     'Blush': 'assets/blush.png',
     'Lipstick': 'assets/lipstick.png',
+    'Highlighter': 'assets/highlighter.png',
+    'Eyebrow': 'assets/eyebrow.png',
   };
 
   final List<String> orderedProductNames = [
+    'Foundation',
+    'Concelear',
+    'Contour',
     'Eyeshadow',
     'Blush',
     'Lipstick',
+    'Highlighter',
+    'Eyebrow',
   ];
 
   final String? _apiToken = null;
@@ -808,12 +815,12 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
-Widget _buildShadeItem(Color color, int index) {
+ Widget _buildShadeItem(Color color, int index) {
   final isSelected = selectedShades[selectedProduct!] == color;
   final isPrimary = index == 0;
-  final size = isPrimary ? 60.0 : 40.0; // Reduced sizes (primary from 70 to 60, others from 50 to 40)
+  final size = isPrimary ? 70.0 : 50.0; // Primary is bigger
   final hexCode = '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
-  final fontSize = isPrimary ? 10.0 : 8.0;
+  final fontSize = isPrimary ? 10.0 : 8.0; // Font size adjustment
 
   return Column(
     mainAxisSize: MainAxisSize.min,
@@ -881,7 +888,7 @@ Widget _buildShadeItem(Color color, int index) {
                   child: Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: Text(
-                      hexCode,
+                      hexCode, // Now includes the # symbol
                       style: TextStyle(
                         fontSize: fontSize,
                         color: _getContrastColor(color),
@@ -990,7 +997,7 @@ if (showMakeupProducts)
             child: Text(
               'Products',
               style: TextStyle(
-                color: Colors.black,
+                color: Color.fromARGB(255, 250, 249, 249),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1075,7 +1082,7 @@ if (showMakeupProducts)
   if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
   Positioned(
     right: 0,
-    top: 125,
+    top: 140,
     bottom: 0,
     child: Container(
       width: 110, // Slightly wider to accommodate larger primary shade
