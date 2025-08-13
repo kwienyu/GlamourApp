@@ -1306,14 +1306,14 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
- Widget _buildMakeupLooksSection(List<dynamic> looks) {
+Widget _buildMakeupLooksSection(List<dynamic> looks) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Text(
-          'Makeup Looks with Shade Combination',
+          'Makeup Looks with Top 3 Shade Combinations',
           style: TextStyle(
             fontSize: 18,
             fontFamily: 'Serif',
@@ -1325,6 +1325,13 @@ class _ProfileSelectionState extends State<ProfileSelection> {
       ...looks.map((look) {
         final lookName = look['makeup_look_name'];
         final isExpanded = _expandedLooks.contains(lookName);
+        
+        // Create a copy of the list to avoid modifying the original
+        final combinations = List.from(look['shade_combinations']);
+        // Sort the copy by times_used in descending order
+        combinations.sort((a, b) => (b['times_used'] ?? 0).compareTo(a['times_used'] ?? 0));
+        // Take top 3 combinations
+        final topCombinations = combinations.take(3).toList();
         
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1351,6 +1358,15 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                subtitle: !isExpanded 
+                    ? Text(
+                        'Tap to view top 3 shade combinations',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      )
+                    : null,
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
@@ -1358,7 +1374,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    isExpanded ? 'Hide Details' : 'View Details', // Changed this line
+                    isExpanded ? 'Hide' : 'View', 
                     style: TextStyle(
                       color: isExpanded ? Colors.pink[800] : Colors.grey[700],
                       fontSize: 12,
@@ -1367,124 +1383,57 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                   ),
                 ),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Column(
-                      children: look['shade_combinations'].map<Widget>((combo) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.grey[200]!,
-                                width: 1,
+                  if (topCombinations.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        children: topCombinations.map((combo) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey[200]!,
+                                  width: 1,
+                                ),
                               ),
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.verified_outlined,
-                                        size: 16,
-                                        color: Colors.pink[400],
-                                      ),
-                                      const SizedBox(width: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.verified_outlined,
+                                          size: 16,
+                                          color: Colors.pink[400],
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${combo['times_used']} uses',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (combo['products_used'] != null)
                                       Text(
-                                        '${combo['times_used']} uses',
+                                        '${combo['products_used'].length} products',
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: Colors.grey[600],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  if (combo['products_used'] != null)
-                                    Text(
-                                      '${combo['products_used'].length} products',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Color Palette',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[700],
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                height: 80,
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: combo['shades'].length,
-                                  itemBuilder: (context, index) {
-                                    final shade = combo['shades'][index];
-                                    return Container(
-                                      width: 70,
-                                      margin: const EdgeInsets.only(right: 12),
-                                      child: Column(
-                                        children: [
-                                          Container(
-                                            width: 50,
-                                            height: 50,
-                                            decoration: BoxDecoration(
-                                              color: Color(int.parse(
-                                                  shade['hex_code'].replaceAll('#', '0xFF'))),
-                                              borderRadius: BorderRadius.circular(25),
-                                              border: Border.all(
-                                                color: Colors.grey[300]!,
-                                                width: 1,
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withOpacity(0.1),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                shade['hex_code'],
-                                                style: TextStyle(
-                                                  fontSize: 8,
-                                                  color: _getContrastColor(shade['hex_code']),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            shade['shade_name'] ?? 'Shade',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              if (combo['products_used'] != null && combo['products_used'].isNotEmpty) ...[
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 12),
                                 Text(
-                                  'Recommended Products',
+                                  'Color Palette',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
@@ -1492,45 +1441,113 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: combo['products_used'].map<Widget>((product) {
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.pink[50],
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.eco_outlined,
-                                            size: 14,
-                                            color: Colors.pink[300],
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            product['product_name'],
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.pink[800],
+                                SizedBox(
+                                  height: 80,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: combo['shades'].length,
+                                    itemBuilder: (context, index) {
+                                      final shade = combo['shades'][index];
+                                      return Container(
+                                        width: 70,
+                                        margin: const EdgeInsets.only(right: 12),
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              width: 50,
+                                              height: 50,
+                                              decoration: BoxDecoration(
+                                                color: Color(int.parse(
+                                                    shade['hex_code'].replaceAll('#', '0xFF'))),
+                                                borderRadius: BorderRadius.circular(25),
+                                                border: Border.all(
+                                                  color: Colors.grey[300]!,
+                                                  width: 1,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.1),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  shade['hex_code'],
+                                                  style: TextStyle(
+                                                    fontSize: 8,
+                                                    color: _getContrastColor(shade['hex_code']),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              shade['shade_name'] ?? 'Shade',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
+                                if (combo['products_used'] != null && combo['products_used'].isNotEmpty) ...[
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Recommended Products',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: combo['products_used'].map<Widget>((product) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.pink[50],
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.eco_outlined,
+                                              size: 14,
+                                              color: Colors.pink[300],
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              product['product_name'],
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.pink[800],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
                               ],
-                              const SizedBox(height: 16),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
                 ],
                 onExpansionChanged: (expanded) {
                   setState(() {
@@ -1549,7 +1566,6 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     ],
   );
 }
-
   Widget _buildCategoryItem(BuildContext context, String imagePath, String label, Widget route) {
     final size = MediaQuery.of(context).size;
 

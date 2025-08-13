@@ -57,6 +57,7 @@ dependencies:
   fl_chart: ^1.0.0
   flutter_animated_button: ^2.0.4
   google_fonts: ^6.2.1
+  csv: ^6.0.0
   
   
   
