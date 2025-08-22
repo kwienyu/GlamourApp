@@ -58,6 +58,9 @@ dependencies:
   flutter_animated_button: ^2.0.4
   google_fonts: ^6.2.1
   csv: ^6.0.0
+  chewie: ^1.12.1
+  video_player: ^2.10.0
+  
   
   
   
@@ -149,6 +152,11 @@ flutter:
     - assets/top_report.png
     - assets/cloth1.jpg
     - assets/cloth2.jpg
+    - assets/heavy_type.jpg
+    - assets/light_type.jpg
+    - assets/casual_type.png
+
+
     
 
 
