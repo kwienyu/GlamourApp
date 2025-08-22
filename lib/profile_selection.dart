@@ -16,6 +16,8 @@ import 'package:intl/intl.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'apicall_recommendation.dart';
 import 'looks_shadecombination.dart';
+import 'package:animations/animations.dart';
+
 
 class ProfileSelection extends StatefulWidget {
   final String userId;
@@ -915,7 +917,7 @@ Widget _buildPersonalizedAnalysisSection() {
               ),
             ),
           ),
-        SizedBox(
+         SizedBox(
           height: 140,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
@@ -935,15 +937,23 @@ Widget _buildPersonalizedAnalysisSection() {
                   }).toList();
                   
                   Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MakeupLooksPage(
-                        makeupLooks: filteredLooks,
-                        makeupType: typeName,
-                        isDefaultData: _makeupRecommendations == null,
-                      ),
-                    ),
-                  );
+  context,
+  PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
+      makeupLooks: filteredLooks,
+      makeupType: typeName,
+      isDefaultData: _makeupRecommendations == null,
+    ),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeThroughTransition(
+        animation: animation,
+        secondaryAnimation: secondaryAnimation,
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 600),
+  ),
+);
                 },
                 child: Container(
                   width: 150,
@@ -1083,8 +1093,13 @@ Widget _buildPersonalizedAnalysisSection() {
                       ),
                     ],
                   ),
-                ).animate().scale(
-                  duration: 400.ms,
+                ).animate(
+                  onPlay: (controller) => controller.forward(),
+                )
+                .scale(
+                  duration: 200.ms,
+                  begin: const Offset(0.95, 0.95),
+                  end: const Offset(1.0, 1.0),
                   curve: Curves.easeOut,
                 ),
               );

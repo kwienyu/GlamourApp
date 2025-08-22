@@ -170,27 +170,27 @@ class MakeupOverlayEngine {
   }
 
   static void _drawLipMakeup(
-    Canvas canvas,
-    Point<int> bottomMouth,
-    {
-      required Paint paint,
-    }
-  ) {
-    // Create a simple oval for lips centered at bottom mouth position
-    final lipRect = Rect.fromCenter(
-      center: Offset(bottomMouth.x.toDouble(), bottomMouth.y.toDouble()),
-      width: 60,  
-      height: 40,
-    );
-    
-    canvas.drawOval(lipRect, paint);
-    
-    // Add some blending
-    final blendPaint = Paint()
-      ..color = paint.color.withOpacity(0.3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawOval(lipRect, blendPaint);
+  Canvas canvas,
+  Point<int> bottomMouth,
+  {
+    required Paint paint,
   }
+) {
+  // Create a bigger oval for lips and move it upward
+  final lipRect = Rect.fromCenter(
+    center: Offset(bottomMouth.x.toDouble(), bottomMouth.y.toDouble() - 8), // Moved upward by 8 pixels
+    width: 70,  // Increased from 60 to 70
+    height: 45, // Increased from 40 to 45
+  );
+  
+  canvas.drawOval(lipRect, paint);
+  
+  // Add some blending
+  final blendPaint = Paint()
+    ..color = paint.color.withOpacity(0.3)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+  canvas.drawOval(lipRect, blendPaint);
+}
 
   static void _drawBlush(
     Canvas canvas,
