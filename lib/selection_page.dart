@@ -66,8 +66,8 @@ class _SelectionPageState extends State<SelectionPage> {
           
           (categories as Map<String, dynamic>).forEach((category, shades) {
             final categoryKey = category.toLowerCase();
-            convertedData[skinToneKey]![categoryKey] = [];
-            
+            convertedData[skinToneKey]![categoryKey] = []; 
+
             for (var shade in (shades as List<dynamic>)) {
               convertedData[skinToneKey]![categoryKey]!.add({
                 'hex_code': shade['hex_code'],
