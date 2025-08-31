@@ -113,14 +113,14 @@ class MakeupTipsPage extends StatelessWidget {
           context,
           category,
           MakeupTipsGenerator.getTip(faceShape, category),
-          _getCategoryIcon(category),
+          _getCategoryImage(category),
         ),
       );
     }).toList();
   }
 
   Widget _buildTipCard(
-      BuildContext context, String title, String tip, IconData icon) {
+      BuildContext context, String title, String tip, String imagePath) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -136,9 +136,19 @@ class MakeupTipsPage extends StatelessWidget {
             color: Colors.pink.shade50,
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: Colors.pink.shade400,
+          child: Padding(
+            padding: const EdgeInsets.all(6.0),
+            child: Image.asset(
+              imagePath,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.help_outline,
+                  color: Colors.pink.shade400,
+                  size: 20,
+                );
+              },
+            ),
           ),
         ),
         title: Text(
@@ -164,26 +174,26 @@ class MakeupTipsPage extends StatelessWidget {
     );
   }
 
-  IconData _getCategoryIcon(String category) {
+  String _getCategoryImage(String category) {
     switch (category.toLowerCase()) {
       case 'foundation':
-        return Icons.face_retouching_natural;
+        return 'assets/foundation.png';
       case 'concealer':
-        return Icons.hide_source;
+        return 'assets/concealer.png';
       case 'blush':
-        return Icons.brush;
+        return 'assets/blush.png';
       case 'contour':
-        return Icons.auto_fix_high;
+        return 'assets/contour.png';
       case 'eyeshadow':
-        return Icons.remove_red_eye;
+        return 'assets/eyeshadow.png';
       case 'highlighter':
-        return Icons.wb_sunny;
+        return 'assets/highlighter.png';
       case 'lipstick':
-        return Icons.loyalty;
+        return 'assets/lipstick.png';
       case 'eyebrow':
-        return Icons.face;
+        return 'assets/eyebrow.png';
       default:
-        return Icons.help_outline;
+        return 'assets/placeholder.png'; // Fallback image
     }
   }
 

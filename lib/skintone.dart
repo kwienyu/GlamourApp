@@ -20,7 +20,7 @@ class SkinTone extends StatelessWidget {
           elevation: 0,
           title: Image.asset(
             'assets/glam_logo.png',
-            height: MediaQuery.of(context).size.height * 0.10,
+            height: MediaQuery.of(context).size.height * 0.8,
             fit: BoxFit.contain,
           ),
           centerTitle: true,

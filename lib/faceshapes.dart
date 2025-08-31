@@ -6,7 +6,7 @@ class FaceShapesApp extends StatelessWidget {
   final String userId;
   const FaceShapesApp({super.key, required this.userId});
 
-  @override
+@override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -18,10 +18,13 @@ class FaceShapesApp extends StatelessWidget {
           ),
           backgroundColor: Colors.pinkAccent,
           elevation: 0,
-          title: Image.asset(
-            'assets/glam_logo.png',
-            height: MediaQuery.of(context).size.height * 0.10,
-            fit: BoxFit.contain,
+          title: Container(
+            width: double.infinity,
+            child: Image.asset(
+              'assets/glam_logo.png',
+              height: MediaQuery.of(context).size.height * 0.08, // Slightly reduced height
+              fit: BoxFit.contain,
+            ),
           ),
           centerTitle: true,
         ),
@@ -32,7 +35,6 @@ class FaceShapesApp extends StatelessWidget {
     );
   }
 }
-
 class FaceShapesWidget extends StatefulWidget {
   const FaceShapesWidget({super.key});
 

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'camera2.dart';
 import 'glamvault.dart';
 
@@ -148,7 +149,7 @@ class MakeupOverlayEngine {
   
   // First layer: larger, softer base
   final basePaint = Paint()
-    ..color = paint.color.withOpacity(0.4)
+    ..color = paint.color.withOpacity(0.6)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
     ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12);
   
@@ -185,7 +186,7 @@ class MakeupOverlayEngine {
   
   // Third layer: subtle highlight/definition
   final definitionPaint = Paint()
-    ..color = paint.color.withOpacity(0.3)
+    ..color = paint.color.withOpacity(0.5)
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
   
   final definitionRect = Rect.fromCenter(
@@ -264,7 +265,7 @@ static void _drawLipMakeup(
 ) {
   // Create a more vibrant blush with better opacity
   final leftBlushPaint = Paint()
-    ..color = paint.color.withOpacity(0.6) // Increased opacity
+    ..color = paint.color.withOpacity(0.5) // Increased opacity
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20) // Softer blur
     ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15); // Additional blur effect
   
@@ -277,7 +278,7 @@ static void _drawLipMakeup(
   // First layer: larger, softer blush
   canvas.drawCircle(
     Offset(
-      leftCheek.x.toDouble() - 15, // Adjusted position
+      leftCheek.x.toDouble() - 12, // Adjusted position
       leftCheek.y.toDouble() - 10, // Adjusted position
     ),
     45, // Slightly larger radius
@@ -286,7 +287,7 @@ static void _drawLipMakeup(
   
   canvas.drawCircle(
     Offset(
-      rightCheek.x.toDouble() + 15, // Adjusted position
+      rightCheek.x.toDouble() + 12, // Adjusted position
       rightCheek.y.toDouble() - 10, // Adjusted position
     ),
     45, // Slightly larger radius
@@ -295,16 +296,16 @@ static void _drawLipMakeup(
 
   // Second layer: more concentrated blush
   final leftCenterPaint = Paint()
-    ..color = paint.color.withOpacity(0.6) // Higher opacity for center
+    ..color = paint.color.withOpacity(0.5) // Higher opacity for center
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
   
   final rightCenterPaint = Paint()
-    ..color = paint.color.withOpacity(0.6) // Higher opacity for center
+    ..color = paint.color.withOpacity(0.5) // Higher opacity for center
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
   canvas.drawCircle(
     Offset(
-      leftCheek.x.toDouble() - 15,
+      leftCheek.x.toDouble() - 12,
       leftCheek.y.toDouble() - 10,
     ),
     30, // Smaller radius for center
@@ -313,7 +314,7 @@ static void _drawLipMakeup(
   
   canvas.drawCircle(
     Offset(
-      rightCheek.x.toDouble() + 15,
+      rightCheek.x.toDouble() + 12,
       rightCheek.y.toDouble() - 10,
     ),
     30, // Smaller radius for center
@@ -493,6 +494,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   late MakeupOverlayApiService _makeupApiService;
   bool _isApplyingMakeup = false;
   Uint8List? _processedImage;
+  Uint8List? _currentMakeupImage;
 
   Map<String, Color?> selectedShades = {
     'Foundation': null,
@@ -567,50 +569,57 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     super.dispose();
   }
 
- Future<void> _applyVirtualMakeup() async {
-    setState(() => _isApplyingMakeup = true);
+Future<void> _applyVirtualMakeup() async {
+  // Store the current makeup state before applying new changes
+  final previousImage = _processedImage;
+  
+  setState(() => _isApplyingMakeup = true);
 
-    try {
-      // Get hex codes for selected shades
-      final eyeshadowHex = selectedShades['Eyeshadow'] != null 
-          ? '#${selectedShades['Eyeshadow']!.value.toRadixString(16).substring(2)}'
-          : null;
-      final lipstickHex = selectedShades['Lipstick'] != null
-          ? '#${selectedShades['Lipstick']!.value.toRadixString(16).substring(2)}'
-          : null;
-      final blushHex = selectedShades['Blush'] != null
-          ? '#${selectedShades['Blush']!.value.toRadixString(16).substring(2)}'
-          : null;
+  try {
+    // Get hex codes for selected shades
+    final eyeshadowHex = selectedShades['Eyeshadow'] != null 
+        ? '#${selectedShades['Eyeshadow']!.value.toRadixString(16).substring(2)}'
+        : null;
+    final lipstickHex = selectedShades['Lipstick'] != null
+        ? '#${selectedShades['Lipstick']!.value.toRadixString(16).substring(2)}'
+        : null;
+    final blushHex = selectedShades['Blush'] != null
+        ? '#${selectedShades['Blush']!.value.toRadixString(16).substring(2)}'
+        : null;
 
-      final response = await _makeupApiService.applyMakeup(
-        imageFile: widget.capturedImage,
-        eyeshadowColor: eyeshadowHex,
-        lipstickColor: lipstickHex,
-        blushColor: blushHex,
-        skinTone: widget.skinTone ?? 'medium',
-        undertone: widget.undertone,
-        makeupLook: widget.selectedMakeupLook ?? 'natural',
-        makeupType: widget.selectedMakeupType ?? 'everyday',
-      );
+    final response = await _makeupApiService.applyMakeup(
+      imageFile: widget.capturedImage,
+      eyeshadowColor: eyeshadowHex,
+      lipstickColor: lipstickHex,
+      blushColor: blushHex,
+      skinTone: widget.skinTone ?? 'medium',
+      undertone: widget.undertone,
+      makeupLook: widget.selectedMakeupLook ?? 'natural',
+      makeupType: widget.selectedMakeupType ?? 'everyday',
+    );
 
-      setState(() {
-        _processedImage = base64Decode(response['result_image']);
-        
-        if (response['status'] == 'success' && response['message']?.contains('Mock') == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'])),
-          );
-        }
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error applying makeup: $e')),
-      );
-    } finally {
-      setState(() => _isApplyingMakeup = false);
-    }
+    setState(() {
+      _processedImage = base64Decode(response['result_image']);
+      _currentMakeupImage = _processedImage; // Store the current state
+      
+      if (response['status'] == 'success' && response['message']?.contains('Mock') == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['message'])),
+        );
+      }
+    });
+  } catch (e) {
+    // If makeup application fails, revert to previous state
+    setState(() {
+      _processedImage = previousImage;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error applying makeup: $e')),
+    );
+  } finally {
+    setState(() => _isApplyingMakeup = false);
   }
-
+}
   Future<void> _applyVirtualMakeupAutomatically(Map<String, dynamic> recommendations) async {
     setState(() => _isApplyingMakeup = true);
 
@@ -648,13 +657,15 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
       setState(() => _isApplyingMakeup = false);
     }
   }
-  void _resetVirtualMakeup() {
-    setState(() {
-      _processedImage = null;
-      // Clear all selected shades when resetting
-      selectedShades.updateAll((key, value) => null);
-    });
-  }
+  // Modify the reset function to clear properly
+void _resetVirtualMakeup() {
+  setState(() {
+    _processedImage = null;
+    _currentMakeupImage = null;
+    // Clear all selected shades when resetting
+    selectedShades.updateAll((key, value) => null);
+  });
+}
 
   void _processRecommendationData() {
     if (widget.recommendationData != null) {
@@ -944,7 +955,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
-  Widget _buildShadeItem(Color color, int index, String productName) {
+Widget _buildShadeItem(Color color, int index, String productName) {
   final isSelected = selectedShades[productName] == color;
   final isPrimary = index == 0;
   final size = isPrimary ? 70.0 : 50.0;
@@ -973,6 +984,9 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
         ),
       GestureDetector(
         onTap: () async {
+          // Store current selection state
+          final previousSelection = selectedShades[productName];
+          
           setState(() {
             // Toggle selection - if already selected, unselect it
             if (isSelected) {
@@ -981,15 +995,15 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
               selectedShades[productName] = color;
             }
             
+            // Only toggle expanded state for primary shade
             if (isPrimary) {
               expandedProducts[productName] = !expandedProducts[productName]!;
             }
           });
           
-          // Automatically apply makeup when shade is changed
-          if (selectedShades['Eyeshadow'] != null || 
-              selectedShades['Lipstick'] != null || 
-              selectedShades['Blush'] != null) {
+          // Only apply makeup when a small shade is selected (not primary)
+          // and only if the selection actually changed
+          if (!isPrimary && selectedShades[productName] != previousSelection) {
             await _applyVirtualMakeup();
           }
         },
@@ -1036,21 +1050,27 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Background image
-          Positioned.fill(
-            child: _processedImage != null
-                ? Image.memory(_processedImage!, fit: BoxFit.cover)
-                : Image.file(widget.capturedImage, fit: BoxFit.cover),
-          ),
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Stack(
+      children: [
+        // Background image - use current makeup image if available
+        Positioned.fill(
+          child: _currentMakeupImage != null
+              ? Image.memory(_currentMakeupImage!, fit: BoxFit.cover)
+              : (_processedImage != null
+                  ? Image.memory(_processedImage!, fit: BoxFit.cover)
+                  : Image.file(widget.capturedImage, fit: BoxFit.cover)),
+        ),
           
           if (_isApplyingMakeup)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+  Center(
+    child: LoadingAnimationWidget.flickr(
+      leftDotColor: Colors.pinkAccent,
+      rightDotColor: Colors.pinkAccent,
+      size: MediaQuery.of(context).size.width * 0.1,
+    ),
+  ),
 Positioned(
   top: MediaQuery.of(context).padding.top + 40,
   left: 0,
@@ -1122,7 +1142,7 @@ if (showMakeupProducts)
                       child: Text(
                         'Products',
                         style: TextStyle(
-                          color: Color.fromARGB(255, 250, 249, 249),
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1227,29 +1247,47 @@ if (showMakeupProducts)
                       ),
                       // Clear button - only show if a shade is selected
                       if (selectedShades[selectedProduct] != null)
-                        TextButton(
-                          onPressed: () async {
-                            setState(() {
-                              selectedShades[selectedProduct!] = null;
-                            });
-                            // Re-apply makeup after clearing
-                            if (selectedShades['Eyeshadow'] != null || 
-                                selectedShades['Lipstick'] != null || 
-                                selectedShades['Blush'] != null) {
-                              await _applyVirtualMakeup();
-                            } else {
-                              // If no makeup products are selected, reset to original
-                              _resetVirtualMakeup();
-                            }
-                          },
-                          child: const Text(
-                            'Clear',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
+  TextButton(
+    onPressed: () async {
+      // Store current selection and image state
+      final previousSelection = selectedShades[selectedProduct];
+      final previousImage = _processedImage;
+      
+      setState(() {
+        selectedShades[selectedProduct!] = null;
+      });
+      
+      // Only re-apply makeup if there are other products selected
+      // and the selection actually changed
+      if (previousSelection != null && 
+          (selectedShades['Eyeshadow'] != null || 
+           selectedShades['Lipstick'] != null || 
+           selectedShades['Blush'] != null)) {
+        await _applyVirtualMakeup();
+      } else {
+        // If no makeup products are selected, but we had a previous image
+        // keep the current image state instead of resetting completely
+        if (previousImage != null && 
+            (selectedShades['Eyeshadow'] == null && 
+             selectedShades['Lipstick'] == null && 
+             selectedShades['Blush'] == null)) {
+          setState(() {
+            _processedImage = previousImage;
+          });
+        } else {
+          _resetVirtualMakeup();
+        }
+      }
+    },
+    child: const Text(
+      'Clear',
+      style: TextStyle(
+        color: Colors.red,
+        fontSize: 12,
+      ),
+    ),
+  ),
+  
                       const SizedBox(height: 8),
                       
                       // Always show the primary shade

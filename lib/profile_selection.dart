@@ -355,59 +355,66 @@ Future<void> _fetchMakeupRecommendations() async {
   }
 
   Future<void> _fetchProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userid = prefs.getString('user_id');
+  final prefs = await SharedPreferences.getInstance();
+  final userid = prefs.getString('user_id');
 
-    if (userid == null || userid.isEmpty) {
-      _setErrorState();
-      return;
-    }
-
-    final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
-
-    try {
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        String? base64Image = data['profile_pic'];
-        Uint8List? imageBytes;
-
-        if (base64Image != null && base64Image.isNotEmpty) {
-          try {
-            if (base64Image.startsWith('data:image')) {
-              base64Image = base64Image.split(',').last;
-            }
-            imageBytes = base64Decode(base64Image);
-            await prefs.setString('user_profile_base64', base64Image);
-          } catch (e) {
-            debugPrint("Image decoding error: $e");
-          }
-        }
-
-        setState(() {
-          name = data['name'] ?? "";
-          lastName = data['last_name'] ?? "";
-          suffix = data['suffix'] ?? "";
-          faceShape = data['face_shape'] ?? "Not Available";
-          skinTone = data['skin_tone'] ?? "Not Available";
-          _userSkinTone = data['skin_tone'];
-          profilePic = imageBytes;
-          email = data['email'] ?? "Not available";
-          username = data['username'];
-          gender = data['gender'] ?? "Not specified";
-          dob = data['dob'] ?? "Not specified";
-          age = data['age'] ?? calculateAge(data['dob']);
-        });
-      } else {
-        _setErrorState();
-      }
-    } catch (e) {
-      debugPrint('HTTP error: $e');
-      _setErrorState();
-    }
+  if (userid == null || userid.isEmpty) {
+    _setErrorState();
+    return;
   }
+
+  final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
+
+  try {
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      String? base64Image = data['profile_pic'];
+      Uint8List? imageBytes;
+
+      if (base64Image != null && base64Image.isNotEmpty) {
+        try {
+          if (base64Image.startsWith('data:image')) {
+            base64Image = base64Image.split(',').last;
+          }
+          imageBytes = base64Decode(base64Image);
+          await prefs.setString('user_profile_base64', base64Image);
+        } catch (e) {
+          debugPrint("Image decoding error: $e");
+        }
+      }
+
+      setState(() {
+        name = data['name'] ?? "";
+        lastName = data['last_name'] ?? "";
+        suffix = data['suffix'] ?? "";
+        faceShape = data['face_shape'] ?? "Not Available";
+        skinTone = data['skin_tone'] ?? "Not Available";
+        _userSkinTone = data['skin_tone'];
+        profilePic = imageBytes;
+        email = data['email'] ?? "Not available";
+        username = data['username'];
+        gender = data['gender'] ?? "Not specified";
+        dob = data['dob'] ?? "Not specified";
+        age = data['age'] ?? calculateAge(data['dob']);
+        
+        // Try to get undertone from profile data if available
+        // If not, we'll get it from the recommendations API later
+        if (data['undertone'] != null) {
+          // Store undertone in shared preferences for later use
+          prefs.setString('user_undertone', data['undertone']);
+        }
+      });
+    } else {
+      _setErrorState();
+    }
+  } catch (e) {
+    debugPrint('HTTP error: $e');
+    _setErrorState();
+  }
+}
 
   Future<void> _pickProfileImage() async {
     final picker = ImagePicker();
@@ -691,6 +698,7 @@ Widget _buildBody(BuildContext context) {
       ),
     );
   }
+  
 
   Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
     final size = MediaQuery.of(context).size;
@@ -758,48 +766,44 @@ Widget _buildBody(BuildContext context) {
   }
 
   Widget _buildCategoriesSection(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+  final screenWidth = MediaQuery.of(context).size.width;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: screenWidth * 0.05),
-            child: const Text(
-              'Categories',
-              style: TextStyle(
-                fontSize: 24,
-                fontFamily: 'Serif',
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 10, 10, 10),
-              ),
-            )
-                .animate()
-                .fadeIn(delay: 200.ms)
-                .scaleXY(begin: 0.8, end: 1),
-          ),
-          SizedBox(height: screenWidth * 0.05),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                SizedBox(width: screenWidth * 0.05),
-                _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
-                SizedBox(width: screenWidth * 0.05),
-                _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
-                SizedBox(width: screenWidth * 0.05),
-                _buildCategoryItem(context, 'assets/makeup look.png', 'Makeup Look', Container()),
-                SizedBox(width: screenWidth * 0.05),
-              ],
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: screenWidth * 0.05),
+          child: const Text(
+            'Categories',
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              color: Color.fromARGB(255, 10, 10, 10),
             ),
+          )
+              .animate()
+              .fadeIn(delay: 200.ms)
+              .scaleXY(begin: 0.8, end: 1),
+        ),
+        SizedBox(height: screenWidth * 0.05),
+        Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: screenWidth * 0.08,
+            runSpacing: screenWidth * 0.05,
+            children: [
+              _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+              _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
 Widget _buildPersonalizedAnalysisSection() {
   if (_isLoadingRecommendations) {
@@ -811,14 +815,25 @@ Widget _buildPersonalizedAnalysisSection() {
     );
   }
 
-  if (_makeupRecommendations == null) {
-    return const Padding(
-      padding: EdgeInsets.only(left: 16),
-      child: Text('No recommendations available'),
-    );
-  }
+  String? displayedUndertone;
 
-  final recommendation = MakeupRecommendation.fromJson(_makeupRecommendations!);
+  // First try to get undertone from local storage
+  if (_makeupRecommendations == null) {
+    // If no recommendations yet, try to get undertone from shared preferences
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      final storedUndertone = prefs.getString('user_undertone');
+      if (storedUndertone != null && mounted) {
+        setState(() {
+          displayedUndertone = storedUndertone;
+        });
+      }
+    });
+  } else {
+    // If we have recommendations, get undertone from there
+    final recommendation = MakeupRecommendation.fromJson(_makeupRecommendations!);
+    displayedUndertone = recommendation.undertone;
+  }
 
   return Padding(
     padding: const EdgeInsets.all(16),
@@ -840,11 +855,11 @@ Widget _buildPersonalizedAnalysisSection() {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              _buildAttributeChip('Face Shape: ${recommendation.faceShape ?? "Not analyzed"}'),
+              _buildAttributeChip('Face Shape: ${faceShape ?? "Not analyzed"}'),
               const SizedBox(width: 8),
-              _buildAttributeChip('Skin Tone: ${recommendation.skinTone ?? "Not analyzed"}'),
+              _buildAttributeChip('Skin Tone: ${skinTone ?? "Not analyzed"}'),
               const SizedBox(width: 8),
-              _buildAttributeChip('Undertone: ${recommendation.undertone ?? "Not analyzed"}'),
+              _buildAttributeChip('Undertone: ${displayedUndertone ?? "Not analyzed"}'),
             ],
           ),
         ),
