@@ -18,7 +18,7 @@ class FaceShapesApp extends StatelessWidget {
           ),
           backgroundColor: Colors.pinkAccent,
           elevation: 0,
-          title: Container(
+          title: SizedBox(
             width: double.infinity,
             child: Image.asset(
               'assets/glam_logo.png',

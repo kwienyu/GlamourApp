@@ -789,13 +789,19 @@ Widget _buildBody(BuildContext context) {
               .scaleXY(begin: 0.8, end: 1),
         ),
         SizedBox(height: screenWidth * 0.05),
-        Center(
+        // Changed from Center to Align with left alignment
+        Align(
+          alignment: Alignment.centerLeft,
           child: Wrap(
-            alignment: WrapAlignment.center,
+            alignment: WrapAlignment.start, // Changed from center to start
             spacing: screenWidth * 0.08,
             runSpacing: screenWidth * 0.05,
             children: [
-              _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+              // Added left padding to move the items to the left
+              Padding(
+                padding: EdgeInsets.only(left: screenWidth * 0.05),
+                child: _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+              ),
               _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
             ],
           ),
@@ -983,20 +989,6 @@ Widget _buildPersonalizedAnalysisSection() {
                       ],
                     ),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.pink.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                      BoxShadow(
-                        color: Colors.purple.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 8,
-                        offset: const Offset(0, -2),
-                      ),
-                    ],
                   ),
                   child: Stack(
                     children: [
@@ -1026,17 +1018,6 @@ Widget _buildPersonalizedAnalysisSection() {
                         child: Container(
                           width: 30,
                           height: 30,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.purple.withOpacity(0.1),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.purple.withOpacity(0.2),
-                                spreadRadius: 1,
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                       // Content
