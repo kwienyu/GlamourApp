@@ -1,14 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class MakeupTipsPage extends StatelessWidget {
-  final String faceShape;
+class MakeupTipsPage extends StatefulWidget {
+  final String userId;
 
-  const MakeupTipsPage({super.key, required this.faceShape});
+  const MakeupTipsPage({super.key, required this.userId});
+
+  @override
+  State<MakeupTipsPage> createState() => _MakeupTipsPageState();
+}
+
+class _MakeupTipsPageState extends State<MakeupTipsPage> {
+  String? faceShape;
+  bool isLoading = true;
+  String errorMessage = '';
+  bool showAnalysisOption = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserFaceShape();
+  }
+
+  Future<void> _fetchUserFaceShape() async {
+    try {
+      print('Fetching face shape for user: ${widget.userId}');
+      final response = await http.get(
+        Uri.parse('https://glamouraika.com/api/user-face-shape?user_id=${widget.userId}'),
+      );
+
+      print('API Response Status: ${response.statusCode}');
+      print('API Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('Parsed data: $data');
+        setState(() {
+          faceShape = data['face_shape'];
+          isLoading = false;
+        });
+      } else if (response.statusCode == 404) {
+        setState(() {
+          errorMessage = 'Face shape analysis not found. Please complete a face analysis first in the app.';
+          isLoading = false;
+          showAnalysisOption = true; // Show the analysis prompt
+        });
+      } else {
+        setState(() {
+          errorMessage = 'Failed to load face shape. Please try again. Status: ${response.statusCode}';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching face shape: $e');
+      setState(() {
+        errorMessage = 'An error occurred: $e';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       appBar: AppBar(
@@ -19,7 +74,8 @@ class MakeupTipsPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Makeup Tips for $faceShape Face',
+          isLoading ? 'Loading...' : 
+          faceShape != null ? 'Makeup Tips for $faceShape Face' : 'Face Shape Analysis',
           style: theme.textTheme.headlineSmall?.copyWith(
             color: Colors.black,
             fontWeight: FontWeight.w500,
@@ -38,15 +94,75 @@ class MakeupTipsPage extends StatelessWidget {
             ],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              _buildFaceShapeCard(faceShape, theme),
-              const SizedBox(height: 30),
-              ..._buildAllTipCards(context, faceShape),
-            ],
-          ),
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : faceShape != null
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        _buildFaceShapeCard(faceShape!, theme),
+                        const SizedBox(height: 30),
+                        ..._buildAllTipCards(context, faceShape!),
+                      ],
+                    ),
+                  )
+                : errorMessage.isNotEmpty
+                    ? showAnalysisOption
+                        ? _buildAnalysisPrompt(context)
+                        : Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Text(
+                                errorMessage,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            ),
+                          )
+                    : Center(
+                        child: Text(
+                          'Unable to determine face shape',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ),
+      ),
+    );
+  }
+
+  Widget _buildAnalysisPrompt(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.face_retouching_natural,
+              size: 80,
+              color: Colors.pink.shade300,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Face Shape Analysis Required',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.pink.shade800,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 15),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 30),
+            Text(
+              'Please complete the face analysis in the app first to get personalized makeup tips.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
         ),
       ),
     );
@@ -83,11 +199,6 @@ class MakeupTipsPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 15),
-            Icon(
-              _getFaceShapeIcon(faceShape),
-              size: 50,
-              color: Colors.pink.shade400,
-            ),
           ],
         ),
       ),
@@ -193,84 +304,69 @@ class MakeupTipsPage extends StatelessWidget {
       case 'eyebrow':
         return 'assets/eyebrow.png';
       default:
-        return 'assets/placeholder.png'; // Fallback image
+        return 'assets/placeholder.png';
     }
   }
 
-  IconData _getFaceShapeIcon(String faceShape) {
-    switch (faceShape.toLowerCase()) {
-      case 'oval':
-        return Icons.circle_outlined;
-      case 'round':
-        return Icons.lens_outlined;
-      case 'square':
-        return Icons.crop_square_outlined;
-      case 'heart':
-        return Icons.favorite_border;
-      case 'oblong':
-        return Icons.rectangle_outlined;
-      default:
-        return Icons.face;
-    }
-  }
+  
 }
 
 class MakeupTipsGenerator {
   static final Map<String, Map<String, String>> _tipsByFaceShape = {
     'Oval': {
-      'blush': 'Apply blush on the apples of your cheeks and blend upwards.',
-      'concealer': 'Apply under the eyes in a triangle shape, center of the forehead, and chin to brighten the face.',
-      'contour': 'Light contour under cheekbones, from ear to mid-cheek, to add soft structure. Lightly contour sides of the nose.',
-      'eyeshadow': 'Any style works—enhance with soft blending. Try a soft wing to lift the eye.',
-      'foundation': 'Apply evenly. You can lightly contour for dimension but no major reshaping is needed.',
-      'highlighter': 'Cheekbones, brow bone, and down the nose. Keep it natural and glowing.',
-      'lipstick': 'Apply evenly. You can play with any lip shape—both defined or soft edges work.',
-      'eyebrow': 'Follow your natural brow arch. Keep them softly curved.'
+      'Foundation': 'Apply evenly. You can lightly contour for dimension but no major reshaping is needed.',
+      'Concealer': 'Apply under the eyes in a triangle shape, center of the forehead, and chin to brighten the face.',
+      'Blush': 'Apply blush on the apples of your cheeks and blend upwards.',
+      'Contour': 'Light contour under cheekbones, from ear to mid-cheek, to add soft structure. Lightly contour sides of the nose.',
+      'Eyeshadow': 'Any style works—enhance with soft blending. Try a soft wing to lift the eye.',
+      'Highlighter': 'Cheekbones, brow bone, and down the nose. Keep it natural and glowing.',
+      'Lipstick': 'Apply evenly. You can play with any lip shape—both defined or soft edges work.',
+      'Eyebrow': 'Follow your natural brow arch. Keep them softly curved.'
     },
     'Round': {
-      'blush': 'Apply blush just above the apples of the cheeks and blend diagonally upward. Avoid placing too close to the nose.',
-      'concealer': 'Brighten the center of face (forehead, under eyes, chin) to elongate.',
-      'contour': 'Contour under cheekbones in a diagonal line from mid-ear to mouth corner. Lightly contour the jawline and sides of forehead.',
-      'eyeshadow': 'Blend shadow or eyeliner going outwards (like a cat-eye).',
-      'foundation': 'Apply a slightly darker shade on the sides of the face (temples to jawline) to create shadows and slim the face.',
-      'highlighter': 'Focus on cheekbones and down the nose bridge for a lifted look. Avoid placing on round parts of the face.',
-      'lipstick': 'Slightly overline the top lip, especially the Cupid\'s bow, to bring vertical balance.',
-      'eyebrow': 'Arched brows help lift your face. Don\'t make them round.'
+      'Foundation': 'Apply a slightly darker shade on the sides of the face (temples to jawline) to create shadows and slim the face.',
+      'Concealer': 'Brighten the center of face (forehead, under eyes, chin) to elongate.',
+      'Blush': 'Apply blush just above the apples of the cheeks and blend diagonally upward. Avoid placing too close to the nose.',
+      'Contour': 'Contour under cheekbones in a diagonal line from mid-ear to mouth corner. Lightly contour the jawline and sides of forehead.',
+      'Eyeshadow': 'Blend shadow or eyeliner going outwards (like a cat-eye).',
+      'Highlighter': 'Focus on cheekbones and down the nose bridge for a lifted look. Avoid placing on round parts of the face.',
+      'Lipstick': 'Slightly overline the top lip, especially the Cupid\'s bow, to bring vertical balance.',
+      'Eyebrow': 'Arched brows help lift your face. Don\'t make them round.'
     },
     'Square': {
-      'blush': 'Apply blush in a rounded motion on the apples of the cheeks. Avoid sharp diagonal strokes.',
-      'concealer': 'Brighten under eyes and center of forehead.',
-      'contour': 'Contour along the sides of the jawline, temples, and under cheekbones to soften.',
-      'eyeshadow': 'Use soft, rounded shadow shapes. Avoid harsh lines—blend gently into the crease.',
-      'foundation': 'Use darker foundation on the outer corners of the jaw and forehead to round them out.',
-      'highlighter': 'Focus on high points of the face: cheekbones and brow bones. Avoid jawline highlight.',
-      'lipstick': 'Round out the edges of the lips and use creamy or glossy formulas to soften the mouth shape.',
-      'eyebrow': 'Soften square brows with a gentle arch or curve to balance the face.',
+      'Foundation': 'Use darker foundation on the outer corners of the jaw and forehead to round them out.',
+      'Concealer': 'Brighten under eyes and center of forehead.',
+      'Blush': 'Apply blush in a rounded motion on the apples of the cheeks. Avoid sharp diagonal strokes.',
+      'Contour': 'Contour along the sides of the jawline, temples, and under cheekbones to soften.',
+      'Eyeshadow': 'Use soft, rounded shadow shapes. Avoid harsh lines—blend gently into the crease.',
+      'Highlighter': 'Focus on high points of the face: cheekbones and brow bones. Avoid jawline highlight.',
+      'Lipstick': 'Round out the edges of the lips and use creamy or glossy formulas to soften the mouth shape.',
+      'Eyebrow': 'Soften square brows with a gentle arch or curve to balance the face.',
     },
     'Heart': {
-      'blush': 'Apply to outer cheekbones, not center, and blend upward.',
-      'concealer': 'Lighten the chin and under the eyes to bring balance.',
-      'contour': 'Lightly contour sides of the forehead and under the chin.',
-      'eyeshadow': 'Blended shadows and winged eyeliner help even out your look.',
-      'foundation': 'Use a slightly darker shade on the sides of the forehead to narrow it. Keep center bright.',
-      'highlighter': 'Highlight cheekbones and brow bones only. Avoid the chin to prevent focus on it.',
-      'lipstick': 'Slightly overline or add gloss to the lower lip to balance the narrow chin.',
-      'eyebrow': 'Keep brows soft and slightly curved. Avoid sharp high arches.',
+      'Foundation': 'Use a slightly darker shade on the sides of the forehead to narrow it. Keep center bright.',
+      'Concealer': 'Lighten the chin and under the eyes to bring balance.',
+      'Blush': 'Apply to outer cheekbones, not center, and blend upward.',
+      'Contour': 'Lightly contour sides of the forehead and under the chin.',
+      'Eyeshadow': 'Blended shadows and winged eyeliner help even out your look.',
+      'Highlighter': 'Highlight cheekbones and brow bones only. Avoid the chin to prevent focus on it.',
+      'Lipstick': 'Slightly overline or add gloss to the lower lip to balance the narrow chin.',
+      'Eyebrow': 'Keep brows soft and slightly curved. Avoid sharp high arches.',
     },
     'Oblong': {
-      'blush': 'Apply horizontally across cheeks to add width (not upward).',
-      'concealer': 'Brighten under the eyes and cheek area (not forehead or chin) to add focus to the center.',
-      'contour': 'Contour top of forehead, under chin, and temples to shorten and widen face. Avoid harsh cheek contour.',
-      'eyeshadow': 'Focus on horizontal blending (not upward) to widen eyes.',
-      'foundation': 'Apply darker shade at top of forehead and chin to reduce length. Keep cheeks bright.',
-      'highlighter': 'Use on cheekbones only. Avoid forehead and chin highlight.',
-      'lipstick': 'Use wider lip shapes with gloss or ombré style to add horizontal fullness. Avoid overlining vertically.',
-      'eyebrow': 'Go for flat or gently curved brows to shorten vertical space.',
+      'Foundation': 'Apply darker shade at top of forehead and chin to reduce length. Keep cheeks bright.',
+      'Concealer': 'Brighten under the eyes and cheek area (not forehead or chin) to add focus to the center.',
+      'Blush': 'Apply horizontally across cheeks to add width (not upward).',
+      'Contour': 'Contour top of forehead, under chin, and temples to shorten and widen face. Avoid harsh cheek contour.',
+      'Eyeshadow': 'Focus on horizontal blending (not upward) to widen eyes.',
+      'Highlighter': 'Use on cheekbones only. Avoid forehead and chin highlight.',
+      'Lipstick': 'Use wider lip shapes with gloss or ombré style to add horizontal fullness. Avoid overlining vertically.',
+      'Eyebrow': 'Go for flat or gently curved brows to shorten vertical space.',
     }
   };
 
   static String getTip(String faceShape, String productType) {
-    return _tipsByFaceShape[faceShape]?[productType.toLowerCase()] ?? 
-        'No tips available for $productType.';
+    return _tipsByFaceShape[faceShape]?[productType] ?? 
+        'No specific tips available for $productType with a $faceShape face shape.';
   }
 }

@@ -452,21 +452,22 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     }
   }
 
-  void _navigateToLookDetails(SavedLook look) {
-    final shades = lookShades[look.savedLookId] ?? {};
-    final imageBytes = lookImages[look.savedLookId];
+ void _navigateToLookDetails(SavedLook look) {
+  final shades = lookShades[look.savedLookId] ?? {};
+  final imageBytes = lookImages[look.savedLookId];
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LookDetailsScreen(
-          look: look,
-          shades: shades,
-          imageBytes: imageBytes,
-        ),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => LookDetailsScreen(
+        look: look,
+        shades: shades,
+        imageBytes: imageBytes,
+        userId: widget.userId.toString(), // Pass the user ID here
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildLookImage(Uint8List? imageBytes, double screenWidth) {
     if (imageBytes == null || imageBytes.isEmpty) {
@@ -613,12 +614,14 @@ class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;
   final Uint8List? imageBytes;
+  final String userId;
 
   const LookDetailsScreen({
     super.key,
     required this.look,
     required this.shades,
     this.imageBytes,
+    required this.userId, // Add this
   });
 
   @override
@@ -896,7 +899,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MakeupTipsPage(faceShape: _userFaceShape),
+                   builder: (context) => MakeupTipsPage(userId: widget.userId),
                 ),
               );
             },

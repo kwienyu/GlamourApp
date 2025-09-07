@@ -1015,7 +1015,7 @@ Widget _buildPersonalizedAnalysisSection() {
                       Positioned(
                         bottom: -10,
                         left: -10,
-                        child: Container(
+                        child: SizedBox(
                           width: 30,
                           height: 30,
                         ),
@@ -1063,7 +1063,7 @@ Widget _buildPersonalizedAnalysisSection() {
                                       : '$usageCount\nrecommendations',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.pink[700],
                                     ),

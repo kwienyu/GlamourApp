@@ -203,27 +203,48 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
                         ? _buildEmptyState()
                         : Column(
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 5),
+                              // Top Makeup Look Section
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 5),
                                 child: Column(
                                   children: [
                                     Text(
-                                      widget.isDefaultData
-                                          ? 'Popular Makeup Look with Recommended Shade Combinations'
-                                          : 'Top Makeup Look with Top 3 Shade Combinations',
-                                      style: const TextStyle(
+                                      'Top Makeup Look',
+                                      style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.bold,
                                         color: Color(0xFF2D1B69),
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
-                                    const SizedBox(height: 2),
+                                    SizedBox(height: 2),
+                                  ],
+                                ),
+                              ),
+                              
+                              // ✅ Show only ONE look card (top look)
+                              _buildMakeupLookCard(topLooks.first),
+                              
+                              const SizedBox(height: 20),
+                              
+                              // Top Shade Combinations Section
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 5),
+                                child: Column(
+                                  children: [
                                     Text(
-                                      widget.isDefaultData
-                                          ? 'Explore popular shade combinations for this makeup type'
-                                          : 'Curated shade combinations tailored for your features',
-                                      style: const TextStyle(
+                                      'Top Shade Combinations',
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF2D1B69),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Curated shade combinations tailored for your features',
+                                      style: TextStyle(
                                         fontSize: 14,
                                         color: Color(0xFF666666),
                                       ),
@@ -232,9 +253,9 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
                                   ],
                                 ),
                               ),
-
-                              // ✅ Show only ONE look card (top look)
-                              _buildEnhancedMakeupLookCard(topLooks.first, widget.isDefaultData),
+                              
+                              // Shade Combinations Cards
+                              _buildShadeCombinationsSection(topLooks.first, widget.isDefaultData),
                             ],
                           ),
                   ),
@@ -328,24 +349,9 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
         ),
       );
 
-  Widget _buildEnhancedMakeupLookCard(Map<String, dynamic> look, bool isDefaultData) {
-    final combinations =
-        (look['shade_combinations'] as List).cast<Map<String, dynamic>>().toList();
-    
-    // For default data, just show all combinations
-    // For user data, sort by times_used and take top 3
-    List<Map<String, dynamic>> displayCombinations;
-    
-    if (isDefaultData) {
-      displayCombinations = combinations;
-    } else {
-      combinations.sort((a, b) =>
-          (b['times_used'] ?? 0).compareTo(a['times_used'] ?? 0));
-      displayCombinations = combinations.take(3).toList();
-    }
-
+  Widget _buildMakeupLookCard(Map<String, dynamic> look) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -397,96 +403,113 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // ✅ PageView for shade combinations
-            SizedBox(
-              height: 310,
-              child: PageView.builder(
-                itemCount: displayCombinations.length,
-                onPageChanged: (index) {
-                  setState(() => _currentComboPage = index);
-                },
-                itemBuilder: (context, index) {
-                  var combo = displayCombinations[index];
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (!isDefaultData)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE91E63).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Used ${combo['times_used'] ?? 0} times',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFE91E63),
-                            ),
-                          ),
-                        ),
-                      if (!isDefaultData) const SizedBox(height: 12),
-
-                      // ✅ Wrap to avoid overflow if shades are too many
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Wrap(
-                            alignment: WrapAlignment.center, // ✅ Center align shades
-                            spacing: 15, // slightly more spacing for balance
-                            runSpacing: 12,
-                            children: (combo['shades'] as List)
-                                .where((shade) => shade != null)
-                                .map<Widget>((shade) => _buildEnhancedShadeChip(shade))
-                                .toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+            const SizedBox(height: 10),
+            Text(
+              'Recommended for your features',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
               ),
             ),
-
-            // ✅ Dot indicators for PageView (moved downward) - Customizable demo-2 [v1.0.0] style
-if (displayCombinations.length > 1)
-  Padding(
-    padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        displayCombinations.length,
-        (dotIndex) => AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.fastOutSlowIn,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: _currentComboPage == dotIndex ? 20 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(
-                _currentComboPage == dotIndex ? 4 : 8),
-            color: _currentComboPage == dotIndex
-                ? const Color(0xFFE91E63)
-                : Colors.grey[400],
-            boxShadow: _currentComboPage == dotIndex
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFE91E63).withOpacity(0.5),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-        ),
-      ),
-    ),
-  ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildShadeCombinationsSection(Map<String, dynamic> look, bool isDefaultData) {
+    final combinations =
+        (look['shade_combinations'] as List).cast<Map<String, dynamic>>().toList();
+    
+    // For default data, just show all combinations
+    // For user data, sort by times_used and take top 3
+    List<Map<String, dynamic>> displayCombinations;
+    
+    if (isDefaultData) {
+      displayCombinations = combinations;
+    } else {
+      combinations.sort((a, b) =>
+          (b['times_used'] ?? 0).compareTo(a['times_used'] ?? 0));
+      displayCombinations = combinations.take(3).toList();
+    }
+
+    return SizedBox(
+      height: 350,
+      child: PageView.builder(
+        itemCount: displayCombinations.length,
+        onPageChanged: (index) {
+          setState(() => _currentComboPage = index);
+        },
+        itemBuilder: (context, index) {
+          var combo = displayCombinations[index];
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Color(0xFFFFF8F5)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFE91E63).withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(
+                  color: const Color(0xFFE91E63).withOpacity(0.1), width: 1),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isDefaultData)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE91E63).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Used ${combo['times_used'] ?? 0} times',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE91E63),
+                        ),
+                      ),
+                    ),
+                  if (!isDefaultData) const SizedBox(height: 12),
+
+                  // Shade chips
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 15,
+                        runSpacing: 12,
+                        children: (combo['shades'] as List)
+                            .where((shade) => shade != null)
+                            .map<Widget>((shade) => _buildEnhancedShadeChip(shade))
+                            .toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
