@@ -8,8 +8,7 @@ import 'makeup_tips_generator.dart';
 import 'profile_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import 'makeup_guide.dart';  // Added import
-
+import 'makeup_guide.dart';
 
 enum LookType { user, client }
 
@@ -62,14 +61,23 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   }
 
   List<SavedLook> get _filteredLooks {
-    return savedLooks.where((look) {
+    final filtered = savedLooks.where((look) {
       if (_selectedLookType == LookType.user) {
         return !look.isClientLook;
       } else {
         return look.isClientLook;
       }
-    }).toList()
-      ..sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
+    }).toList();
+    
+    // Sort in descending order (newest first)
+    filtered.sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
+    
+    // Debug print to verify sorting
+    for (var look in filtered) {
+      debugPrint('Look: ${look.makeupLookName}, Date: ${look.capturedDate}');
+    }
+    
+    return filtered;
   }
 
   Widget _buildImagePreview(File imageFile, double screenWidth) {
@@ -228,6 +236,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                           ),
                                           delegate: SliverChildBuilderDelegate(
                                             (context, index) {
+                                              // Use index directly since list is already sorted in descending order
                                               final look = _filteredLooks[index];
                                               return GestureDetector(
                                                 onTap: () =>
@@ -329,30 +338,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
 
         for (var lookData in data['saved_looks']) {
           try {
-            final dateString = lookData['saved_date'];
-            DateTime savedDate;
-            
-            if (dateString is String) {
-              if (dateString.contains('T')) {
-                savedDate = DateTime.parse(dateString).toLocal();
-              } else {
-                try {
-                  savedDate = DateTime.parse(dateString).toLocal();
-                } catch (e) {
-                  savedDate = DateTime.now().toLocal();
-                }
-              }
-            } else if (dateString is int) {
-              savedDate = DateTime.fromMillisecondsSinceEpoch(dateString * 1000).toLocal();
-            } else {
-              savedDate = DateTime.now().toLocal();
-            }
-
-            final look = SavedLook.fromJson({
-              ...lookData,
-              'saved_date': savedDate,
-            });
-            
+            final look = SavedLook.fromJson(lookData);
             loadedLooks.add(look);
 
             if (look.imageData != null) {
@@ -463,7 +449,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         look: look,
         shades: shades,
         imageBytes: imageBytes,
-        userId: widget.userId.toString(), // Pass the user ID here
+        userId: widget.userId.toString(),
       ),
     ),
   );
@@ -561,13 +547,16 @@ class SavedLook {
 
       try {
         if (date is String) {
-          if (date.contains('T')) {
-            return DateTime.parse(date).toLocal();
-          }
+          // Try multiple date formats to ensure proper parsing
           try {
-            return DateFormat('yyyy-MM-dd HH:mm:ss').parse(date).toLocal();
+            return DateFormat("MMMM dd, yyyy").parse(date);
           } catch (e) {
-            debugPrint('Failed to parse date string: $date');
+            try {
+              return DateTime.parse(date).toLocal();
+            } catch (e) {
+              debugPrint('Failed to parse date string: $date');
+              return DateTime.now().toLocal();
+            }
           }
         } else if (date is int) {
           return DateTime.fromMillisecondsSinceEpoch(date * 1000).toLocal();
@@ -583,33 +572,14 @@ class SavedLook {
       makeupLookName: json['makeup_look_name'],
       imageData: json['image_data'],
       isClientLook: json['is_client_look'] ?? false,
-      capturedDate: parseCapturedDate(json['captured_date'] ?? json['saved_date']),
+      capturedDate: parseCapturedDate(json['created_at'] ?? json['saved_date']),
     );
   }
 
   String get formattedDate {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-
-    String formatTime(DateTime date) {
-      return DateFormat('h:mm a').format(date);
-    }
-
-    if (capturedDate.year == now.year &&
-        capturedDate.month == now.month &&
-        capturedDate.day == now.day) {
-      return 'Today at ${formatTime(capturedDate)}';
-    } else if (capturedDate.year == yesterday.year &&
-        capturedDate.month == yesterday.month &&
-        capturedDate.day == yesterday.day) {
-      return 'Yesterday at ${formatTime(capturedDate)}';
-    } else {
-      return DateFormat('MM/dd/yyyy').format(capturedDate);
-    }
+    return DateFormat('MMMM dd, yyyy').format(capturedDate);
   }
 }
-
 class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;
