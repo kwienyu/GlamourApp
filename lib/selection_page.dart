@@ -43,6 +43,7 @@ class _SelectionPageState extends State<SelectionPage> {
     super.initState();
     _fetchTopShades();
   }
+  
   Future<void> _fetchTopShades() async {
     setState(() {
       _isLoading = true;
@@ -99,91 +100,99 @@ class _SelectionPageState extends State<SelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shade Recommendations'),
+        title: const Text('Top Recommended Shades'),
         backgroundColor: Colors.pinkAccent,
       ),
-      body: _buildBodyContent(),
+      body: _buildBodyContent(screenWidth, screenHeight),
     );
   }
 
-  Widget _buildBodyContent() {
-  if (_isLoading) {
-    return Center(
+  Widget _buildBodyContent(double screenWidth, double screenHeight) {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            LoadingAnimationWidget.staggeredDotsWave(
+              color: Colors.pinkAccent,
+              size: screenWidth * 0.12,
+            ),
+            SizedBox(height: screenHeight * 0.02),
+            const Text('Loading recommendations...'),
+          ],
+        ),
+      );
+    }
+
+    if (_hasError || _shadesData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: screenWidth * 0.12, color: Colors.red),
+            SizedBox(height: screenHeight * 0.02),
+            const Text('Failed to load data'),
+            SizedBox(height: screenHeight * 0.02),
+            ElevatedButton(
+              onPressed: _fetchTopShades,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          LoadingAnimationWidget.staggeredDotsWave(
-            color: Colors.pinkAccent,
-            size: 50,
-          ),
-          const SizedBox(height: 16),
-          const Text('Loading recommendations...'),
+          _buildShadeRecommendationsSection(context, screenWidth, screenHeight),
         ],
       ),
     );
   }
 
-  if (_hasError || _shadesData.isEmpty) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.red),
-          const SizedBox(height: 16),
-          const Text('Failed to load data'),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _fetchTopShades,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  return SingleChildScrollView(
-    child: Column(
-      children: [
-        _buildShadeRecommendationsSection(context),
-      ],
-    ),
-  );
-}
-  Widget _buildShadeRecommendationsSection(BuildContext context) {
+  Widget _buildShadeRecommendationsSection(BuildContext context, double screenWidth, double screenHeight) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(screenWidth * 0.04),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20), // Added extra space at the top
+          SizedBox(height: screenHeight * 0.02),
           Text(
             'Top Shades',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: screenWidth * 0.06,
               fontWeight: FontWeight.bold,
               color: Colors.pink[800],
             ),
           ),
-          const SizedBox(height: 25), // Increased this spacing
-          _buildSkinToneSelector(),
-          const SizedBox(height: 25), // Increased this spacing
-          _buildShadeCategoryTabs(),
-          const SizedBox(height: 25), // Increased this spacing
-          _buildTopShadesList(),
-          const SizedBox(height: 25), // Increased this spacing
-          _buildCircularUsageGraph(),
-          const SizedBox(height: 25), // Increased this spacing
-          _buildViewAnalyticsButton(context),
+          SizedBox(height: screenHeight * 0.03),
+          _buildSkinToneSelector(screenWidth, screenHeight),
+          SizedBox(height: screenHeight * 0.03),
+          _buildShadeCategoryTabs(screenWidth),
+          SizedBox(height: screenHeight * 0.03),
+          _buildTopShadesList(screenWidth),
+          SizedBox(height: screenHeight * 0.03),
+          _buildCircularUsageGraph(screenWidth, screenHeight),
+          SizedBox(height: screenHeight * 0.03),
+          _buildViewAnalyticsButton(context, screenWidth),
         ],
       ),
     );
   }
 
-Widget _buildSkinToneSelector() {
+  Widget _buildSkinToneSelector(double screenWidth, double screenHeight) {
+    final itemWidth = screenWidth * 0.28;
+    final itemHeight = screenHeight * 0.16;
+    final imageHeight = screenHeight * 0.12;
+
     return SizedBox(
-      height: 140, // Increased height to accommodate larger images
+      height: itemHeight,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _skinToneOptions.length,
@@ -196,45 +205,45 @@ Widget _buildSkinToneSelector() {
               setState(() => _selectedSkinTone = skinTone);
             },
             child: Container(
-              width: 110, // Increased width
-              margin: const EdgeInsets.only(right: 15), // Increased margin
+              width: itemWidth,
+              margin: EdgeInsets.only(right: screenWidth * 0.04),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(screenWidth * 0.04),
                 border: Border.all(
                   color: _selectedSkinTone == skinTone 
                       ? Colors.pinkAccent 
                       : Colors.transparent,
-                  width: 3,
+                  width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 2,
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    spreadRadius: 1,
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   )
                 ],
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start, // Align to top
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(screenWidth * 0.03)),
                     child: Container(
-                      height: 100, // Increased height for the image
+                      height: imageHeight,
                       width: double.infinity,
                       color: _getSkinToneColor(skinTone),
                       child: _skinToneImages.containsKey(skinTone)
                           ? Image.asset(
                               _skinToneImages[skinTone]!,
-                              fit: BoxFit.contain, // Changed to contain to prevent cutting
-                              alignment: Alignment.bottomCenter, // Align image to bottom
+                              fit: BoxFit.contain,
+                              alignment: Alignment.bottomCenter,
                             )
                           : Center(
                               child: Text(
                                 displayName[0],
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: screenWidth * 0.06,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white.withOpacity(0.8),
                                 ),
@@ -242,22 +251,26 @@ Widget _buildSkinToneSelector() {
                             ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8), // Increased padding
-                    decoration: BoxDecoration(
-                      color: _selectedSkinTone == skinTone
-                          ? Colors.pinkAccent.withOpacity(0.1)
-                          : Colors.white,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                    ),
-                    child: Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: 13, // Slightly larger font
-                        fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: screenHeight * 0.01),
+                      decoration: BoxDecoration(
                         color: _selectedSkinTone == skinTone
-                            ? Colors.pinkAccent
-                            : Colors.grey[700],
+                            ? Colors.pinkAccent.withOpacity(0.1)
+                            : Colors.white,
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(screenWidth * 0.03)),
+                      ),
+                      child: Center(
+                        child: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.035,
+                            fontWeight: FontWeight.bold,
+                            color: _selectedSkinTone == skinTone
+                                ? Colors.pinkAccent
+                                : Colors.grey[700],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -270,24 +283,18 @@ Widget _buildSkinToneSelector() {
     );
   }
 
-
-  // Helper method to get a color for each skin tone (fallback if image not available)
   Color _getSkinToneColor(String skinTone) {
     switch (skinTone) {
-      case 'morena':
-        return const Color(0xFF8D5524);
-      case 'chinita':
-        return const Color(0xFFFFDBAC);
-      case 'mestiza':
-        return const Color(0xFFE0AC69);
-      default:
-        return Colors.grey;
+      case 'morena': return const Color(0xFF8D5524);
+      case 'chinita': return const Color(0xFFFFDBAC);
+      case 'mestiza': return const Color(0xFFE0AC69);
+      default: return Colors.grey;
     }
   }
 
-  Widget _buildShadeCategoryTabs() {
+  Widget _buildShadeCategoryTabs(double screenWidth) {
     return SizedBox(
-      height: 40,
+      height: screenWidth * 0.1,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: _categoryOrder.length,
@@ -296,12 +303,12 @@ Widget _buildSkinToneSelector() {
           final displayName = category[0].toUpperCase() + category.substring(1);
           
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: EdgeInsets.only(right: screenWidth * 0.02),
             child: ChoiceChip(
               label: Text(
                 displayName,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: screenWidth * 0.03,
                   color: _selectedShadeCategory == category 
                       ? Colors.white 
                       : Colors.pinkAccent,
@@ -320,119 +327,126 @@ Widget _buildSkinToneSelector() {
     );
   }
 
- Widget _buildShadeItem(Map<String, dynamic> shade, int rank) {
-  return GestureDetector(
-    onTap: () => _showShadeDetails(shade),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          // Fire icon with rank number
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.local_fire_department,
-                  color: _getFireColor(rank),
-                  size: 24,
-                ),
-                Text(
-                  '$rank',
-                  style: TextStyle(
-                    color: const Color.fromARGB(255, 10, 10, 10),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 80,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Center(
-              child: Text(
-                shade['hex_code'],
-                style: TextStyle(
-                  fontSize: 10,
-                  color: _getContrastColor(shade['hex_code']),
-                  fontWeight: FontWeight.bold,
+  Widget _buildShadeItem(Map<String, dynamic> shade, int rank, double screenWidth) {
+    return GestureDetector(
+      onTap: () => _showShadeDetails(shade),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: screenWidth * 0.02),
+        child: Container(
+          height: screenWidth * 0.15,
+          child: Row(
+            children: [
+              Container(
+                width: screenWidth * 0.06,
+                height: screenWidth * 0.06,
+                alignment: Alignment.center,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.local_fire_department,
+                      color: _getFireColor(rank),
+                      size: screenWidth * 0.06,
+                    ),
+                    Text(
+                      '$rank',
+                      style: TextStyle(
+                        color: const Color.fromARGB(255, 10, 10, 10),
+                        fontSize: screenWidth * 0.025,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (shade['shade_name'] != null)
-                  Text(
-                    shade['shade_name'],
-                    style: const TextStyle(
-                      fontSize: 12,
+              SizedBox(width: screenWidth * 0.03),
+              Container(
+                width: screenWidth * 0.2,
+                height: screenWidth * 0.1,
+                decoration: BoxDecoration(
+                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                  borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Center(
+                  child: Text(
+                    shade['hex_code'],
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.025,
+                      color: _getContrastColor(shade['hex_code']),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                LinearProgressIndicator(
-                  value: (shade['match_count'] as int) / 1500,
-                  backgroundColor: Colors.grey[200],
-                  color: Colors.pinkAccent,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(width: screenWidth * 0.03),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (shade['shade_name'] != null)
+                      Text(
+                        shade['shade_name'],
+                        style: TextStyle(
+                          fontSize: screenWidth * 0.035,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    SizedBox(height: screenWidth * 0.01),
+                    LinearProgressIndicator(
+                      value: (shade['match_count'] as int) / 1500,
+                      backgroundColor: Colors.grey[200],
+                      color: Colors.pinkAccent,
+                      minHeight: screenWidth * 0.02,
+                      borderRadius: BorderRadius.circular(screenWidth * 0.01),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: screenWidth * 0.03),
+              Text(
+                '${shade['match_count']}',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.035,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Text(
-            '${shade['match_count']}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+        ),
       ),
-    ),
-  );
-}
-
-Color _getFireColor(int rank) {
-  switch (rank) {
-    case 1: return Colors.red;
-    case 2: return Colors.orange;
-    case 3: return Colors.amber;
-    default: return Colors.grey;
+    );
   }
-}
-  Widget _buildTopShadesList() {
+
+  Color _getFireColor(int rank) {
+    switch (rank) {
+      case 1: return Colors.red;
+      case 2: return Colors.orange;
+      case 3: return Colors.amber;
+      default: return Colors.grey;
+    }
+  }
+
+  Widget _buildTopShadesList(double screenWidth) {
     final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
 
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(screenWidth * 0.04),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(screenWidth * 0.03),
         child: Column(
           children: [
             for (var i = 0; i < shades.length; i++)
-              _buildShadeItem(shades[i], i + 1),
+              _buildShadeItem(shades[i], i + 1, screenWidth),
             if (shades.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
                 child: Text(
                   'No shades available for this category',
                   style: TextStyle(color: Colors.grey),
@@ -444,7 +458,7 @@ Color _getFireColor(int rank) {
     );
   }
 
-  Widget _buildCircularUsageGraph() {
+  Widget _buildCircularUsageGraph(double screenWidth, double screenHeight) {
     final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
     if (shades.isEmpty) return Container();
 
@@ -454,24 +468,24 @@ Color _getFireColor(int rank) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(screenWidth * 0.04),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Shade Usage Distribution',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: screenWidth * 0.045,
                 fontWeight: FontWeight.bold,
                 color: Colors.pink[800],
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: screenHeight * 0.01),
             SizedBox(
-              height: 240,
+              height: screenHeight * 0.25,
               child: Row(
                 children: [
                   Expanded(
@@ -479,16 +493,16 @@ Color _getFireColor(int rank) {
                     child: PieChart(
                       PieChartData(
                         sectionsSpace: 2,
-                        centerSpaceRadius: 60,
+                        centerSpaceRadius: screenWidth * 0.15,
                         sections: shades.asMap().entries.map((entry) {
                           final shade = entry.value;
                           return PieChartSectionData(
                             color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
                             value: (shade['match_count'] as int) / totalUsed * 100,
                             title: '${((shade['match_count'] as int) / totalUsed * 100).toStringAsFixed(1)}%',
-                            radius: 28,
+                            radius: screenWidth * 0.07,
                             titleStyle: TextStyle(
-                              fontSize: 12,
+                              fontSize: screenWidth * 0.03,
                               fontWeight: FontWeight.bold,
                               color: _getContrastColor(shade['hex_code']),
                             ),
@@ -500,42 +514,44 @@ Color _getFireColor(int rank) {
                   Expanded(
                     flex: 1,
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 16),
+                      padding: EdgeInsets.only(left: screenWidth * 0.04),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: shades.asMap().entries.map((entry) {
                           final shade = entry.value;
                           return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            padding: EdgeInsets.symmetric(vertical: screenHeight * 0.005),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  width: 12,
-                                  height: 12,
-                                  margin: const EdgeInsets.only(top: 2),
+                                  width: screenWidth * 0.03,
+                                  height: screenWidth * 0.03,
+                                  margin: EdgeInsets.only(top: screenHeight * 0.002),
                                   decoration: BoxDecoration(
                                     color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                SizedBox(width: screenWidth * 0.02),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         shade['shade_name'] ?? shade['hex_code'],
-                                        style: const TextStyle(
-                                          fontSize: 12,
+                                        style: TextStyle(
+                                          fontSize: screenWidth * 0.03,
                                           fontWeight: FontWeight.bold,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         '${shade['match_count']} uses',
                                         style: TextStyle(
-                                          fontSize: 11,
+                                          fontSize: screenWidth * 0.028,
                                           color: Colors.grey[600],
                                         ),
                                       ),
@@ -558,24 +574,28 @@ Color _getFireColor(int rank) {
     );
   }
 
-  Widget _buildViewAnalyticsButton(BuildContext context) {
+  Widget _buildViewAnalyticsButton(BuildContext context, double screenWidth) {
     return Center(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.pinkAccent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(screenWidth * 0.05),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth * 0.06,
+            vertical: screenWidth * 0.03,
+          ),
         ),
         onPressed: () {
           _showDetailedAnalytics(context);
         },
-        child: const Text(
+        child: Text(
           'View Detailed Analytics',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: screenWidth * 0.04,
           ),
         ),
       ),
@@ -583,12 +603,14 @@ Color _getFireColor(int rank) {
   }
 
   void _showDetailedAnalytics(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(screenWidth * 0.04),
           height: MediaQuery.of(context).size.height * 0.7,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -596,35 +618,35 @@ Color _getFireColor(int rank) {
               Text(
                 'Detailed Shade Analytics',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: screenWidth * 0.055,
                   fontWeight: FontWeight.bold,
                   color: Colors.pink[800],
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: screenWidth * 0.04),
               Text(
                 'For ${_selectedSkinTone[0].toUpperCase() + _selectedSkinTone.substring(1)} skin tone',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: screenWidth * 0.04,
                   color: Colors.grey[600],
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: screenWidth * 0.02),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _buildCircularUsageGraph(),
-                      const SizedBox(height: 16),
+                      _buildCircularUsageGraph(screenWidth, MediaQuery.of(context).size.height),
+                      SizedBox(height: screenWidth * 0.04),
                       Text(
                         'Top Shades Across Categories',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: screenWidth * 0.045,
                           fontWeight: FontWeight.bold,
                           color: Colors.pink[800],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: screenWidth * 0.02),
                       ..._categoryOrder.map((category) {
                         final shades = _shadesData[_selectedSkinTone]?[category] ?? [];
                         if (shades.isEmpty) return Container();
@@ -637,13 +659,14 @@ Color _getFireColor(int rank) {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.pinkAccent,
+                                fontSize: screenWidth * 0.04,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: screenWidth * 0.02),
                             ...shades.map((shade) {
-                              return _buildDetailedShadeItem(shade);
+                              return _buildDetailedShadeItem(shade, screenWidth);
                             }),
-                            const Divider(),
+                            Divider(height: screenWidth * 0.04),
                           ],
                         );
                       }),
@@ -658,21 +681,30 @@ Color _getFireColor(int rank) {
     );
   }
 
-  Widget _buildDetailedShadeItem(Map<String, dynamic> shade) {
+  Widget _buildDetailedShadeItem(Map<String, dynamic> shade, double screenWidth) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
-        width: 40,
-        height: 40,
+        width: screenWidth * 0.1,
+        height: screenWidth * 0.1,
         decoration: BoxDecoration(
           color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(screenWidth * 0.02),
           border: Border.all(color: Colors.grey.shade300),
         ),
       ),
-      title: Text(shade['shade_name'] ?? shade['hex_code']),
-      subtitle: Text(shade['hex_code']),
-      trailing: Text('${shade['match_count']} matches'),
+      title: Text(
+        shade['shade_name'] ?? shade['hex_code'],
+        style: TextStyle(fontSize: screenWidth * 0.04),
+      ),
+      subtitle: Text(
+        shade['hex_code'],
+        style: TextStyle(fontSize: screenWidth * 0.035),
+      ),
+      trailing: Text(
+        '${shade['match_count']} matches',
+        style: TextStyle(fontSize: screenWidth * 0.035),
+      ),
       onTap: () {
         _showShadeDetails(shade);
       },
@@ -680,49 +712,51 @@ Color _getFireColor(int rank) {
   }
 
   void _showShadeDetails(Map<String, dynamic> shade) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
     showModalBottomSheet(
       context: context,
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(screenWidth * 0.04),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: double.infinity,
-                height: 100,
+                height: screenWidth * 0.25,
                 decoration: BoxDecoration(
                   color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(screenWidth * 0.03),
                 ),
                 child: Center(
                   child: Text(
                     shade['hex_code'],
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: screenWidth * 0.05,
                       fontWeight: FontWeight.bold,
                       color: _getContrastColor(shade['hex_code']),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: screenWidth * 0.04),
               if (shade['shade_name'] != null)
                 Text(
                   shade['shade_name'],
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.05,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              const SizedBox(height: 8),
+              SizedBox(height: screenWidth * 0.02),
               Text(
                 'Match Count: ${shade['match_count']}',
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.04,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: screenWidth * 0.04),
             ],
           ),
         );

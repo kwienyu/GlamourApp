@@ -57,7 +57,7 @@ static const int _stabilityDurationMs = 500; // Reduced from 1000 (faster stabil
   double _faceDetectionConfidence = 0.0;
   final List<Map<String, dynamic>> _accuracyReports = [];
 
-  static const double _maxRotationThreshold = 30.0; // Increased from 20.0 (allow more head tilt)
+static const double _maxRotationThreshold = 30.0; // Increased from 20.0 (allow more head tilt)
 static const double _centerThreshold = 0.25; // Increased from 0.15 (larger center tolerance zone)
 
   // Countdown timer properties

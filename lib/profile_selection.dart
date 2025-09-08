@@ -903,9 +903,32 @@ Widget _buildPersonalizedAnalysisSection() {
   };
 
   // Determine which data to use
-  final List<dynamic> typesToDisplay = _makeupRecommendations != null 
+  List<dynamic> typesToDisplay = _makeupRecommendations != null 
       ? MakeupRecommendation.fromJson(_makeupRecommendations!).recommendedTypes
       : defaultMakeupTypes;
+
+  // Ensure we always show exactly 3 makeup types
+  // If we have less than 3 from API, fill with defaults
+  if (typesToDisplay.length < 3) {
+    // Create a set of existing type names to avoid duplicates
+    final existingTypes = typesToDisplay.map((type) => type['makeup_type_name']?.toString()).toSet();
+    
+    // Add default types that aren't already in the list
+    for (final defaultType in defaultMakeupTypes) {
+      if (typesToDisplay.length >= 3) break;
+      
+      final defaultTypeName = defaultType['makeup_type_name']?.toString();
+      if (defaultTypeName != null && !existingTypes.contains(defaultTypeName)) {
+        typesToDisplay.add(defaultType);
+        existingTypes.add(defaultTypeName);
+      }
+    }
+  }
+  
+  // If we still have more than 3, take the top 3
+  if (typesToDisplay.length > 3) {
+    typesToDisplay = typesToDisplay.sublist(0, 3);
+  }
 
   final List<dynamic> looksToUse = _makeupRecommendations != null
       ? MakeupRecommendation.fromJson(_makeupRecommendations!).makeupLooks
@@ -938,7 +961,7 @@ Widget _buildPersonalizedAnalysisSection() {
               ),
             ),
           ),
-         SizedBox(
+        SizedBox(
           height: 140,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
@@ -958,23 +981,23 @@ Widget _buildPersonalizedAnalysisSection() {
                   }).toList();
                   
                   Navigator.push(
-  context,
-  PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
-      makeupLooks: filteredLooks,
-      makeupType: typeName,
-      isDefaultData: _makeupRecommendations == null,
-    ),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeThroughTransition(
-        animation: animation,
-        secondaryAnimation: secondaryAnimation,
-        child: child,
-      );
-    },
-    transitionDuration: const Duration(milliseconds: 600),
-  ),
-);
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
+                        makeupLooks: filteredLooks,
+                        makeupType: typeName,
+                        isDefaultData: _makeupRecommendations == null,
+                      ),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return FadeThroughTransition(
+                          animation: animation,
+                          secondaryAnimation: secondaryAnimation,
+                          child: child,
+                        );
+                      },
+                      transitionDuration: const Duration(milliseconds: 600),
+                    ),
+                  );
                 },
                 child: Container(
                   width: 150,

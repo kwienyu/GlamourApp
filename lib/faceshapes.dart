@@ -12,19 +12,12 @@ class FaceShapesApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: const Color.fromARGB(255, 11, 11, 11)),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
           backgroundColor: Colors.pinkAccent,
           elevation: 0,
-          title: SizedBox(
-            width: double.infinity,
-            child: Image.asset(
-              'assets/glam_logo.png',
-              height: MediaQuery.of(context).size.height * 0.08, // Slightly reduced height
-              fit: BoxFit.contain,
-            ),
+          title: Image.asset(
+            'assets/glam_logo.png',
+            height: MediaQuery.of(context).size.height * 0.08, // Slightly reduced height
+            fit: BoxFit.contain,
           ),
           centerTitle: true,
         ),

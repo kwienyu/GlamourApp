@@ -11,6 +11,7 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'camera2.dart';
 import 'glamvault.dart';
+import 'package:toastification/toastification.dart';
 
 //  Face Landmark detector
 class FaceLandmarkHelper {
@@ -495,6 +496,8 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   bool _isApplyingMakeup = false;
   Uint8List? _processedImage;
   Uint8List? _currentMakeupImage;
+  bool _hasShownCustomizationDialog = false;
+  bool _isFirstTimeSelection = true;
 
   Map<String, Color?> selectedShades = {
     'Foundation': null,
@@ -509,6 +512,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
 
   Map<String, List<Color>> makeupShades = {};
   Map<String, List<String>> shadeHexCodes = {};
+  Map<String, bool> _hasShownProductDialog = {};
 
   final Map<String, String> productIcons = {
     'Foundation': 'assets/foundation.png',
@@ -533,35 +537,37 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   ];
 
   final String? _apiToken = null;
- @override
-  void initState() {
-    super.initState();
-    _makeupApiService = MakeupOverlayApiService();
-    _processRecommendationData();
-    _fetchRecommendations();
-    
-    for (var product in orderedProductNames) {
-      expandedProducts[product] = false;
-    }
 
-    _heartController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    )..repeat(reverse: true);
-    
-    _heartAnimation = TweenSequence<double>(
-      <TweenSequenceItem<double>>[
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.0, end: 1.08),
-          weight: 50,
-        ),
-        TweenSequenceItem<double>(
-          tween: Tween<double>(begin: 1.1, end: 1.0),
-          weight: 50,
-        ),
-      ],
-    ).animate(_heartController);
+@override
+void initState() {
+  super.initState();
+  _makeupApiService = MakeupOverlayApiService();
+  _processRecommendationData();
+  _fetchRecommendations();
+  
+  for (var product in orderedProductNames) {
+    expandedProducts[product] = false;
+    _hasShownProductDialog[product] = false; // Initialize dialog tracking
   }
+
+  _heartController = AnimationController(
+    duration: const Duration(milliseconds: 1500),
+    vsync: this,
+  )..repeat(reverse: true);
+  
+  _heartAnimation = TweenSequence<double>(
+    <TweenSequenceItem<double>>[
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.0, end: 1.08),
+        weight: 50,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: 1.1, end: 1.0),
+        weight: 50,
+      ),
+    ],
+  ).animate(_heartController);
+}
 
   @override
   void dispose() {
@@ -941,19 +947,19 @@ void _resetVirtualMakeup() {
   }
 
   Widget _buildProductIcon(String productName) {
-    final iconPath = productIcons[productName];
-    return iconPath != null
-        ? Image.asset(
-            iconPath,
-            width: 45,
-            height: 45,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
-            },
-          )
-        : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
-  }
+  final iconPath = productIcons[productName];
+  return iconPath != null
+      ? Image.asset(
+          iconPath,
+          width: 45,
+          height: 45,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
+          },
+        )
+      : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
+}
 
 Widget _buildShadeItem(Color color, int index, String productName) {
   final isSelected = selectedShades[productName] == color;
@@ -1001,10 +1007,15 @@ Widget _buildShadeItem(Color color, int index, String productName) {
             }
           });
           
-          // Only apply makeup when a small shade is selected (not primary)
-          // and only if the selection actually changed
-          if (!isPrimary && selectedShades[productName] != previousSelection) {
-            await _applyVirtualMakeup();
+          // Apply or remove makeup based on selection changes
+          if (previousSelection != selectedShades[productName]) {
+            if (selectedShades[productName] != null) {
+              // A shade was selected - apply makeup
+              await _applyVirtualMakeup();
+            } else {
+              // A shade was deselected - check if we should remove makeup
+              await _handleShadeDeselection(productName);
+            }
           }
         },
         child: Column(
@@ -1044,10 +1055,234 @@ Widget _buildShadeItem(Color color, int index, String productName) {
   );
 }
 
+Future<void> _handleShadeDeselection(String productName) async {
+  // Check if any makeup products are still selected
+  final hasSelectedMakeup = selectedShades.values.any((color) => color != null);
+  
+  if (hasSelectedMakeup) {
+    // If other makeup products are still selected, re-apply makeup
+    await _applyVirtualMakeup();
+  } else {
+    // If no makeup products are selected, reset to original image
+    resetVirtualMakeup();
+  }
+}
+
+// Modify the reset function to clear properly
+void resetVirtualMakeup() {
+  setState(() {
+    _processedImage = null;
+    _currentMakeupImage = null;
+  });
+}
+
   Color getContrastColor(Color color) {
     double luminance = (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) / 255;
     return luminance > 0.5 ? Colors.black : Colors.white;
   }
+
+Future<void> showCustomizationDialog() async {
+  if (_hasShownCustomizationDialog) return;
+  
+  _hasShownCustomizationDialog = true;
+  
+  await showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 30,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return RadialGradient(
+                center: Alignment.center,
+                radius: 0.8,
+                colors: [
+                  Colors.pink.shade200.withOpacity(0.9),
+                  Colors.purple.shade200.withOpacity(0.8),
+                  Colors.pink.shade400.withOpacity(0.7),
+                ],
+                stops: const [0.1, 0.5, 0.9],
+                tileMode: TileMode.mirror,
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.srcOver,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                color: Colors.white.withOpacity(0.95),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header with gradient text
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return RadialGradient(
+                        center: Alignment.center,
+                        radius: 1.0,
+                        colors: [
+                          Colors.pink.shade400,
+                          Colors.purple.shade400,
+                          Colors.pink.shade600,
+                        ],
+                        stops: const [0.2, 0.5, 0.8],
+                      ).createShader(bounds);
+                    },
+                    child: const Text(
+                      'Customize Your Look',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Content with elegant styling
+                  const Text(
+                    'Would you like to customize your makeup shades further?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Buttons with modern styling
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      // No button
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _showSatisfiedToast();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.9),
+                          foregroundColor: Colors.pink.shade600,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(color: Colors.pink.shade300, width: 2),
+                          ),
+                          elevation: 4,
+                          shadowColor: Colors.pink.withOpacity(0.3),
+                        ),
+                        child: const Text(
+                          'No',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      
+                      // Yes button
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            showShades = true;
+                            _processedImage = null;
+                            _currentMakeupImage = null;
+                          });
+                          // Show toastification for customization
+                          _showCustomizationToast();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pink.shade400,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 6,
+                          shadowColor: Colors.pink.withOpacity(0.5),
+                        ),
+                        child: const Text(
+                          'Yes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+// Add this new method to show customization toast
+void _showCustomizationToast() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.info,
+      style: ToastificationStyle.flatColored,
+      title: const Text('Customization Mode'),
+      description: const Text('You can now customize your makeup look!'),
+      alignment: Alignment.topCenter,
+      autoCloseDuration: const Duration(seconds: 4),
+      borderRadius: BorderRadius.circular(12),
+      showProgressBar: true,
+      icon: const Icon(Icons.face, color: Colors.white),
+      primaryColor: Colors.pink.shade200,
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+    );
+  });
+}
+
+// Add this new method to show toastification with check icon
+void _showSatisfiedToast() {
+  // Use a post-frame callback to ensure the context is available
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      style: ToastificationStyle.flatColored,
+      title: const Text('Perfect!'),
+      description: const Text('You can now save your look'),
+      alignment: Alignment.topCenter,
+      autoCloseDuration: const Duration(seconds: 4),
+      borderRadius: BorderRadius.circular(12),
+      showProgressBar: true,
+      icon: const Icon(Icons.check_circle, color: Colors.green,),
+      primaryColor: Colors.green,
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+    );
+  });
+}
 
   @override
 Widget build(BuildContext context) {
@@ -1122,98 +1357,105 @@ Positioned(
 ),
 
 if (showMakeupProducts)
-            Positioned(
-              left: 0,
-              top: MediaQuery.of(context).padding.top + 100,
-              bottom: 0,
-              child: Container(
-                width: 80,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 10.0),
-                      child: Text(
-                        'Products',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: orderedProductNames.where((product) => makeupShades.containsKey(product)).map((product) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedProduct = product;
-                                    showShades = true;
-                                  });
-                                },
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Container(
-                                      width: 60,
-                                      height: 60,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: LinearGradient(
-                                          colors: [Colors.pink.shade100, Colors.pink.shade300],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        border: Border.all(
-                                          color: selectedProduct == product 
-                                            ? Colors.red 
-                                            : Colors.transparent, // REMOVED: green border for selected shades
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: _buildProductIcon(product),
-                                      ),
-                                    ),
-                                    // Show check indicator only if a shade is selected for this product
-                                    if (selectedShades[product] != null)
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.green,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.check,
-                                            color: Colors.white,
-                                            size: 12,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
+    Positioned(
+      left: 0,
+      top: MediaQuery.of(context).padding.top + 100,
+      bottom: 0,
+      child: Container(
+        width: 80,
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 10.0),
+              child: Text(
+                'Products',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: orderedProductNames.where((product) => makeupShades.containsKey(product)).map((product) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: GestureDetector(
+                        onTap: () async {
+                          setState(() {
+                            selectedProduct = product;
+                            showShades = true;
+                          });
+                          
+                          // Show customization dialog when product is first selected
+                          if (_isFirstTimeSelection && !_hasShownProductDialog[product]!) {
+                            _hasShownProductDialog[product] = true;
+                            _isFirstTimeSelection = false;
+                            await showCustomizationDialog();
+                          }
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [Colors.pink.shade100, Colors.pink.shade300],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                border: Border.all(
+                                  color: selectedProduct == product 
+                                    ? Colors.red 
+                                    : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: _buildProductIcon(product),
+                              ),
+                            ),
+                            if (selectedShades[product] != null)
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+
 
           if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
             Positioned(
@@ -1461,6 +1703,7 @@ if (showMakeupProducts)
     );
   }
 }
+
 
 class FeedbackDialog extends StatefulWidget {
   final String recommendationId;

@@ -25,7 +25,20 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
     "Heavy": "assets/heavy_type.jpg",
   };
 
-  int _currentComboPage = 0; // Track current page for shade combinations
+  /// Map of makeup product icons
+  final List<Map<String, dynamic>> makeupProducts = [
+    {'name': 'All', 'icon': Icons.all_inclusive, 'key': 'all'},
+    {'name': 'Foundation', 'iconPath': 'assets/foundation.png', 'key': 'foundation'},
+    {'name': 'Concealer', 'iconPath': 'assets/concealer.png', 'key': 'concealer'},
+    {'name': 'Contour', 'iconPath': 'assets/contour.png', 'key': 'contour'},
+    {'name': 'Eyeshadow', 'iconPath': 'assets/eyeshadow.png', 'key': 'eyeshadow'},
+    {'name': 'Blush', 'iconPath': 'assets/blush.png', 'key': 'blush'},
+    {'name': 'Lipstick', 'iconPath': 'assets/lipstick.png', 'key': 'lipstick'},
+    {'name': 'Highlighter', 'iconPath': 'assets/highlighter.png', 'key': 'highlighter'},
+    {'name': 'Eyebrow', 'iconPath': 'assets/eyebrow.png', 'key': 'eyebrow'},
+  ];
+
+  String selectedProduct = 'all'; // Track selected product
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +110,7 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
 
                   // Profile section (static image per type) - MOVED UPWARD
                   Positioned(
-                    top: 90, // Changed from 110 to 90 (moved up by 20 pixels)
+                    top: 90,
                     left: 0,
                     right: 0,
                     child: Column(
@@ -147,7 +160,7 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 15), // Reduced from 18 to 15
+                        const SizedBox(height: 15),
                         Text(
                           '${widget.makeupType} Makeup Type',
                           style: const TextStyle(
@@ -163,18 +176,6 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        if (widget.isDefaultData)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 6.0), // Reduced from 8.0 to 6.0
-                            child: Text(
-                              'Popular Looks for New Users',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -203,59 +204,34 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
                         ? _buildEmptyState()
                         : Column(
                             children: [
-                              // Top Makeup Look Section
+                              // Moved the curated text to the top of recommendations
                               const Padding(
                                 padding: EdgeInsets.only(bottom: 5),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Top Makeup Look',
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2D1B69),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    SizedBox(height: 2),
-                                  ],
+                                child: Text(
+                                  'Currated shade combinations tailored for your features',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Color.fromARGB(179, 4, 4, 4),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 5),
+                                child: Text(
+                                  'Top Recommendations',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2D1B69),
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
                               
-                              // ✅ Show only ONE look card (top look)
-                              _buildMakeupLookCard(topLooks.first),
-                              
-                              const SizedBox(height: 20),
-                              
-                              // Top Shade Combinations Section
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 5),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Top Shade Combinations',
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2D1B69),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      'Curated shade combinations tailored for your features',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFF666666),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
-                              // Shade Combinations Cards
-                              _buildShadeCombinationsSection(topLooks.first, widget.isDefaultData),
+                              // Combined Makeup Look and Shade Combinations Card
+                              _buildCombinedCard(topLooks.first, widget.isDefaultData),
                             ],
                           ),
                   ),
@@ -349,7 +325,27 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
         ),
       );
 
-  Widget _buildMakeupLookCard(Map<String, dynamic> look) {
+  Widget _buildCombinedCard(Map<String, dynamic> look, bool isDefaultData) {
+    final combinations =
+        (look['shade_combinations'] as List).cast<Map<String, dynamic>>().toList();
+    
+    // For default data, just show all combinations
+    // For user data, sort by times_used and take top 3
+    List<Map<String, dynamic>> displayCombinations;
+    
+    if (isDefaultData) {
+      displayCombinations = combinations;
+    } else {
+      combinations.sort((a, b) =>
+          (b['times_used'] ?? 0).compareTo(a['times_used'] ?? 0));
+      displayCombinations = combinations.take(3).toList();
+    }
+
+    // Get the first combination's shades
+    List<dynamic> shades = displayCombinations.isNotEmpty 
+        ? (displayCombinations.first['shades'] as List).where((shade) => shade != null).toList()
+        : [];
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       width: double.infinity,
@@ -380,130 +376,92 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    look['makeup_look_name']?.toString() ?? 'Unnamed Look',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D1B69),
-                    ),
-                  ),
+            // Makeup Look Name
+            Center(
+              child: Text(
+                look['makeup_look_name']?.toString() ?? 'Unnamed Look',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D1B69),
                 ),
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                        colors: [Color(0xFFE91E63), Color(0xFFFFB347)]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Recommended for your features',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+                textAlign: TextAlign.center,
               ),
             ),
+            
+            const SizedBox(height: 20),
+            
+            // Makeup Product Categories - Horizontal Scroll
+            _buildProductCategories(),
+            
+            const SizedBox(height: 20),
+            
+            // Shade chips - arranged in a grid with 3 shades per row
+            _buildShadesGrid(shades),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildShadeCombinationsSection(Map<String, dynamic> look, bool isDefaultData) {
-    final combinations =
-        (look['shade_combinations'] as List).cast<Map<String, dynamic>>().toList();
-    
-    // For default data, just show all combinations
-    // For user data, sort by times_used and take top 3
-    List<Map<String, dynamic>> displayCombinations;
-    
-    if (isDefaultData) {
-      displayCombinations = combinations;
-    } else {
-      combinations.sort((a, b) =>
-          (b['times_used'] ?? 0).compareTo(a['times_used'] ?? 0));
-      displayCombinations = combinations.take(3).toList();
-    }
-
+  Widget _buildProductCategories() {
     return SizedBox(
-      height: 350,
-      child: PageView.builder(
-        itemCount: displayCombinations.length,
-        onPageChanged: (index) {
-          setState(() => _currentComboPage = index);
-        },
+      height: 100, // Fixed height for the horizontal scroll
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: makeupProducts.length,
         itemBuilder: (context, index) {
-          var combo = displayCombinations[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white, Color(0xFFFFF8F5)],
+          final product = makeupProducts[index];
+          final isSelected = selectedProduct == product['key'];
+          
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedProduct = product['key'];
+              });
+            },
+            child: Container(
+              width: 80,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFE91E63).withOpacity(0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFE91E63) : Colors.grey.shade300,
+                  width: isSelected ? 2 : 1,
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFE91E63).withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-              border: Border.all(
-                  color: const Color(0xFFE91E63).withOpacity(0.1), width: 1),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (!isDefaultData)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE91E63).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'Used ${combo['times_used'] ?? 0} times',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE91E63),
-                        ),
-                      ),
+                  // Icon or Image
+                  if (product['key'] == 'all')
+                    Icon(
+                      product['icon'],
+                      size: 32,
+                      color: isSelected ? const Color(0xFFE91E63) : Colors.grey,
+                    )
+                  else
+                    Image.asset(
+                      product['iconPath'],
+                      width: 32,
+                      height: 32,
+                      color: isSelected ? const Color(0xFFE91E63) : Colors.grey,
                     ),
-                  if (!isDefaultData) const SizedBox(height: 12),
-
-                  // Shade chips
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 15,
-                        runSpacing: 12,
-                        children: (combo['shades'] as List)
-                            .where((shade) => shade != null)
-                            .map<Widget>((shade) => _buildEnhancedShadeChip(shade))
-                            .toList(),
-                      ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Product Name
+                  Text(
+                    product['name'],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? const Color(0xFFE91E63) : Colors.grey,
                     ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -514,52 +472,69 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
     );
   }
 
-  Widget _buildEnhancedShadeChip(Map<String, dynamic> shade) {
-    final hexCode = shade['hex_code']?.toString() ?? '#FFFFFF';
-    final shadeName = shade['shade_name']?.toString() ?? hexCode;
-    final color = _parseColor(hexCode);
-    final textColor = _getContrastColor(hexCode);
+  Widget _buildShadesGrid(List<dynamic> shades) {
+    if (shades.isEmpty) {
+      return const Center(
+        child: Text(
+          'No shades available',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
 
-    return Tooltip(
-      message: shadeName,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+    // Filter shades based on selected product
+    List<dynamic> filteredShades = shades;
+    if (selectedProduct != 'all') {
+      filteredShades = shades.where((shade) => 
+          shade['product_type']?.toString().toLowerCase() == selectedProduct).toList();
+    }
+
+    if (filteredShades.isEmpty) {
+      return Center(
+        child: Column(
+          children: [
+            Text(
+              'No $selectedProduct shades available',
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: Colors.white.withOpacity(0.3), width: 1),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                shadeName,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3, // 3 shades per row
+        crossAxisSpacing: 12, // Reduced spacing
+        mainAxisSpacing: 12, // Reduced spacing
+        childAspectRatio: 1.0,
+      ),
+      itemCount: filteredShades.length,
+      itemBuilder: (context, index) {
+        return _buildEnhancedShadeChip(filteredShades[index]);
+      },
+    );
+  }
+
+  Widget _buildEnhancedShadeChip(Map<String, dynamic> shade) {
+    final hexCode = shade['hex_code']?.toString() ?? '#FFFFFF';
+    final color = _parseColor(hexCode);
+
+    return Center(
+      child: Container(
+        width: 50, // Reduced from 60 to 50
+        height: 50, // Reduced from 60 to 50
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.grey.shade300, width: 1.5), // Slightly thinner border
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4, // Reduced blur radius
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -575,7 +550,7 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
     }
   }
 
-  Color _getContrastColor(String hexColor) {
+  Color getContrastColor(String hexColor) {
     try {
       final color = _parseColor(hexColor);
       final brightness = color.computeLuminance();
@@ -592,18 +567,18 @@ class EnhancedUShapeClipper extends CustomClipper<Path> {
     Path path = Path();
 
     // Start from top-left
-    path.lineTo(0, size.height * 0.70); // Adjusted from 0.75 to 0.70
+    path.lineTo(0, size.height * 0.70);
 
     // First curve (left → right, top part of S) - moved upward
     path.quadraticBezierTo(
-      size.width * 0.25, size.height * 0.60, // control point (adjusted from 0.65)
-      size.width * 0.5, size.height * 0.65,  // end point (adjusted from 0.70)
+      size.width * 0.25, size.height * 0.60,
+      size.width * 0.5, size.height * 0.65,
     );
 
     // Second curve (right → left, bottom part of S) - moved upward
     path.quadraticBezierTo(
-      size.width * 0.75, size.height * 0.70, // control point (adjusted from 0.75)
-      size.width, size.height * 0.55,        // end point (adjusted from 0.60)
+      size.width * 0.75, size.height * 0.70,
+      size.width, size.height * 0.55,
     );
 
     // Close shape (right side → bottom → left)
