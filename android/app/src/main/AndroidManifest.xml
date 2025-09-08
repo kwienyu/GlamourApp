@@ -6,7 +6,7 @@
 
     
     <application
-        android:label="glamourapp"
+        android:label="Glamour"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

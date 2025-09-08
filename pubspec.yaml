@@ -1,5 +1,5 @@
-name: glamourapp
-description: "A new Flutter project."
+name: Glamour
+description: "A Glamour app that recommends makeup shade based on the face shape and skin tone."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -76,11 +76,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: "^0.14.4"
+  flutter_lints: ^5.0.0
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/logo.png"
+  image_path: "assets/iconic.png"
 
   flutter_lints: ^5.0.0
 
