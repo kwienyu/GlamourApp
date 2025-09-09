@@ -817,7 +817,7 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
             ),
           
           // Shades arranged horizontally with scrolling
-          Container(
+          SizedBox(
             height: screenWidth * 0.09, // Fixed height for the shade row
             child: ListView(
               scrollDirection: Axis.horizontal,

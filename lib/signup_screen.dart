@@ -65,13 +65,11 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
     );
     if (picked != null) {
       setState(() {
-        // Keep your original display format but store API format separately
         dobController.text = "${picked.day}/${picked.month}/${picked.year}";
       });
     }
   }
 
-  // New method to convert date to API format (YYYY-MM-DD)
   String _getApiDobFormat() {
     if (dobController.text.isEmpty) return '';
     final parts = dobController.text.split('/');
@@ -82,7 +80,6 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
     return '$year-$month-$day';
   }
 
-  // New method to convert gender to API format
   String? _getApiGenderValue() {
     if (gender == null) return null;
     if (gender == 'Male') return 'male';
@@ -112,8 +109,8 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
           firstName: firstNameController.text,
           lastName: lastNameController.text,
           suffix: suffix,
-          dob: _getApiDobFormat(), // Pass the API-formatted date
-          gender: _getApiGenderValue(), // Pass the API-formatted gender
+          dob: _getApiDobFormat(),
+          gender: _getApiGenderValue(),
         ),
       ),
     );
@@ -178,6 +175,10 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 600;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -194,19 +195,23 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
           ),
           SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 20.0 : screenWidth * 0.1,
+                vertical: isSmallScreen ? 20.0 : screenHeight * 0.05,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 80),
+                  SizedBox(height: isSmallScreen ? 40.0 : screenHeight * 0.05),
                   Image.asset(
                     'assets/glam_logo.png',
-                    height: 100,
+                    height: isSmallScreen ? 80.0 : screenHeight * 0.15,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: EdgeInsets.all(isSmallScreen ? 20.0 : 30.0),
                     margin: const EdgeInsets.only(top: 1),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.7),
@@ -224,12 +229,12 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                         Text(
                           'Please fill to register',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: isSmallScreen ? 20.0 : 24.0,
                             fontWeight: FontWeight.bold,
-                            color: Color.fromARGB(255, 7, 7, 7),
+                            color: const Color.fromARGB(255, 7, 7, 7),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        SizedBox(height: isSmallScreen ? 20.0 : 30.0),
                         TextField(
                           controller: firstNameController,
                           decoration: InputDecoration(
@@ -243,7 +248,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: isSmallScreen ? 16.0 : 20.0),
                         TextField(
                           controller: lastNameController,
                           decoration: InputDecoration(
@@ -257,7 +262,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: isSmallScreen ? 16.0 : 20.0),
                         DropdownButtonFormField<String>(
                           value: suffix,
                           decoration: InputDecoration(
@@ -281,7 +286,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: isSmallScreen ? 16.0 : 20.0),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -295,18 +300,19 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                                 ),
                               ),
                             ),
-                            Row(
+                            Wrap(
+                              spacing: isSmallScreen ? 20.0 : 30.0,
+                              runSpacing: 10.0,
                               children: [
                                 _buildGenderCheckbox('Male'),
-                                const SizedBox(width: 20),
                                 _buildGenderCheckbox('Female'),
-                                const SizedBox(width: 20),
                                 _buildGenderCheckbox('Other'),
+                                _buildGenderCheckbox('Prefer not to say'),
                               ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: isSmallScreen ? 16.0 : 20.0),
                         TextField(
                           controller: dobController,
                           readOnly: true,
@@ -325,11 +331,13 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                           ),
                           onTap: () => _selectDate(context),
                         ),
-                        const SizedBox(height: 32),
+                        SizedBox(height: isSmallScreen ? 32.0 : 40.0),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color.fromARGB(255, 246, 67, 126),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(
+                              vertical: isSmallScreen ? 16.0 : 20.0,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -337,11 +345,11 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                             minimumSize: const Size(double.infinity, 30),
                           ),
                           onPressed: _navigateToNextPage,
-                          child: const Text(
+                          child: Text(
                             'Click to create your account',
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: 16,
+                              fontSize: isSmallScreen ? 16.0 : 18.0,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

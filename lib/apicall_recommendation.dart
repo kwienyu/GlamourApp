@@ -16,11 +16,13 @@ class ApiCallRecommendation {
   /// - skinToneId: Optional filter for skin tone
   /// - faceShapeId: Optional filter for face shape
   /// - undertoneId: Optional filter for undertone
+  /// - timeFilter: Time period filter ('weekly', 'monthly', 'all') - defaults to 'all'
   Future<Map<String, dynamic>> getFullRecommendation(
     int userId, {
     int? skinToneId,
     int? faceShapeId,
     int? undertoneId,
+    String timeFilter = 'all', // Added time filter parameter
   }) async {
     final uri = Uri.parse('$_baseUrl/$userId/full_recommendation');
     
@@ -29,6 +31,7 @@ class ApiCallRecommendation {
     if (skinToneId != null) params['skin_tone_id'] = skinToneId.toString();
     if (faceShapeId != null) params['face_shape_id'] = faceShapeId.toString();
     if (undertoneId != null) params['undertone_id'] = undertoneId.toString();
+    params['time_filter'] = timeFilter; // Add time filter parameter
     
     final response = await http.get(uri.replace(queryParameters: params));
     
@@ -115,3 +118,201 @@ class ApiCallRecommendation {
   }
 }
 
+// Data models for the recommendation response
+class RecommendationResponse {
+  final int userId;
+  final String userFaceShape;
+  final String userSkinTone;
+  final String userUndertone;
+  final FiltersUsed filtersUsed;
+  final List<MakeupLookByType> topMakeupLooksByType;
+  final List<SavedLook> mostUsedSavedLooks;
+  final OverallLook? overallMostPopularLook;
+
+  RecommendationResponse({
+    required this.userId,
+    required this.userFaceShape,
+    required this.userSkinTone,
+    required this.userUndertone,
+    required this.filtersUsed,
+    required this.topMakeupLooksByType,
+    required this.mostUsedSavedLooks,
+    this.overallMostPopularLook,
+  });
+
+  factory RecommendationResponse.fromJson(Map<String, dynamic> json) {
+    return RecommendationResponse(
+      userId: json['user_id'],
+      userFaceShape: json['user_face_shape'],
+      userSkinTone: json['user_skin_tone'],
+      userUndertone: json['user_undertone'],
+      filtersUsed: FiltersUsed.fromJson(json['filters_used']),
+      topMakeupLooksByType: List<MakeupLookByType>.from(
+          json['top_makeup_looks_by_type'].map((x) => MakeupLookByType.fromJson(x))),
+      mostUsedSavedLooks: List<SavedLook>.from(
+          json['most_used_saved_looks'].map((x) => SavedLook.fromJson(x))),
+      overallMostPopularLook: json['overall_most_popular_look'] != null 
+          ? OverallLook.fromJson(json['overall_most_popular_look']) 
+          : null,
+    );
+  }
+}
+
+class FiltersUsed {
+  final int skinToneId;
+  final int faceShapeId;
+  final int undertoneId;
+  final String timePeriod;
+
+  FiltersUsed({
+    required this.skinToneId,
+    required this.faceShapeId,
+    required this.undertoneId,
+    required this.timePeriod,
+  });
+
+  factory FiltersUsed.fromJson(Map<String, dynamic> json) {
+    return FiltersUsed(
+      skinToneId: json['skin_tone_id'],
+      faceShapeId: json['face_shape_id'],
+      undertoneId: json['undertone_id'],
+      timePeriod: json['time_period'],
+    );
+  }
+}
+
+class MakeupLookByType {
+  final int makeupTypeId;
+  final String makeupTypeName;
+  final int makeupLookId;
+  final String makeupLookName;
+  final int usageCount;
+  final Map<String, List<Shade>> shadesByType;
+  final String source;
+  final String timePeriod;
+
+  MakeupLookByType({
+    required this.makeupTypeId,
+    required this.makeupTypeName,
+    required this.makeupLookId,
+    required this.makeupLookName,
+    required this.usageCount,
+    required this.shadesByType,
+    required this.source,
+    required this.timePeriod,
+  });
+
+  factory MakeupLookByType.fromJson(Map<String, dynamic> json) {
+    Map<String, List<Shade>> shadesMap = {};
+    if (json['shades_by_type'] != null) {
+      json['shades_by_type'].forEach((key, value) {
+        shadesMap[key] = List<Shade>.from(value.map((x) => Shade.fromJson(x)));
+      });
+    }
+
+    return MakeupLookByType(
+      makeupTypeId: json['makeup_type_id'],
+      makeupTypeName: json['makeup_type_name'],
+      makeupLookId: json['makeup_look_id'],
+      makeupLookName: json['makeup_look_name'],
+      usageCount: json['usage_count'],
+      shadesByType: shadesMap,
+      source: json['source'],
+      timePeriod: json['time_period'],
+    );
+  }
+}
+
+class SavedLook {
+  final int makeupTypeId;
+  final String makeupTypeName;
+  final int makeupLookId;
+  final String makeupLookName;
+  final int saveCount;
+  final Shade? shade;
+  final String source;
+  final String timePeriod;
+
+  SavedLook({
+    required this.makeupTypeId,
+    required this.makeupTypeName,
+    required this.makeupLookId,
+    required this.makeupLookName,
+    required this.saveCount,
+    this.shade,
+    required this.source,
+    required this.timePeriod,
+  });
+
+  factory SavedLook.fromJson(Map<String, dynamic> json) {
+    return SavedLook(
+      makeupTypeId: json['makeup_type_id'],
+      makeupTypeName: json['makeup_type_name'],
+      makeupLookId: json['makeup_look_id'],
+      makeupLookName: json['makeup_look_name'],
+      saveCount: json['save_count'],
+      shade: json['shade'] != null ? Shade.fromJson(json['shade']) : null,
+      source: json['source'],
+      timePeriod: json['time_period'],
+    );
+  }
+}
+
+class OverallLook {
+  final int makeupLookId;
+  final String makeupLookName;
+  final String makeupTypeName;
+  final int usageCount;
+  final Map<String, List<Shade>> shadesByType;
+  final String timePeriod;
+
+  OverallLook({
+    required this.makeupLookId,
+    required this.makeupLookName,
+    required this.makeupTypeName,
+    required this.usageCount,
+    required this.shadesByType,
+    required this.timePeriod,
+  });
+
+  factory OverallLook.fromJson(Map<String, dynamic> json) {
+    Map<String, List<Shade>> shadesMap = {};
+    if (json['shades_by_type'] != null) {
+      json['shades_by_type'].forEach((key, value) {
+        shadesMap[key] = List<Shade>.from(value.map((x) => Shade.fromJson(x)));
+      });
+    }
+
+    return OverallLook(
+      makeupLookId: json['makeup_look_id'],
+      makeupLookName: json['makeup_look_name'],
+      makeupTypeName: json['makeup_type_name'],
+      usageCount: json['usage_count'],
+      shadesByType: shadesMap,
+      timePeriod: json['time_period'],
+    );
+  }
+}
+
+class Shade {
+  final int shadeId;
+  final String hexCode;
+  final String shadeName;
+  final String? shadeType; // Only present in SavedLook shades
+
+  Shade({
+    required this.shadeId,
+    required this.hexCode,
+    required this.shadeName,
+    this.shadeType,
+  });
+
+  factory Shade.fromJson(Map<String, dynamic> json) {
+    return Shade(
+      shadeId: json['shade_id'],
+      hexCode: json['hex_code'],
+      shadeName: json['shade_name'],
+      shadeType: json['shade_type'],
+    );
+  }
+}

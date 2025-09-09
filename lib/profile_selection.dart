@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'selection_page.dart';
 import 'camera2.dart';
 import 'glamvault.dart';
-import 'makeup_artistform.dart';
 import 'faceshapes.dart';
 import 'skintone.dart';
 import 'package:http/http.dart' as http;
@@ -17,7 +16,8 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'apicall_recommendation.dart';
 import 'looks_shadecombination.dart';
 import 'package:animations/animations.dart';
-
+import 'help_desk.dart';
+import 'terms&conditions.dart'; 
 
 class ProfileSelection extends StatefulWidget {
   final String userId;
@@ -27,21 +27,26 @@ class ProfileSelection extends StatefulWidget {
   _ProfileSelectionState createState() => _ProfileSelectionState();
 }
 
+// Updated MakeupRecommendation class to match API response
 class MakeupRecommendation {
   final int userId;
   final String? faceShape;
   final String? skinTone;
   final String? undertone;
-  final List<dynamic> recommendedTypes;
-  final List<dynamic> makeupLooks;
+  final List<MakeupLookByType> topMakeupLooksByType;
+  final List<SavedLook> mostUsedSavedLooks;
+  final OverallLook? overallMostPopularLook;
+  final FiltersUsed filtersUsed;
 
   MakeupRecommendation({
     required this.userId,
     this.faceShape,
     this.skinTone,
     this.undertone,
-    required this.recommendedTypes,
-    required this.makeupLooks,
+    required this.topMakeupLooksByType,
+    required this.mostUsedSavedLooks,
+    this.overallMostPopularLook,
+    required this.filtersUsed,
   });
 
   factory MakeupRecommendation.fromJson(Map<String, dynamic> json) {
@@ -50,8 +55,178 @@ class MakeupRecommendation {
       faceShape: json['user_face_shape']?.toString(),
       skinTone: json['user_skin_tone']?.toString(),
       undertone: json['user_undertone']?.toString(),
-      recommendedTypes: json['recommended_makeup_types'] ?? [],
-      makeupLooks: json['makeup_looks_with_shade_combinations'] ?? [],
+      topMakeupLooksByType: List<MakeupLookByType>.from(
+          json['top_makeup_looks_by_type'].map((x) => MakeupLookByType.fromJson(x))),
+      mostUsedSavedLooks: List<SavedLook>.from(
+          json['most_used_saved_looks'].map((x) => SavedLook.fromJson(x))),
+      overallMostPopularLook: json['overall_most_popular_look'] != null 
+          ? OverallLook.fromJson(json['overall_most_popular_look']) 
+          : null,
+      filtersUsed: FiltersUsed.fromJson(json['filters_used']),
+    );
+  }
+}
+
+// Data models for the API response
+class FiltersUsed {
+  final int skinToneId;
+  final int faceShapeId;
+  final int undertoneId;
+  final String timePeriod;
+
+  FiltersUsed({
+    required this.skinToneId,
+    required this.faceShapeId,
+    required this.undertoneId,
+    required this.timePeriod,
+  });
+
+  factory FiltersUsed.fromJson(Map<String, dynamic> json) {
+    return FiltersUsed(
+      skinToneId: json['skin_tone_id'],
+      faceShapeId: json['face_shape_id'],
+      undertoneId: json['undertone_id'],
+      timePeriod: json['time_period'],
+    );
+  }
+}
+
+// Update your MakeupLookByType class to handle null values
+class MakeupLookByType {
+  final int makeupTypeId;
+  final String? makeupTypeName; // Changed to nullable
+  final int makeupLookId;
+  final String? makeupLookName; // Changed to nullable
+  final int usageCount;
+  final Map<String, List<Shade>> shadesByType;
+  final String? source; // Changed to nullable
+  final String? timePeriod; // Changed to nullable
+
+  MakeupLookByType({
+    required this.makeupTypeId,
+    this.makeupTypeName,
+    required this.makeupLookId,
+    this.makeupLookName,
+    required this.usageCount,
+    required this.shadesByType,
+    this.source,
+    this.timePeriod,
+  });
+
+  factory MakeupLookByType.fromJson(Map<String, dynamic> json) {
+    Map<String, List<Shade>> shadesMap = {};
+    if (json['shades_by_type'] != null) {
+      json['shades_by_type'].forEach((key, value) {
+        shadesMap[key] = List<Shade>.from(value.map((x) => Shade.fromJson(x)));
+      });
+    }
+
+    return MakeupLookByType(
+      makeupTypeId: json['makeup_type_id'] ?? 0,
+      makeupTypeName: json['makeup_type_name']?.toString(),
+      makeupLookId: json['makeup_look_id'] ?? 0,
+      makeupLookName: json['makeup_look_name']?.toString(),
+      usageCount: json['usage_count'] ?? 0,
+      shadesByType: shadesMap,
+      source: json['source']?.toString(),
+      timePeriod: json['time_period']?.toString(),
+    );
+  }
+}
+
+// Also update your SavedLook class
+class SavedLook {
+  final int makeupTypeId;
+  final String? makeupTypeName; // Changed to nullable
+  final int makeupLookId;
+  final String? makeupLookName; // Changed to nullable
+  final int saveCount;
+  final Shade? shade;
+  final String? source; // Changed to nullable
+  final String? timePeriod; // Changed to nullable
+
+  SavedLook({
+    required this.makeupTypeId,
+    this.makeupTypeName,
+    required this.makeupLookId,
+    this.makeupLookName,
+    required this.saveCount,
+    this.shade,
+    this.source,
+    this.timePeriod,
+  });
+
+  factory SavedLook.fromJson(Map<String, dynamic> json) {
+    return SavedLook(
+      makeupTypeId: json['makeup_type_id'] ?? 0,
+      makeupTypeName: json['makeup_type_name']?.toString(),
+      makeupLookId: json['makeup_look_id'] ?? 0,
+      makeupLookName: json['makeup_look_name']?.toString(),
+      saveCount: json['save_count'] ?? 0,
+      shade: json['shade'] != null ? Shade.fromJson(json['shade']) : null,
+      source: json['source']?.toString(),
+      timePeriod: json['time_period']?.toString(),
+    );
+  }
+}
+
+// Update OverallLook class
+class OverallLook {
+  final int makeupLookId;
+  final String? makeupLookName; // Changed to nullable
+  final String? makeupTypeName; // Changed to nullable
+  final int usageCount;
+  final Map<String, List<Shade>> shadesByType;
+  final String? timePeriod; // Changed to nullable
+
+  OverallLook({
+    required this.makeupLookId,
+    this.makeupLookName,
+    this.makeupTypeName,
+    required this.usageCount,
+    required this.shadesByType,
+    this.timePeriod,
+  });
+
+  factory OverallLook.fromJson(Map<String, dynamic> json) {
+    Map<String, List<Shade>> shadesMap = {};
+    if (json['shades_by_type'] != null) {
+      json['shades_by_type'].forEach((key, value) {
+        shadesMap[key] = List<Shade>.from(value.map((x) => Shade.fromJson(x)));
+      });
+    }
+
+    return OverallLook(
+      makeupLookId: json['makeup_look_id'] ?? 0,
+      makeupLookName: json['makeup_look_name']?.toString(),
+      makeupTypeName: json['makeup_type_name']?.toString(),
+      usageCount: json['usage_count'] ?? 0,
+      shadesByType: shadesMap,
+      timePeriod: json['time_period']?.toString(),
+    );
+  }
+}
+
+// Update Shade class
+class Shade {
+  final int shadeId;
+  final String? hexCode; // Changed to nullable
+  final String? shadeName; // Changed to nullable
+  final String? shadeType;
+
+  Shade({
+    required this.shadeId,
+    this.hexCode,
+    this.shadeName,
+    this.shadeType,
+  });
+
+  factory Shade.fromJson(Map<String, dynamic> json) {
+    return Shade(
+      shadeId: json['shade_id'] ?? 0,
+      hexCode: json['hex_code']?.toString(),
+      shadeName: json['shade_name']?.toString(),
+      shadeType: json['shade_type']?.toString(),
     );
   }
 }
@@ -118,30 +293,34 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     super.dispose();
   }
 
-Future<void> _fetchMakeupRecommendations() async {
-  setState(() => _isLoadingRecommendations = true);
-  
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = int.parse(prefs.getString('user_id') ?? widget.userId);
+  Future<void> _fetchMakeupRecommendations() async {
+    setState(() => _isLoadingRecommendations = true);
     
-    final response = await _recommendationService.getFullRecommendation(userId);
-    
-    setState(() {
-      _makeupRecommendations = response;
-    });
-  } on Exception catch (e) {
-    debugPrint('Error fetching recommendations: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to load recommendations: $e')),
-    );
-    setState(() {
-      _makeupRecommendations = null;
-    });
-  } finally {
-    setState(() => _isLoadingRecommendations = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = int.parse(prefs.getString('user_id') ?? widget.userId);
+      
+      // Updated API call with time filter parameter
+      final response = await _recommendationService.getFullRecommendation(
+        userId,
+        timeFilter: 'all', // You can make this configurable
+      );
+      
+      setState(() {
+        _makeupRecommendations = response;
+      });
+    } on Exception catch (e) {
+      debugPrint('Error fetching recommendations: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load recommendations: $e')),
+      );
+      setState(() {
+        _makeupRecommendations = null;
+      });
+    } finally {
+      setState(() => _isLoadingRecommendations = false);
+    }
   }
-}
 
   Future<void> _fetchTopShades() async {
     if (_userSkinTone == null) return;
@@ -246,7 +425,7 @@ Future<void> _fetchMakeupRecommendations() async {
                               '@$username',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                              fontSize: 12,
                               ),
                             ),
                           if (gender != null || age != null)
@@ -284,16 +463,38 @@ Future<void> _fetchMakeupRecommendations() async {
             subtitle: Text(skinTone ?? 'Not analyzed yet'),
           ),
           const Divider(),
+          
           ListTile(
-            title: const Text('Settings')
-                .animate()
-                .fadeIn(delay: 300.ms)
-                .slideX(begin: -0.2, end: 0),
-            onTap: () => Navigator.pop(context),
+            title: const Text('Settings'),
+            onTap: () {},
           ),
-        ],
+          
+          ListTile(
+            title: const Text('Help Desk & Support'),
+            leading: const Icon(Icons.help_outline),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HelpDeskScreen()),
+              );
+            },
+          ),
+          ListTile(
+  leading: const Icon(Icons.description),
+  title: const Text('Terms and Conditions'),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TermsAndConditionsPage(),
       ),
     );
+  },
+),
+        ], 
+      ), 
+    ); 
   }
 
   String _getFullName() {
@@ -348,66 +549,63 @@ Future<void> _fetchMakeupRecommendations() async {
   }
 
   Future<void> _fetchProfileData() async {
-  final prefs = await SharedPreferences.getInstance();
-  final userid = prefs.getString('user_id');
+    final prefs = await SharedPreferences.getInstance();
+    final userid = prefs.getString('user_id');
 
-  if (userid == null || userid.isEmpty) {
-    _setErrorState();
-    return;
-  }
+    if (userid == null || userid.isEmpty) {
+      _setErrorState();
+      return;
+    }
 
-  final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
+    final uri = Uri.parse('https://glamouraika.com/api/user-profile?user_id=$userid');
 
-  try {
-    final response = await http.get(uri);
+    try {
+      final response = await http.get(uri);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-      String? base64Image = data['profile_pic'];
-      Uint8List? imageBytes;
+        String? base64Image = data['profile_pic'];
+        Uint8List? imageBytes;
 
-      if (base64Image != null && base64Image.isNotEmpty) {
-        try {
-          if (base64Image.startsWith('data:image')) {
-            base64Image = base64Image.split(',').last;
+        if (base64Image != null && base64Image.isNotEmpty) {
+          try {
+            if (base64Image.startsWith('data:image')) {
+              base64Image = base64Image.split(',').last;
+            }
+            imageBytes = base64Decode(base64Image);
+            await prefs.setString('user_profile_base64', base64Image);
+          } catch (e) {
+            debugPrint("Image decoding error: $e");
           }
-          imageBytes = base64Decode(base64Image);
-          await prefs.setString('user_profile_base64', base64Image);
-        } catch (e) {
-          debugPrint("Image decoding error: $e");
         }
-      }
 
-      setState(() {
-        name = data['name'] ?? "";
-        lastName = data['last_name'] ?? "";
-        suffix = data['suffix'] ?? "";
-        faceShape = data['face_shape'] ?? "Not Available";
-        skinTone = data['skin_tone'] ?? "Not Available";
-        _userSkinTone = data['skin_tone'];
-        profilePic = imageBytes;
-        email = data['email'] ?? "Not available";
-        username = data['username'];
-        gender = data['gender'] ?? "Not specified";
-        dob = data['dob'] ?? "Not specified";
-        age = data['age'] ?? calculateAge(data['dob']);
-        
-        // Try to get undertone from profile data if available
-        // If not, we'll get it from the recommendations API later
-        if (data['undertone'] != null) {
-          // Store undertone in shared preferences for later use
-          prefs.setString('user_undertone', data['undertone']);
-        }
-      });
-    } else {
+        setState(() {
+          name = data['name'] ?? "";
+          lastName = data['last_name'] ?? "";
+          suffix = data['suffix'] ?? "";
+          faceShape = data['face_shape'] ?? "Not Available";
+          skinTone = data['skin_tone'] ?? "Not Available";
+          _userSkinTone = data['skin_tone'];
+          profilePic = imageBytes;
+          email = data['email'] ?? "Not available";
+          username = data['username'];
+          gender = data['gender'] ?? "Not specified";
+          dob = data['dob'] ?? "Not specified";
+          age = data['age'] ?? calculateAge(data['dob']);
+          
+          if (data['undertone'] != null) {
+            prefs.setString('user_undertone', data['undertone']);
+          }
+        });
+      } else {
+        _setErrorState();
+      }
+    } catch (e) {
+      debugPrint('HTTP error: $e');
       _setErrorState();
     }
-  } catch (e) {
-    debugPrint('HTTP error: $e');
-    _setErrorState();
   }
-}
 
   Future<void> _pickProfileImage() async {
     final picker = ImagePicker();
@@ -486,68 +684,62 @@ Future<void> _fetchMakeupRecommendations() async {
     }
   }
 
-  AppBar _buildAppBar(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return AppBar(
-      backgroundColor: Colors.pinkAccent,
-      elevation: 0,
-      title: Image.asset(
-        'assets/glam_logo.png',
-        height: screenHeight * 0.10,
-        fit: BoxFit.contain,
-      )
-          .animate()
-          .fadeIn(duration: 500.ms)
-          .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: Image.asset(
-            'assets/facscan_icon.gif',
-            height: screenHeight * 0.05,
-          )
-              .animate()
-              .fadeIn(delay: 300.ms)
-              .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MakeupArtistForm(userId: int.parse(widget.userId)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-Widget _buildBody(BuildContext context) {
+ AppBar _buildAppBar(BuildContext context) {
   final screenHeight = MediaQuery.of(context).size.height;
 
-  return SingleChildScrollView(
-    child: ConstrainedBox(
-      constraints: BoxConstraints(
-        minHeight: screenHeight,
+  return AppBar(
+    backgroundColor: Colors.pinkAccent,
+    elevation: 0,
+    title: Image.asset(
+      'assets/glam_logo.png',
+      height: screenHeight * 0.10,
+      fit: BoxFit.contain,
+    )
+        .animate()
+        .fadeIn(duration: 500.ms)
+        .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
+    centerTitle: true,
+    actions: [
+      IconButton(
+        icon: Image.asset(
+          'assets/facscan_icon.gif',
+          height: screenHeight * 0.05,
+        )
+            .animate()
+            .fadeIn(delay: 300.ms)
+            .slide(begin: Offset(-0.5, 0), end: Offset.zero),
+         onPressed: null,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              _buildCurvedBackground(screenHeight),
-              _buildMainContent(context),
-            ],
-          ),
-          _buildCategoriesSection(context),
-          _buildPersonalizedAnalysisSection(),
-          _buildRecommendedMakeupTypesSection(),
-          _buildWeeklyTopShadesSection(),
-          _buildMonthlyTopShadesSection(),
-        ],
-      ),
-    ),
+    ],
   );
 }
+  Widget _buildBody(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: screenHeight,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                _buildCurvedBackground(screenHeight),
+                _buildMainContent(context),
+              ],
+            ),
+            _buildCategoriesSection(context),
+            _buildPersonalizedAnalysisSection(),
+            _buildRecommendedMakeupTypesSection(),
+            _buildWeeklyTopShadesSection(),
+            _buildMonthlyTopShadesSection(),
+          ],
+        ),
+      ),
+    );
+  }
   
   Widget _buildCurvedBackground(double screenHeight) {
     return Stack(
@@ -679,11 +871,11 @@ Widget _buildBody(BuildContext context) {
               .animate()
               .fadeIn(delay: 300.ms)
               .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard(context, Icons.star, "Glam Vault", GlamVaultScreen(userId: parsedUserId))
+          _buildProfileCard(context, Icons.star, "Glamerry", GlamVaultScreen(userId: parsedUserId))
               .animate()
               .fadeIn(delay: 400.ms)
               .scaleXY(begin: 0.8, end: 1),
-              _buildProfileCard(context, 'assets/top_report.png', "Top Recommended Shades", SelectionPage(userId: widget.userId))
+          _buildProfileCard(context, 'assets/top_report.png', "Top Recommended Shades", SelectionPage(userId: widget.userId))
               .animate()
               .fadeIn(delay: 200.ms)
               .scaleXY(begin: 0.8, end: 1),
@@ -759,173 +951,165 @@ Widget _buildBody(BuildContext context) {
   }
 
   Widget _buildCategoriesSection(BuildContext context) {
-  final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.of(context).size.width;
 
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(left: screenWidth * 0.05),
-          child: const Text(
-            'Categories',
-            style: TextStyle(
-              fontSize: 24,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold,
-              color: Color.fromARGB(255, 10, 10, 10),
-            ),
-          )
-              .animate()
-              .fadeIn(delay: 200.ms)
-              .scaleXY(begin: 0.8, end: 1),
-        ),
-        SizedBox(height: screenWidth * 0.05),
-        // Changed from Center to Align with left alignment
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Wrap(
-            alignment: WrapAlignment.start, // Changed from center to start
-            spacing: screenWidth * 0.08,
-            runSpacing: screenWidth * 0.05,
-            children: [
-              // Added left padding to move the items to the left
-              Padding(
-                padding: EdgeInsets.only(left: screenWidth * 0.05),
-                child: _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: screenWidth * 0.05),
+            child: const Text(
+              'Categories',
+              style: TextStyle(
+                fontSize: 24,
+                fontFamily: 'Serif',
+                fontWeight: FontWeight.bold,
+                color: Color.fromARGB(255, 10, 10, 10),
               ),
-              _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
-            ],
+            )
+                .animate()
+                .fadeIn(delay: 200.ms)
+                .scaleXY(begin: 0.8, end: 1),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildPersonalizedAnalysisSection() {
-  if (_isLoadingRecommendations) {
-    return Center(
-      child: LoadingAnimationWidget.staggeredDotsWave(
-        color: Colors.pinkAccent,
-        size: 50,
+          SizedBox(height: screenWidth * 0.05),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              alignment: WrapAlignment.start,
+              spacing: screenWidth * 0.08,
+              runSpacing: screenWidth * 0.05,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(left: screenWidth * 0.05),
+                  child: _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
+                ),
+                _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  String? displayedUndertone;
+  Widget _buildPersonalizedAnalysisSection() {
+    if (_isLoadingRecommendations) {
+      return Center(
+        child: LoadingAnimationWidget.staggeredDotsWave(
+          color: Colors.pinkAccent,
+          size: 50,
+        ),
+      );
+    }
 
-  // First try to get undertone from local storage
-  if (_makeupRecommendations == null) {
-    // If no recommendations yet, try to get undertone from shared preferences
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      final storedUndertone = prefs.getString('user_undertone');
-      if (storedUndertone != null && mounted) {
-        setState(() {
-          displayedUndertone = storedUndertone;
-        });
-      }
-    });
-  } else {
-    // If we have recommendations, get undertone from there
-    final recommendation = MakeupRecommendation.fromJson(_makeupRecommendations!);
-    displayedUndertone = recommendation.undertone;
+    String? displayedUndertone;
+
+    if (_makeupRecommendations == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final prefs = await SharedPreferences.getInstance();
+        final storedUndertone = prefs.getString('user_undertone');
+        if (storedUndertone != null && mounted) {
+          setState(() {
+            displayedUndertone = storedUndertone;
+          });
+        }
+      });
+    } else {
+      final recommendation = MakeupRecommendation.fromJson(_makeupRecommendations!);
+      displayedUndertone = recommendation.undertone;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Your Personalized Analysis',
+            style: TextStyle(
+              fontSize: 22,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              color: Color.fromARGB(255, 10, 10, 10),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                _buildAttributeChip('Face Shape: ${faceShape ?? "Not analyzed"}'),
+                const SizedBox(width: 8),
+                _buildAttributeChip('Skin Tone: ${skinTone ?? "Not analyzed"}'),
+                const SizedBox(width: 8),
+                _buildAttributeChip('Undertone: ${displayedUndertone ?? "Not analyzed"}'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  return Padding(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Your Personalized Analysis',
-          style: TextStyle(
-            fontSize: 22,
-            fontFamily: 'Serif',
-            fontWeight: FontWeight.bold,
-            color: Color.fromARGB(255, 10, 10, 10),
-          ),
-        ),
-        const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              _buildAttributeChip('Face Shape: ${faceShape ?? "Not analyzed"}'),
-              const SizedBox(width: 8),
-              _buildAttributeChip('Skin Tone: ${skinTone ?? "Not analyzed"}'),
-              const SizedBox(width: 8),
-              _buildAttributeChip('Undertone: ${displayedUndertone ?? "Not analyzed"}'),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-  Widget _buildRecommendedMakeupTypesSection() {
+Widget _buildRecommendedMakeupTypesSection() {
   // Default makeup types for new users or when no recommendations are available
   final defaultMakeupTypes = [
-    {'makeup_type_name': 'Casual', 'usage_count': 0},
-    {'makeup_type_name': 'Light', 'usage_count': 0},
-    {'makeup_type_name': 'Heavy', 'usage_count': 0}
+    MakeupLookByType(
+      makeupTypeId: 1,
+      makeupTypeName: 'Casual',
+      makeupLookId: 0,
+      makeupLookName: 'Default Look',
+      usageCount: 0,
+      shadesByType: {},
+      source: 'default',
+      timePeriod: 'all',
+    ),
+    MakeupLookByType(
+      makeupTypeId: 2,
+      makeupTypeName: 'Light',
+      makeupLookId: 0,
+      makeupLookName: 'Default Look',
+      usageCount: 0,
+      shadesByType: {},
+      source: 'default',
+      timePeriod: 'all',
+    ),
+    MakeupLookByType(
+      makeupTypeId: 3,
+      makeupTypeName: 'Heavy',
+      makeupLookId: 0,
+      makeupLookName: 'Default Look',
+      usageCount: 0,
+      shadesByType: {},
+      source: 'default',
+      timePeriod: 'all',
+    )
   ];
-
-  // Default makeup looks for each type
-  final defaultMakeupLooks = [
-    {'makeup_look_name': 'No-Makeup', 'shade_combinations': []},
-    {'makeup_look_name': 'Everyday Glow', 'shade_combinations': []},
-    {'makeup_look_name': 'SunKissed Glow', 'shade_combinations': []},
-    {'makeup_look_name': 'Dewy', 'shade_combinations': []},
-    {'makeup_look_name': 'Rosy Cheeks', 'shade_combinations': []},
-    {'makeup_look_name': 'Soft Glam', 'shade_combinations': []},
-    {'makeup_look_name': 'Matte', 'shade_combinations': []},
-    {'makeup_look_name': 'Cut Crease', 'shade_combinations': []},
-    {'makeup_look_name': 'Glam Night', 'shade_combinations': []}
-  ];
-
-  // Map of makeup types to their looks
-  final makeupTypeLooks = {
-    'Casual': ['No-Makeup', 'Everyday Glow', 'SunKissed Glow'],
-    'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
-    'Heavy': ['Matte', 'Cut Crease', 'Glam Night'],
-  };
 
   // Determine which data to use
-  List<dynamic> typesToDisplay = _makeupRecommendations != null 
-      ? MakeupRecommendation.fromJson(_makeupRecommendations!).recommendedTypes
+  List<MakeupLookByType> typesToDisplay = _makeupRecommendations != null 
+      ? MakeupRecommendation.fromJson(_makeupRecommendations!).topMakeupLooksByType
       : defaultMakeupTypes;
 
   // Ensure we always show exactly 3 makeup types
-  // If we have less than 3 from API, fill with defaults
   if (typesToDisplay.length < 3) {
-    // Create a set of existing type names to avoid duplicates
-    final existingTypes = typesToDisplay.map((type) => type['makeup_type_name']?.toString()).toSet();
+    final existingTypes = typesToDisplay.map((type) => type.makeupTypeName).where((name) => name != null).toSet();
     
-    // Add default types that aren't already in the list
     for (final defaultType in defaultMakeupTypes) {
       if (typesToDisplay.length >= 3) break;
       
-      final defaultTypeName = defaultType['makeup_type_name']?.toString();
-      if (defaultTypeName != null && !existingTypes.contains(defaultTypeName)) {
+      if (defaultType.makeupTypeName != null && !existingTypes.contains(defaultType.makeupTypeName)) {
         typesToDisplay.add(defaultType);
-        existingTypes.add(defaultTypeName);
       }
     }
   }
   
-  // If we still have more than 3, take the top 3
   if (typesToDisplay.length > 3) {
     typesToDisplay = typesToDisplay.sublist(0, 3);
   }
-
-  final List<dynamic> looksToUse = _makeupRecommendations != null
-      ? MakeupRecommendation.fromJson(_makeupRecommendations!).makeupLooks
-      : defaultMakeupLooks;
 
   return Padding(
     padding: const EdgeInsets.all(16),
@@ -933,7 +1117,7 @@ Widget _buildPersonalizedAnalysisSection() {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recommended Makeup Types',
+          'Top Makeup Looks by Type',
           style: TextStyle(
             fontSize: 22,
             fontFamily: 'Serif',
@@ -946,7 +1130,7 @@ Widget _buildPersonalizedAnalysisSection() {
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
-              'Explore popular makeup types and discover looks that suit you',
+              'Explore popular makeup looks that suit your features',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -961,36 +1145,55 @@ Widget _buildPersonalizedAnalysisSection() {
             itemCount: typesToDisplay.length,
             itemBuilder: (context, index) {
               final type = typesToDisplay[index];
-              final typeName = type['makeup_type_name']?.toString() ?? 'Unknown';
-              final usageCount = type['usage_count'] ?? 0;
-              final looks = makeupTypeLooks[typeName] ?? [];
+              final typeName = type.makeupTypeName ?? 'Unknown';
+              final usageCount = type.usageCount;
               
               return GestureDetector(
                 onTap: () {
-                  // Filter the makeup looks for this type
-                  final filteredLooks = looksToUse.where((look) {
-                    final lookName = look['makeup_look_name']?.toString();
-                    return lookName != null && looks.contains(lookName);
-                  }).toList();
+                  // Use the actual user ID from widget
+                  final userId = int.tryParse(widget.userId) ?? 1;
                   
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
-                        makeupLooks: filteredLooks,
-                        makeupType: typeName,
-                        isDefaultData: _makeupRecommendations == null,
+                  if (_makeupRecommendations != null) {
+                    // Pass the entire API response if available
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
+                          userId: userId,
+                          makeupType: typeName,
+                          apiResponse: _makeupRecommendations,
+                        ),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeThroughTransition(
+                            animation: animation,
+                            secondaryAnimation: secondaryAnimation,
+                            child: child,
+                          );
+                        },
+                        transitionDuration: const Duration(milliseconds: 600),
                       ),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        return FadeThroughTransition(
-                          animation: animation,
-                          secondaryAnimation: secondaryAnimation,
-                          child: child,
-                        );
-                      },
-                      transitionDuration: const Duration(milliseconds: 600),
-                    ),
-                  );
+                    );
+                  } else {
+                    // For default data without API response
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
+                          userId: userId,
+                          makeupType: typeName,
+                          isDefaultData: true,
+                        ),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeThroughTransition(
+                            animation: animation,
+                            secondaryAnimation: secondaryAnimation,
+                            child: child,
+                          );
+                        },
+                        transitionDuration: const Duration(milliseconds: 600),
+                      ),
+                    );
+                  }
                 },
                 child: Container(
                   width: 150,
@@ -1008,42 +1211,12 @@ Widget _buildPersonalizedAnalysisSection() {
                   ),
                   child: Stack(
                     children: [
-                      // Glow effect
-                      Positioned(
-                        top: -10,
-                        right: -10,
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.pink.withOpacity(0.1),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.pink.withOpacity(0.3),
-                                spreadRadius: 2,
-                                blurRadius: 15,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: -10,
-                        left: -10,
-                        child: SizedBox(
-                          width: 30,
-                          height: 30,
-                        ),
-                      ),
-                      // Content
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Makeup type name with elegant styling
                             Text(
                               typeName.toUpperCase(),
                               style: TextStyle(
@@ -1057,7 +1230,6 @@ Widget _buildPersonalizedAnalysisSection() {
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 12),
-                            // Usage count with decorative styling - CENTERED
                             Expanded(
                               child: Center(
                                 child: Container(
@@ -1073,46 +1245,54 @@ Widget _buildPersonalizedAnalysisSection() {
                                       width: 1,
                                     ),
                                   ),
-                                  child: Text(
-                                    _makeupRecommendations == null 
-                                      ? 'Explore Looks' 
-                                      : '$usageCount\nrecommendations',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.pink[700],
-                                    ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_makeupRecommendations != null)
+                                        Text(
+                                          '$usageCount\nrecommendations',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.pink[700],
+                                          ),
+                                        ),
+                                      if (_makeupRecommendations == null)
+                                        Text(
+                                          'View Top\nRecommended',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.pink[700],
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 4),
-                            // "Tap to view" text
-                            Text(
-                              'View Popular Look and Shade Combinations',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
+                            // Add "View Top Recommended" text below the count for API data
+                            if (_makeupRecommendations != null)
+                              Text(
+                                'View Top Recommended',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontFamily: 'Serif',
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color.fromARGB(255, 45, 44, 44),
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                ).animate(
-                  onPlay: (controller) => controller.forward(),
-                )
-                .scale(
-                  duration: 200.ms,
-                  begin: const Offset(0.95, 0.95),
-                  end: const Offset(1.0, 1.0),
-                  curve: Curves.easeOut,
                 ),
               );
             },

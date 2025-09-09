@@ -186,103 +186,111 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  Widget _buildSkinToneSelector(double screenWidth, double screenHeight) {
-    final itemWidth = screenWidth * 0.28;
-    final itemHeight = screenHeight * 0.16;
-    final imageHeight = screenHeight * 0.12;
+Widget _buildSkinToneSelector(double screenWidth, double screenHeight) {
+  final itemWidth = screenWidth * 0.32;
+  final itemHeight = screenHeight * 0.18;
+  final imageHeight = screenHeight * 0.14;
 
-    return SizedBox(
-      height: itemHeight,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _skinToneOptions.length,
-        itemBuilder: (context, index) {
-          final skinTone = _skinToneOptions[index];
-          final displayName = skinTone[0].toUpperCase() + skinTone.substring(1);
-          
-          return GestureDetector(
-            onTap: () {
-              setState(() => _selectedSkinTone = skinTone);
-            },
-            child: Container(
-              width: itemWidth,
-              margin: EdgeInsets.only(right: screenWidth * 0.04),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(screenWidth * 0.04),
-                border: Border.all(
-                  color: _selectedSkinTone == skinTone 
-                      ? Colors.pinkAccent 
-                      : Colors.transparent,
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  )
-                ],
+  return SizedBox(
+    height: itemHeight,
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: _skinToneOptions.length,
+      itemBuilder: (context, index) {
+        final skinTone = _skinToneOptions[index];
+        final displayName = skinTone[0].toUpperCase() + skinTone.substring(1);
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() => _selectedSkinTone = skinTone);
+          },
+          child: Container(
+            width: itemWidth,
+            margin: EdgeInsets.only(right: screenWidth * 0.04),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(screenWidth * 0.04),
+              border: Border.all(
+                color: _selectedSkinTone == skinTone 
+                    ? Colors.pinkAccent 
+                    : Colors.transparent,
+                width: 2,
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(screenWidth * 0.03)),
-                    child: Container(
-                      height: imageHeight,
-                      width: double.infinity,
-                      color: _getSkinToneColor(skinTone),
-                      child: _skinToneImages.containsKey(skinTone)
-                          ? Image.asset(
-                              _skinToneImages[skinTone]!,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.bottomCenter,
-                            )
-                          : Center(
-                              child: Text(
-                                displayName[0],
-                                style: TextStyle(
-                                  fontSize: screenWidth * 0.06,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withOpacity(0.8),
-                                ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(screenWidth * 0.03)),
+                  child: Container(
+                    height: imageHeight,
+                    width: double.infinity,
+                    color: _getSkinToneColor(skinTone),
+                    child: _skinToneImages.containsKey(skinTone)
+                        ? Image.asset(
+                            _skinToneImages[skinTone]!,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.bottomCenter,
+                          )
+                        : Center(
+                            child: Text(
+                              displayName[0],
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.07,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white.withOpacity(0.8),
                               ),
                             ),
-                    ),
+                          ),
                   ),
-                  Expanded(
-                    child: Container(
-                      padding: EdgeInsets.symmetric(vertical: screenHeight * 0.01),
-                      decoration: BoxDecoration(
-                        color: _selectedSkinTone == skinTone
-                            ? Colors.pinkAccent.withOpacity(0.1)
-                            : Colors.white,
-                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(screenWidth * 0.03)),
-                      ),
-                      child: Center(
+                ),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.01, // Added horizontal padding
+                      vertical: screenHeight * 0.005, // Reduced vertical padding
+                    ),
+                    decoration: BoxDecoration(
+                      color: _selectedSkinTone == skinTone
+                          ? Colors.pinkAccent.withOpacity(0.1)
+                          : Colors.white,
+                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(screenWidth * 0.03)),
+                    ),
+                    child: Center(
+                      child: FittedBox( // Added FittedBox to ensure text fits
+                        fit: BoxFit.scaleDown,
                         child: Text(
                           displayName,
                           style: TextStyle(
-                            fontSize: screenWidth * 0.035,
+                            fontSize: screenWidth * 0.035, // Slightly reduced font size
                             fontWeight: FontWeight.bold,
                             color: _selectedSkinTone == skinTone
                                 ? Colors.pinkAccent
                                 : Colors.grey[700],
                           ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1, // Ensure single line
+                          overflow: TextOverflow.ellipsis, // Add ellipsis if needed
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
-    );
-  }
-
+          ),
+        );
+      },
+    ),
+  );
+}
   Color _getSkinToneColor(String skinTone) {
     switch (skinTone) {
       case 'morena': return const Color(0xFF8D5524);
@@ -327,99 +335,91 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  Widget _buildShadeItem(Map<String, dynamic> shade, int rank, double screenWidth) {
-    return GestureDetector(
-      onTap: () => _showShadeDetails(shade),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: screenWidth * 0.02),
-        child: Container(
-          height: screenWidth * 0.15,
-          child: Row(
-            children: [
-              Container(
-                width: screenWidth * 0.06,
-                height: screenWidth * 0.06,
+Widget _buildShadeItem(Map<String, dynamic> shade, int rank, double screenWidth) {
+  return GestureDetector(
+    onTap: () => _showShadeDetails(shade),
+    child: Padding(
+      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.02),
+      child: SizedBox(
+        height: screenWidth * 0.15,
+        child: Row(
+          children: [
+            Container(
+              width: screenWidth * 0.06,
+              height: screenWidth * 0.06,
+              alignment: Alignment.center,
+              child: Stack(
                 alignment: Alignment.center,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      Icons.local_fire_department,
-                      color: _getFireColor(rank),
-                      size: screenWidth * 0.06,
-                    ),
-                    Text(
-                      '$rank',
-                      style: TextStyle(
-                        color: const Color.fromARGB(255, 10, 10, 10),
-                        fontSize: screenWidth * 0.025,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: screenWidth * 0.03),
-              Container(
-                width: screenWidth * 0.2,
-                height: screenWidth * 0.1,
-                decoration: BoxDecoration(
-                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                  borderRadius: BorderRadius.circular(screenWidth * 0.02),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Center(
-                  child: Text(
-                    shade['hex_code'],
+                children: [
+                  Icon(
+                    Icons.local_fire_department,
+                    color: _getFireColor(rank),
+                    size: screenWidth * 0.06,
+                  ),
+                  Text(
+                    '$rank',
                     style: TextStyle(
+                      color: const Color.fromARGB(255, 10, 10, 10),
                       fontSize: screenWidth * 0.025,
-                      color: _getContrastColor(shade['hex_code']),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
+                ],
               ),
-              SizedBox(width: screenWidth * 0.03),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (shade['shade_name'] != null)
-                      Text(
-                        shade['shade_name'],
-                        style: TextStyle(
-                          fontSize: screenWidth * 0.035,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(width: screenWidth * 0.03),
+            Container(
+              width: screenWidth * 0.2,
+              height: screenWidth * 0.1,
+              decoration: BoxDecoration(
+                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                borderRadius: BorderRadius.circular(screenWidth * 0.02),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              // REMOVED: Hex code text display
+            ),
+            SizedBox(width: screenWidth * 0.03),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (shade['shade_name'] != null)
+                    Text(
+                      shade['shade_name'],
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.035,
+                        fontWeight: FontWeight.bold,
                       ),
-                    SizedBox(height: screenWidth * 0.01),
-                    LinearProgressIndicator(
-                      value: (shade['match_count'] as int) / 1500,
-                      backgroundColor: Colors.grey[200],
-                      color: Colors.pinkAccent,
-                      minHeight: screenWidth * 0.02,
-                      borderRadius: BorderRadius.circular(screenWidth * 0.01),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                ),
+                  SizedBox(height: screenWidth * 0.01),
+                  LinearProgressIndicator(
+                    value: (shade['match_count'] as int) / 1500,
+                    backgroundColor: Colors.grey[200],
+                    color: Colors.pinkAccent,
+                    minHeight: screenWidth * 0.02,
+                    borderRadius: BorderRadius.circular(screenWidth * 0.01),
+                  ),
+                ],
               ),
-              SizedBox(width: screenWidth * 0.03),
-              Text(
-                '${shade['match_count']}',
-                style: TextStyle(
-                  fontSize: screenWidth * 0.035,
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+            SizedBox(width: screenWidth * 0.03),
+            Text(
+              '${shade['match_count']}',
+              style: TextStyle(
+                fontSize: screenWidth * 0.035,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Color _getFireColor(int rank) {
     switch (rank) {
@@ -458,121 +458,122 @@ class _SelectionPageState extends State<SelectionPage> {
     );
   }
 
-  Widget _buildCircularUsageGraph(double screenWidth, double screenHeight) {
-    final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
-    if (shades.isEmpty) return Container();
+ Widget _buildCircularUsageGraph(double screenWidth, double screenHeight) {
+  final shades = _shadesData[_selectedSkinTone]?[_selectedShadeCategory] ?? [];
+  if (shades.isEmpty) return Container();
 
-    shades.sort((a, b) => (b['match_count'] as int).compareTo(a['match_count'] as int));
-    final totalUsed = shades.fold(0, (sum, shade) => sum + (shade['match_count'] as int));
-    
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(screenWidth * 0.04),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(screenWidth * 0.04),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Shade Usage Distribution',
-              style: TextStyle(
-                fontSize: screenWidth * 0.045,
-                fontWeight: FontWeight.bold,
-                color: Colors.pink[800],
-              ),
+  shades.sort((a, b) => (b['match_count'] as int).compareTo(a['match_count'] as int));
+  final totalUsed = shades.fold(0, (sum, shade) => sum + (shade['match_count'] as int));
+  
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(screenWidth * 0.04),
+    ),
+    child: Padding(
+      padding: EdgeInsets.all(screenWidth * 0.04),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Shade Usage Distribution',
+            style: TextStyle(
+              fontSize: screenWidth * 0.045,
+              fontWeight: FontWeight.bold,
+              color: Colors.pink[800],
             ),
-            SizedBox(height: screenHeight * 0.01),
-            SizedBox(
-              height: screenHeight * 0.25,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 2,
-                        centerSpaceRadius: screenWidth * 0.15,
-                        sections: shades.asMap().entries.map((entry) {
-                          final shade = entry.value;
-                          return PieChartSectionData(
-                            color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                            value: (shade['match_count'] as int) / totalUsed * 100,
-                            title: '${((shade['match_count'] as int) / totalUsed * 100).toStringAsFixed(1)}%',
-                            radius: screenWidth * 0.07,
-                            titleStyle: TextStyle(
-                              fontSize: screenWidth * 0.03,
-                              fontWeight: FontWeight.bold,
-                              color: _getContrastColor(shade['hex_code']),
-                            ),
-                          );
-                        }).toList(),
-                      ),
+          ),
+          SizedBox(height: screenHeight * 0.01),
+          SizedBox(
+            height: screenHeight * 0.25,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: screenWidth * 0.15,
+                      sections: shades.asMap().entries.map((entry) {
+                        final shade = entry.value;
+                        return PieChartSectionData(
+                          color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                          value: (shade['match_count'] as int) / totalUsed * 100,
+                          title: '${((shade['match_count'] as int) / totalUsed * 100).toStringAsFixed(1)}%',
+                          radius: screenWidth * 0.07,
+                          titleStyle: TextStyle(
+                            fontSize: screenWidth * 0.03,
+                            fontWeight: FontWeight.bold,
+                            color: _getContrastColor(shade['hex_code']),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
-                  Expanded(
-                    flex: 1,
-                    child: Padding(
-                      padding: EdgeInsets.only(left: screenWidth * 0.04),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: shades.asMap().entries.map((entry) {
-                          final shade = entry.value;
-                          return Padding(
-                            padding: EdgeInsets.symmetric(vertical: screenHeight * 0.005),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: screenWidth * 0.03,
-                                  height: screenWidth * 0.03,
-                                  margin: EdgeInsets.only(top: screenHeight * 0.002),
-                                  decoration: BoxDecoration(
-                                    color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                                    shape: BoxShape.circle,
-                                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: screenWidth * 0.04),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: shades.asMap().entries.map((entry) {
+                        final shade = entry.value;
+                        final index = entry.key + 1;
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: screenHeight * 0.005),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: screenWidth * 0.03,
+                                height: screenWidth * 0.03,
+                                margin: EdgeInsets.only(top: screenHeight * 0.002),
+                                decoration: BoxDecoration(
+                                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                                  shape: BoxShape.circle,
                                 ),
-                                SizedBox(width: screenWidth * 0.02),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        shade['shade_name'] ?? shade['hex_code'],
-                                        style: TextStyle(
-                                          fontSize: screenWidth * 0.03,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(width: screenWidth * 0.02),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Shade $index', // Replaced hex code with "Shade X"
+                                      style: TextStyle(
+                                        fontSize: screenWidth * 0.03,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      Text(
-                                        '${shade['match_count']} uses',
-                                        style: TextStyle(
-                                          fontSize: screenWidth * 0.028,
-                                          color: Colors.grey[600],
-                                        ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${shade['match_count']} uses',
+                                      style: TextStyle(
+                                        fontSize: screenWidth * 0.028,
+                                        color: Colors.grey[600],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildViewAnalyticsButton(BuildContext context, double screenWidth) {
     return Center(
@@ -682,87 +683,75 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   Widget _buildDetailedShadeItem(Map<String, dynamic> shade, double screenWidth) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: screenWidth * 0.1,
-        height: screenWidth * 0.1,
-        decoration: BoxDecoration(
-          color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-          borderRadius: BorderRadius.circular(screenWidth * 0.02),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: Container(
+      width: screenWidth * 0.1,
+      height: screenWidth * 0.1,
+      decoration: BoxDecoration(
+        color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+        borderRadius: BorderRadius.circular(screenWidth * 0.02),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      title: Text(
-        shade['shade_name'] ?? shade['hex_code'],
-        style: TextStyle(fontSize: screenWidth * 0.04),
-      ),
-      subtitle: Text(
-        shade['hex_code'],
-        style: TextStyle(fontSize: screenWidth * 0.035),
-      ),
-      trailing: Text(
-        '${shade['match_count']} matches',
-        style: TextStyle(fontSize: screenWidth * 0.035),
-      ),
-      onTap: () {
-        _showShadeDetails(shade);
-      },
-    );
-  }
+    ),
+    title: Text(
+      shade['shade_name'] ?? 'Shade', // Use shade name or fallback to "Shade"
+      style: TextStyle(fontSize: screenWidth * 0.04),
+    ),
+    // REMOVED: Subtitle with hex code
+    trailing: Text(
+      '${shade['match_count']} matches',
+      style: TextStyle(fontSize: screenWidth * 0.035),
+    ),
+    onTap: () {
+      _showShadeDetails(shade);
+    },
+  );
+}
 
-  void _showShadeDetails(Map<String, dynamic> shade) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(screenWidth * 0.04),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity,
-                height: screenWidth * 0.25,
-                decoration: BoxDecoration(
-                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                  borderRadius: BorderRadius.circular(screenWidth * 0.03),
-                ),
-                child: Center(
-                  child: Text(
-                    shade['hex_code'],
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.05,
-                      fontWeight: FontWeight.bold,
-                      color: _getContrastColor(shade['hex_code']),
-                    ),
-                  ),
-                ),
+void _showShadeDetails(Map<String, dynamic> shade) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  
+  showModalBottomSheet(
+    context: context,
+    builder: (context) {
+      return Container(
+        padding: EdgeInsets.all(screenWidth * 0.04),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: double.infinity,
+              height: screenWidth * 0.25,
+              decoration: BoxDecoration(
+                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                borderRadius: BorderRadius.circular(screenWidth * 0.03),
               ),
-              SizedBox(height: screenWidth * 0.04),
-              if (shade['shade_name'] != null)
-                Text(
-                  shade['shade_name'],
-                  style: TextStyle(
-                    fontSize: screenWidth * 0.05,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              SizedBox(height: screenWidth * 0.02),
+              // REMOVED: Hex code text display in the color box
+            ),
+            SizedBox(height: screenWidth * 0.04),
+            if (shade['shade_name'] != null)
               Text(
-                'Match Count: ${shade['match_count']}',
+                shade['shade_name'],
                 style: TextStyle(
-                  fontSize: screenWidth * 0.04,
+                  fontSize: screenWidth * 0.05,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: screenWidth * 0.04),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            SizedBox(height: screenWidth * 0.02),
+            Text(
+              'Match Count: ${shade['match_count']}',
+              style: TextStyle(
+                fontSize: screenWidth * 0.04,
+              ),
+            ),
+            SizedBox(height: screenWidth * 0.04),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Color _getContrastColor(String hexColor) {
     final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));

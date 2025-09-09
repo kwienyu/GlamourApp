@@ -512,7 +512,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
 
   Map<String, List<Color>> makeupShades = {};
   Map<String, List<String>> shadeHexCodes = {};
-  Map<String, bool> _hasShownProductDialog = {};
+  final Map<String, bool> _hasShownProductDialog = {};
 
   final Map<String, String> productIcons = {
     'Foundation': 'assets/foundation.png',

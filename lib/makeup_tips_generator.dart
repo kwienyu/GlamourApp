@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import 'makeup_guide.dart'; // Make sure to import the MakeupGuide class
+import 'makeup_guide.dart';
 
 class MakeupTipsPage extends StatefulWidget {
   final String userId;
