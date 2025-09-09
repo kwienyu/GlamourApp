@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'makeup_guide.dart'; // Make sure to import the MakeupGuide class
 
 class MakeupTipsPage extends StatefulWidget {
   final String userId;
@@ -61,28 +63,47 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
     }
   }
 
+  AppBar _buildAppBar(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
+    return AppBar(
+      backgroundColor: Colors.pinkAccent,
+      elevation: 0,
+      title: Image.asset(
+        'assets/glam_logo.png',
+        height: screenHeight * 0.10,
+        fit: BoxFit.contain,
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: Icon(
+            Icons.face_retouching_natural,
+            color: Colors.black,
+            size: isSmallScreen ? screenWidth * 0.08 : 32,
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MakeupGuide(userId: widget.userId.toString()),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isLoading ? 'Loading...' : 
-          faceShape != null ? 'Makeup Tips for $faceShape Face' : 'Face Shape Analysis',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            color: Colors.black,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: _buildAppBar(context),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -95,7 +116,14 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
           ),
         ),
         child: isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Expanded(
+                child: Center(
+                  child: LoadingAnimationWidget.staggeredDotsWave(
+                    color: Colors.pinkAccent,
+                    size: isSmallScreen ? 50 : 60,
+                  ),
+                ),
+              )
             : faceShape != null
                 ? SingleChildScrollView(
                     padding: const EdgeInsets.all(20),

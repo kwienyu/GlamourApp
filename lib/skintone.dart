@@ -16,7 +16,7 @@ class SkinTone extends StatelessWidget {
           elevation: 0,
           title: Image.asset(
             'assets/glam_logo.png',
-            height: MediaQuery.of(context).size.height * 0.08, // Slightly reduced height
+            height: MediaQuery.of(context).size.height * 0.08, 
             fit: BoxFit.contain,
           ),
           centerTitle: true,
@@ -28,6 +28,7 @@ class SkinTone extends StatelessWidget {
     );
   }
 }
+
 class FaceShapesWidget extends StatefulWidget {
   const FaceShapesWidget({super.key});
 

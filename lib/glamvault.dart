@@ -98,6 +98,8 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
+    final scaleFactor = MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2);
+    final isSmallScreen = screenWidth < 600;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,7 +109,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
           icon: Icon(
             Icons.arrow_back,
             color: Colors.black,
-            size: screenWidth * 0.06,
+            size: isSmallScreen ? screenWidth * 0.07 : 28,
           ),
           onPressed: () async {
             final prefs = await SharedPreferences.getInstance();
@@ -123,7 +125,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
         title: Center(
           child: Image.asset(
             'assets/glam_logo.png',
-            height: screenHeight * 0.09,
+            height: isSmallScreen ? screenHeight * 0.08 : 60,
             fit: BoxFit.contain,
           ),
         ),
@@ -133,7 +135,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
             icon: Icon(
               Icons.face_retouching_natural,
               color: Colors.black,
-              size: screenWidth * 0.08,
+              size: isSmallScreen ? screenWidth * 0.08 : 32,
             ),
             onPressed: () {
               Navigator.push(
@@ -162,7 +164,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                         label: Text(
                           'My Looks',
                           style: TextStyle(
-                            fontSize: screenWidth * 0.04,
+                            fontSize: isSmallScreen ? screenWidth * 0.04 : 16 * scaleFactor,
                             color: _selectedLookType == LookType.user
                                 ? Colors.white
                                 : Colors.black,
@@ -183,7 +185,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                         label: Text(
                           'Client Looks',
                           style: TextStyle(
-                            fontSize: screenWidth * 0.04,
+                            fontSize: isSmallScreen ? screenWidth * 0.04 : 16 * scaleFactor,
                             color: _selectedLookType == LookType.client
                                 ? Colors.white
                                 : Colors.black,
@@ -206,7 +208,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                     ? Center(
                         child: LoadingAnimationWidget.staggeredDotsWave(
                           color: Colors.pinkAccent,
-                          size: 50,
+                          size: isSmallScreen ? 50 : 60,
                         ),
                       )
                     : Column(
@@ -218,7 +220,9 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                 ? Center(
                                     child: Text(
                                       'No ${_selectedLookType == LookType.user ? 'user' : 'client'} looks yet!',
-                                      style: TextStyle(fontSize: screenWidth * 0.045),
+                                      style: TextStyle(
+                                        fontSize: isSmallScreen ? screenWidth * 0.045 : 18 * scaleFactor
+                                      ),
                                     ),
                                   )
                                 : Padding(
@@ -232,7 +236,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                                 (screenWidth > 600) ? 3 : 2,
                                             crossAxisSpacing: screenWidth * 0.02,
                                             mainAxisSpacing: screenWidth * 0.02,
-                                            childAspectRatio: 0.7,
+                                            childAspectRatio: isSmallScreen ? 0.7 : 0.75,
                                           ),
                                           delegate: SliverChildBuilderDelegate(
                                             (context, index) {
@@ -269,7 +273,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                                           style: TextStyle(
                                                             fontWeight: FontWeight.bold,
                                                             fontSize:
-                                                                screenWidth * 0.035,
+                                                                isSmallScreen ? screenWidth * 0.035 : 14 * scaleFactor,
                                                           ),
                                                           maxLines: 1,
                                                           overflow:
@@ -284,7 +288,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                                           look.formattedDate,
                                                           style: TextStyle(
                                                             fontSize:
-                                                                screenWidth * 0.025,
+                                                                isSmallScreen ? screenWidth * 0.025 : 12 * scaleFactor,
                                                             color: Colors.grey,
                                                           ),
                                                         ),
@@ -298,7 +302,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                                                             'Client Look',
                                                             style: TextStyle(
                                                               fontSize:
-                                                                  screenWidth * 0.03,
+                                                                  isSmallScreen ? screenWidth * 0.03 : 12 * scaleFactor,
                                                               color: Colors.grey[600],
                                                             ),
                                                           ),
@@ -580,6 +584,7 @@ class SavedLook {
     return DateFormat('MMMM dd, yyyy').format(capturedDate);
   }
 }
+
 class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;
@@ -591,7 +596,7 @@ class LookDetailsScreen extends StatefulWidget {
     required this.look,
     required this.shades,
     this.imageBytes,
-    required this.userId, // Add this
+    required this.userId,
   });
 
   @override
@@ -599,7 +604,7 @@ class LookDetailsScreen extends StatefulWidget {
 }
 
 class _LookDetailsScreenState extends State<LookDetailsScreen> {
-  String _userFaceShape = 'Oval';
+  String? _userFaceShape;
   double screenWidth = 0.0;
   double screenHeight = 0.0;
   bool _showTipsBox = false;
@@ -622,12 +627,12 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
   Future<void> _loadFaceShape() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _userFaceShape = prefs.getString('face_shape') ?? 'Oval';
+      _userFaceShape = prefs.getString('face_shape');
     });
   }
 
   void toggleTipsBox(String productName) {
-    final tip = MakeupTipsGenerator.getTip(_userFaceShape, productName);
+    final tip = MakeupTipsGenerator.getTip(_userFaceShape!, productName);
 
     setState(() {
       if (_showTipsBox && _currentProductName == productName) {
@@ -654,11 +659,12 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
           : 0xFFCCCCCC;
 
       return Container(
-        width: screenWidth * 0.15,
-        height: screenWidth * 0.15,
+        width: screenWidth * 0.08,
+        height: screenWidth * 0.08,
+        margin: EdgeInsets.only(right: screenWidth * 0.015),
         decoration: BoxDecoration(
           color: Color(colorValue),
-          borderRadius: BorderRadius.circular(screenWidth * 0.075),
+          borderRadius: BorderRadius.circular(screenWidth * 0.04),
           border: Border.all(
             color: isSelected ? Colors.green : Colors.black12,
             width: isSelected ? 3 : 1,
@@ -666,16 +672,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
         ),
         child: Stack(
           children: [
-            Center(
-              child: Text(
-                hexCode.isNotEmpty ? hexCode : '',
-                style: TextStyle(
-                  fontSize: screenWidth * 0.025,
-                  color: _getContrastColor(hexCode),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             if (isSelected)
               Positioned(
                 top: 2,
@@ -692,18 +688,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     } catch (e) {
       debugPrint('Error rendering shade: $e');
       return Container();
-    }
-  }
-
-  Color _getContrastColor(String hexColor) {
-    if (hexColor.isEmpty) return Colors.black;
-
-    try {
-      final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));
-      final brightness = color.computeLuminance();
-      return brightness > 0.5 ? Colors.black : Colors.white;
-    } catch (e) {
-      return Colors.black;
     }
   }
 
@@ -751,55 +735,109 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     );
   }
 
-  Widget _buildProductWithTips(String productName, List<dynamic> shades) {
-    final selectedShade = shades.firstWhere(
-      (shade) => shade['is_selected'] == true,
-      orElse: () => null,
-    );
+  // Build a row of products (3 per row)
+  List<Widget> _buildProductRows() {
+    final productEntries = widget.shades.entries.toList();
+    final List<Widget> rows = [];
+    
+    for (int i = 0; i < productEntries.length; i += 3) {
+      final endIndex = i + 3 < productEntries.length ? i + 3 : productEntries.length;
+      final rowProducts = productEntries.sublist(i, endIndex);
+      
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: screenHeight * 0.03),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rowProducts.map((entry) {
+              return Expanded(
+                child: _buildProductCard(entry.key, entry.value is List ? entry.value : []),
+              );
+            }).toList(),
+          ),
+        ),
+      );
+    }
+    
+    return rows;
+  }
 
-    return Padding(
-      padding: EdgeInsets.only(top: screenHeight * 0.02),
+  // Build individual product card
+Widget _buildProductCard(String productName, List<dynamic> shades) {
+  final selectedShade = shades.firstWhere(
+    (shade) => shade['is_selected'] == true,
+    orElse: () => null,
+  );
+  final isSmallScreen = screenWidth < 600;
+
+  return GestureDetector(
+    onTap: () => toggleTipsBox(productName),
+    child: Container(
+      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.015),
+      padding: EdgeInsets.all(screenWidth * 0.03),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Product name only (light bulb icon removed)
           Text(
             productName,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: screenWidth * 0.04,
+              fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
               fontFamily: 'Serif',
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
+          
+          // Selected shade info
           if (selectedShade != null)
             Padding(
-              padding: EdgeInsets.only(top: screenHeight * 0.005),
+              padding: EdgeInsets.only(bottom: screenHeight * 0.008, top: screenHeight * 0.005),
               child: Text(
                 'Selected: ${selectedShade['shade_name']}',
                 style: TextStyle(
-                  fontSize: screenWidth * 0.03,
+                  fontSize: isSmallScreen ? screenWidth * 0.03 : 12,
                   color: Colors.green[800],
                   fontStyle: FontStyle.italic,
                 ),
               ),
             ),
-          SizedBox(height: screenHeight * 0.01),
-          Wrap(
-            spacing: screenWidth * 0.02,
-            runSpacing: screenWidth * 0.02,
-            children: shades.map((shade) => _buildShadeChip(shade)).toList(),
+          
+          // Shades arranged horizontally with scrolling
+          Container(
+            height: screenWidth * 0.09, // Fixed height for the shade row
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: shades.map((shade) => _buildShadeChip(shade)).toList(),
+            ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPlaceholder() {
+    final isSmallScreen = screenWidth < 600;
     return Container(
       color: Colors.grey[200],
       child: Center(
         child: Icon(
           Icons.photo_library,
-          size: screenWidth * 0.1,
+          size: isSmallScreen ? screenWidth * 0.1 : 40,
           color: Colors.grey,
         ),
       ),
@@ -807,6 +845,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
   }
 
   Widget _buildErrorPlaceholder() {
+    final isSmallScreen = screenWidth < 600;
     return Container(
       color: Colors.grey[200],
       child: Center(
@@ -816,13 +855,13 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
             Icon(
               Icons.error_outline,
               color: Colors.red,
-              size: screenWidth * 0.1,
+              size: isSmallScreen ? screenWidth * 0.1 : 40,
             ),
             Text(
               'Invalid image',
               style: TextStyle(
                 color: Colors.red,
-                fontSize: screenWidth * 0.035,
+                fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
               ),
             ),
           ],
@@ -837,6 +876,8 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
         screenWidth > 0 ? screenWidth : MediaQuery.of(context).size.width;
     final safeScreenHeight =
         screenHeight > 0 ? screenHeight : MediaQuery.of(context).size.height;
+    final scaleFactor = MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2);
+    final isSmallScreen = safeScreenWidth < 600;
 
     return Scaffold(
       appBar: AppBar(
@@ -846,14 +887,14 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
           icon: Icon(
             Icons.arrow_back,
             color: Colors.black,
-            size: safeScreenWidth * 0.06,
+            size: isSmallScreen ? safeScreenWidth * 0.07 : 28,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Center(
           child: Image.asset(
             'assets/glam_logo.png',
-            height: safeScreenHeight * 0.08,
+            height: isSmallScreen ? safeScreenHeight * 0.08 : 60,
             fit: BoxFit.contain,
           ),
         ),
@@ -862,14 +903,14 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
           IconButton(
             icon: Icon(
               Icons.lightbulb_outline,
-              size: safeScreenWidth * 0.06,
+              size: isSmallScreen ? safeScreenWidth * 0.06 : 24,
               color: Colors.black,
             ),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                   builder: (context) => MakeupTipsPage(userId: widget.userId),
+                  builder: (context) => MakeupTipsPage(userId: widget.userId),
                 ),
               );
             },
@@ -886,7 +927,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                 Text(
                   'Saved on: ${widget.look.formattedDate}',
                   style: TextStyle(
-                    fontSize: safeScreenWidth * 0.035,
+                    fontSize: isSmallScreen ? safeScreenWidth * 0.035 : 14 * scaleFactor,
                     color: Colors.grey,
                   ),
                 ),
@@ -912,7 +953,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                         'Type of makeup Look:',
                         style: TextStyle(
                           fontFamily: 'Serif',
-                          fontSize: safeScreenWidth * 0.04,
+                          fontSize: isSmallScreen ? safeScreenWidth * 0.04 : 16 * scaleFactor,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -921,7 +962,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                         widget.look.makeupLookName,
                         style: TextStyle(
                           fontFamily: 'Serif',
-                          fontSize: safeScreenWidth * 0.05,
+                          fontSize: isSmallScreen ? safeScreenWidth * 0.05 : 20 * scaleFactor,
                         ),
                       ),
                     ],
@@ -934,7 +975,7 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                     child: Text(
                       'Client Look',
                       style: TextStyle(
-                        fontSize: safeScreenWidth * 0.04,
+                        fontSize: isSmallScreen ? safeScreenWidth * 0.04 : 16 * scaleFactor,
                         color: Colors.grey[600],
                         fontStyle: FontStyle.italic,
                       ),
@@ -944,13 +985,14 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                   Text(
                     'Shades:',
                     style: TextStyle(
-                      fontSize: safeScreenWidth * 0.05,
+                      fontSize: isSmallScreen ? safeScreenWidth * 0.05 : 20 * scaleFactor,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Serif',
                     ),
                   ),
-                  ...widget.shades.entries.map((entry) =>
-                      _buildProductWithTips(entry.key, entry.value is List ? entry.value : [])),
+                  SizedBox(height: safeScreenHeight * 0.02),
+                  // Use the new product rows layout
+                  ..._buildProductRows(),
                 ],
               ],
             ),

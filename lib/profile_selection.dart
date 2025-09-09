@@ -285,13 +285,6 @@ Future<void> _fetchMakeupRecommendations() async {
           ),
           const Divider(),
           ListTile(
-            title: const Text('Home')
-                .animate()
-                .fadeIn(delay: 200.ms)
-                .slideX(begin: -0.2, end: 0),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
             title: const Text('Settings')
                 .animate()
                 .fadeIn(delay: 300.ms)
@@ -1284,75 +1277,66 @@ Widget _buildPersonalizedAnalysisSection() {
   }
 
   Widget _buildShadeItem(Map<String, dynamic> shade) {
-    return GestureDetector(
-      onTap: () => _showShadeDetails(shade),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 80,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Center(
-                child: Text(
-                  shade['hex_code'],
+  return GestureDetector(
+    onTap: () => _showShadeDetails(shade),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 80,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            // Removed the Text widget that was displaying the hex code
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Top Match',
                   style: TextStyle(
-                    fontSize: 10,
-                    color: _getContrastColor(shade['hex_code']),
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
+                    color: Colors.pink[800],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                const SizedBox(height: 4),
+                if (shade['shade_name'] != null)
                   Text(
-                    'Top Match',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.pink[800],
+                    shade['shade_name'],
+                    style: const TextStyle(
+                      fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (shade['shade_name'] != null)
-                    Text(
-                      shade['shade_name'],
-                      style: const TextStyle(
-                        fontSize: 12,
-                      ),
-                    ),
-                  LinearProgressIndicator(
-                    value: (shade['match_count'] ?? 0) / 1500,
-                    backgroundColor: Colors.grey[200],
-                    color: Colors.pinkAccent,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ],
-              ),
+                LinearProgressIndicator(
+                  value: (shade['match_count'] ?? 0) / 1500,
+                  backgroundColor: Colors.grey[200],
+                  color: Colors.pinkAccent,
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Text(
-              '${shade['match_count'] ?? 0}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${shade['match_count'] ?? 0}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildViewAnalyticsButton(Map<String, dynamic>? shadesData, String period) {
     return Center(
@@ -1452,74 +1436,65 @@ Widget _buildPersonalizedAnalysisSection() {
   }
 
   Widget _buildDetailedShadeItem(Map<String, dynamic> shade, int rank) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      title: Text(shade['shade_name'] ?? shade['hex_code']),
-      subtitle: Text('${shade['hex_code']} • Top #$rank'),
-      trailing: Text('${shade['match_count'] ?? 0} matches'),
-      onTap: () => _showShadeDetails(shade),
-    );
-  }
+    ),
+    title: Text(shade['shade_name'] ?? 'Shade'), // Removed hex code from title
+    subtitle: Text('Top #$rank'), // Removed hex code from subtitle
+    trailing: Text('${shade['match_count'] ?? 0} matches'),
+    onTap: () => _showShadeDetails(shade),
+  );
+}
 
   void _showShadeDetails(Map<String, dynamic> shade) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Text(
-                    shade['hex_code'],
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _getContrastColor(shade['hex_code']),
-                    ),
-                  ),
-                ),
+  showModalBottomSheet(
+    context: context,
+    builder: (context) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: double.infinity,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 16),
-              if (shade['shade_name'] != null)
-                Text(
-                  shade['shade_name'],
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              const SizedBox(height: 8),
+              // Removed the Text widget that was displaying the hex code
+            ),
+            const SizedBox(height: 16),
+            if (shade['shade_name'] != null)
               Text(
-                'Match Count: ${shade['match_count'] ?? 0}',
+                shade['shade_name'],
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            const SizedBox(height: 8),
+            Text(
+              'Match Count: ${shade['match_count'] ?? 0}',
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildAttributeChip(String text) {
     return Chip(
@@ -1573,7 +1548,7 @@ Widget _buildPersonalizedAnalysisSection() {
       ),
     );
   }
-  Color _getContrastColor(String hexColor) {
+  Color getContrastColor(String hexColor) {
     final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));
     final brightness = color.computeLuminance();
     return brightness > 0.5 ? Colors.black : Colors.white;
