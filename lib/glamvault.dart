@@ -377,38 +377,50 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     }
   }
 
-  Future<Uint8List?> _processAndCacheImage(
-    int lookId, 
-    String imageData, 
-    SharedPreferences prefs
-  ) async {
-    try {
-      final cachedKey = 'look_image_$lookId';
-      final cachedImage = prefs.getString(cachedKey);
-      
-      if (cachedImage != null) {
-        try {
-          return base64Decode(cachedImage);
-        } catch (e) {
-          debugPrint('Failed to decode cached image for look $lookId: $e');
-          await prefs.remove(cachedKey);
-        }
+Future<Uint8List?> _processAndCacheImage(
+  int lookId, 
+  String imageData, 
+  SharedPreferences prefs
+) async {
+  try {
+    final cachedKey = 'look_image_$lookId';
+    final cachedImage = prefs.getString(cachedKey);
+    
+    if (cachedImage != null) {
+      try {
+        return base64Decode(cachedImage);
+      } catch (e) {
+        debugPrint('Failed to decode cached image for look $lookId: $e');
+        await prefs.remove(cachedKey);
       }
-
-      Uint8List? imageBytes;
-      if (imageData.startsWith('data:image')) {
-        final base64String = imageData.split(',').last;
-        imageBytes = base64Decode(base64String);
-      } else {
-        imageBytes = base64Decode(imageData);
-      }
-
-      return imageBytes;
-    } catch (e) {
-      debugPrint('Error processing image for look $lookId: $e');
-      return null;
     }
+
+    Uint8List? imageBytes;
+    if (imageData.startsWith('data:image')) {
+      final base64String = imageData.split(',').last;
+      imageBytes = base64Decode(base64String);
+    } else if (imageData.startsWith('http')) {
+      // This is a URL, not base64 data - we need to download it
+      final response = await http.get(Uri.parse(imageData));
+      if (response.statusCode == 200) {
+        imageBytes = response.bodyBytes;
+      }
+    } else {
+      // Assume it's already base64 encoded
+      imageBytes = base64Decode(imageData);
+    }
+
+    // ACTUALLY CACHE THE IMAGE (this was missing!)
+    if (imageBytes != null) {
+      await prefs.setString(cachedKey, base64Encode(imageBytes));
+    }
+
+    return imageBytes;
+  } catch (e) {
+    debugPrint('Error processing image for look $lookId: $e');
+    return null;
   }
+}
 
   Future<void> _fetchShadesForLook(int savedLookId) async {
     try {

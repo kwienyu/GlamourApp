@@ -212,7 +212,7 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
-                  color: const Color.fromARGB(255, 9, 9, 9)
+                  color: Color.fromARGB(255, 9, 9, 9)
                 ),
               ),
               const SizedBox(height: 8),

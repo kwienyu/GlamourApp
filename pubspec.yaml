@@ -61,6 +61,7 @@ dependencies:
   chewie: ^1.12.1
   video_player: ^2.10.0
   toastification: ^3.0.3
+  custom_refresh_indicator: ^4.0.1
 
   
   

@@ -498,6 +498,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   Uint8List? _currentMakeupImage;
   bool _hasShownCustomizationDialog = false;
   bool _isFirstTimeSelection = true;
+   bool _isResetting = false;
 
   Map<String, Color?> selectedShades = {
     'Foundation': null,
@@ -663,14 +664,55 @@ Future<void> _applyVirtualMakeup() async {
       setState(() => _isApplyingMakeup = false);
     }
   }
-  // Modify the reset function to clear properly
-void _resetVirtualMakeup() {
+
+// Replace the current reset function with this:
+Future<void> _resetVirtualMakeup() async {
   setState(() {
-    _processedImage = null;
-    _currentMakeupImage = null;
-    // Clear all selected shades when resetting
-    selectedShades.updateAll((key, value) => null);
+    _isResetting = true; // Use reset-specific loading state
   });
+
+  try {
+    // Clear any manual selections
+    selectedShades.updateAll((key, value) => null);
+    
+    // Re-apply the AI-recommended makeup
+    final eyeshadowHex = shadeHexCodes['Eyeshadow']?.isNotEmpty == true 
+        ? shadeHexCodes['Eyeshadow']![0] 
+        : null;
+    final lipstickHex = shadeHexCodes['Lipstick']?.isNotEmpty == true 
+        ? shadeHexCodes['Lipstick']![0] 
+        : null;
+    final blushHex = shadeHexCodes['Blush']?.isNotEmpty == true 
+        ? shadeHexCodes['Blush']![0] 
+        : null;
+
+    final response = await _makeupApiService.applyMakeup(
+      imageFile: widget.capturedImage,
+      eyeshadowColor: eyeshadowHex,
+      lipstickColor: lipstickHex,
+      blushColor: blushHex,
+      skinTone: widget.skinTone ?? 'medium',
+      undertone: widget.undertone,
+      makeupLook: widget.selectedMakeupLook ?? 'natural',
+      makeupType: widget.selectedMakeupType ?? 'everyday',
+    );
+
+    setState(() {
+      _processedImage = base64Decode(response['result_image']);
+      _currentMakeupImage = _processedImage;
+    });
+  } catch (e) {
+    // If re-applying fails, show original image but keep selections cleared
+    setState(() {
+      _processedImage = null;
+      _currentMakeupImage = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error resetting to AI recommendations: $e')),
+    );
+  } finally {
+    setState(() => _isResetting = false); // Reset the reset-specific loading state
+  }
 }
 
   void _processRecommendationData() {
@@ -835,84 +877,102 @@ void _resetVirtualMakeup() {
   }
 
   Future<void> _saveLook() async {
-    if (widget.selectedMakeupLook == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No makeup look selected')),
-      );
-      return;
-    }
+  if (widget.selectedMakeupLook == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No makeup look selected')),
+    );
+    return;
+  }
 
-    setState(() {
-      isLoading = true;
-    });
+  setState(() {
+    isLoading = true;
+  });
 
-    try {
-      Map<String, List<String>> labeledShades = {};
+  try {
+    Map<String, List<String>> labeledShades = {};
+    
+    // Check if user selected any shades manually
+    bool hasManualSelections = selectedShades.values.any((color) => color != null);
+    
+    if (hasManualSelections) {
+      // Use manually selected shades
       selectedShades.forEach((productType, color) {
         if (color != null) {
           String hexColor = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
           labeledShades[productType] = [hexColor];
         }
       });
-
-      if (labeledShades.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No shades selected to save')),
-        );
-        return;
-      }
-
-      final imageBytes = await (_processedImage != null 
-          ? Future.value(_processedImage!) 
-          : widget.capturedImage.readAsBytes());
-      final base64Image = base64Encode(imageBytes);
-
-      final url = Uri.parse('https://glamouraika.com/api/saved_looks');
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': widget.userId,
-          'makeup_look': widget.selectedMakeupLook,
-          'shades': labeledShades,
-          'image_data': base64Image,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        setState(() {
-          isSaved = true;
-        });
-
-        await _cacheSavedLook(
-          responseData['saved_look_id'],
-          widget.selectedMakeupLook!,
-          base64Image,
-          labeledShades,
-        );
-
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId)),
-          ),
-        );
-      } else {
-        final errorData = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? 'Unknown error'}')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving look: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
+    } else {
+      // AUTOMATICALLY USE AI-RECOMMENDED SHADES (big circle ones)
+      shadeHexCodes.forEach((productType, hexCodes) {
+        if (hexCodes.isNotEmpty) {
+          // Use the primary (recommended) shade which is the first one (big circle)
+          labeledShades[productType] = [hexCodes[0]];
+          
+          // Also update selectedShades to reflect this for visual consistency
+          if (makeupShades.containsKey(productType) && makeupShades[productType]!.isNotEmpty) {
+            selectedShades[productType] = makeupShades[productType]![0];
+          }
+        }
       });
     }
+
+    final imageBytes = await (_processedImage != null 
+        ? Future.value(_processedImage!) 
+        : widget.capturedImage.readAsBytes());
+    final base64Image = base64Encode(imageBytes);
+
+    final url = Uri.parse('https://glamouraika.com/api/saved_looks');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'user_id': widget.userId,
+        'makeup_look': widget.selectedMakeupLook,
+        'shades': labeledShades,
+        'image_data': base64Image,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      setState(() {
+        isSaved = true;
+      });
+
+      await _cacheSavedLook(
+        responseData['saved_look_id'],
+        widget.selectedMakeupLook!,
+        base64Image,
+        labeledShades,
+      );
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Look saved ${hasManualSelections ? 'with custom shades' : 'with AI recommendations'}')),
+      );
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId)),
+        ),
+      );
+    } else {
+      final errorData = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? 'Unknown error'}')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error saving look: $e')),
+    );
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
   }
+}
 
   Future<void> _cacheSavedLook(
     dynamic lookId, 
@@ -1174,30 +1234,37 @@ Future<void> showCustomizationDialog() async {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       // No button
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _showSatisfiedToast();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.9),
-                          foregroundColor: Colors.pink.shade600,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(color: Colors.pink.shade300, width: 2),
-                          ),
-                          elevation: 4,
-                          shadowColor: Colors.pink.withOpacity(0.3),
-                        ),
-                        child: const Text(
-                          'No',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
+                      // No button
+ElevatedButton(
+  onPressed: () {
+    Navigator.of(context).pop();
+    // Keep the AI-applied makeup but clear any manual selections
+    setState(() {
+      // Clear manual selections but keep the AI-recommended makeup applied
+      selectedShades.updateAll((key, value) => null);
+      // The _processedImage already contains the AI-applied makeup
+    });
+    _showSatisfiedToast();
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.white.withOpacity(0.9),
+    foregroundColor: Colors.pink.shade600,
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+      side: BorderSide(color: Colors.pink.shade300, width: 2),
+    ),
+    elevation: 4,
+    shadowColor: Colors.pink.withOpacity(0.3),
+  ),
+  child: const Text(
+    'No',
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 16,
+    ),
+  ),
+),
                       
                       // Yes button
                       ElevatedButton(
@@ -1264,19 +1331,18 @@ void _showCustomizationToast() {
 
 // Add this new method to show toastification with check icon
 void _showSatisfiedToast() {
-  // Use a post-frame callback to ensure the context is available
   WidgetsBinding.instance.addPostFrameCallback((_) {
     toastification.show(
       context: context,
       type: ToastificationType.success,
       style: ToastificationStyle.flatColored,
       title: const Text('Perfect!'),
-      description: const Text('You can now save your look'),
+      description: const Text('AI recommendations applied. You can now save your look'),
       alignment: Alignment.topCenter,
       autoCloseDuration: const Duration(seconds: 4),
       borderRadius: BorderRadius.circular(12),
       showProgressBar: true,
-      icon: const Icon(Icons.check_circle, color: Colors.green,),
+      icon: const Icon(Icons.check_circle, color: Colors.green),
       primaryColor: Colors.green,
       backgroundColor: Colors.white,
       foregroundColor: Colors.black,
@@ -1592,16 +1658,25 @@ if (showMakeupProducts)
                     child: const Text("Retake"),
                   ),
                   ElevatedButton(
-                    onPressed: _processedImage != null ? _resetVirtualMakeup : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: const Text("Reset"),
-                  ),
+  onPressed: _isResetting ? null : _resetVirtualMakeup, // Use _isResetting here
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.orange,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    ),
+  ),
+  child: _isResetting // Check _isResetting instead of _isApplyingMakeup
+      ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+      : const Text("Reset"),
+),
                   ElevatedButton(
                     onPressed: _saveLook,
                     style: ElevatedButton.styleFrom(

@@ -116,12 +116,10 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
           ),
         ),
         child: isLoading
-            ? Expanded(
-                child: Center(
-                  child: LoadingAnimationWidget.staggeredDotsWave(
-                    color: Colors.pinkAccent,
-                    size: isSmallScreen ? 50 : 60,
-                  ),
+            ? Center( // Fixed: Removed Expanded widget
+                child: LoadingAnimationWidget.staggeredDotsWave(
+                  color: Colors.pinkAccent,
+                  size: isSmallScreen ? 50 : 60,
                 ),
               )
             : faceShape != null
@@ -335,8 +333,6 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
         return 'assets/placeholder.png';
     }
   }
-
-  
 }
 
 class MakeupTipsGenerator {

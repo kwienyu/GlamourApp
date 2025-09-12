@@ -16,10 +16,10 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
   String? gender;
 
   late AnimationController _animationController;
-  late Animation<double> _animation;
+  late Animation<double> animation;
 
   final List<String> suffixOptions = ['', 'Jr', 'Sr', 'II', 'III'];
-  final List<String> genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
+  final List<String> genderOptions = ['Male', 'Female', 'Other']; 
 
   @override
   void initState() {
@@ -28,7 +28,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _animation = Tween<double>(begin: 1.0, end: 1.2).animate(
+    animation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeInOut,
@@ -85,7 +85,7 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
     if (gender == 'Male') return 'male';
     if (gender == 'Female') return 'female';
     if (gender == 'Other') return 'other';
-    return 'prefer_not_to_say';
+    return null;
   }
 
   void _navigateToNextPage() {
@@ -124,51 +124,40 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
     _animationController.forward();
   }
 
-  Widget _buildGenderCheckbox(String genderOption) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: gender == genderOption ? _animation.value : 1.0,
-                  child: Checkbox(
-                    value: gender == genderOption,
-                    onChanged: (bool? selected) {
-                      if (selected == true) {
-                        _handleGenderSelection(genderOption);
-                      }
-                    },
-                    activeColor: _getGlitterColor(genderOption),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    side: BorderSide(
-                      color: Colors.grey.withOpacity(0.8),
-                      width: 1.5,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            genderOption,
-            style: TextStyle(
-              fontSize: 16,
+  Widget _buildGenderOption(String genderOption) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: OutlinedButton(
+          onPressed: () {
+            _handleGenderSelection(genderOption);
+          },
+          style: OutlinedButton.styleFrom(
+            backgroundColor: gender == genderOption 
+                ? _getGlitterColor(genderOption).withOpacity(0.1)
+                : Colors.transparent,
+            foregroundColor: gender == genderOption 
+                ? _getGlitterColor(genderOption)
+                : Colors.black,
+            side: BorderSide(
               color: gender == genderOption 
                   ? _getGlitterColor(genderOption)
-                  : Colors.black,
+                  : Colors.grey.withOpacity(0.5),
+              width: 1.5,
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
-        ],
+          child: Text(
+            genderOption,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: gender == genderOption ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -293,21 +282,22 @@ class _SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderStat
                             Padding(
                               padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
                               child: Text(
-                                'Gender',
+                                'Gender *',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.black.withOpacity(0.6),
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                            Wrap(
-                              spacing: isSmallScreen ? 20.0 : 30.0,
-                              runSpacing: 10.0,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                _buildGenderCheckbox('Male'),
-                                _buildGenderCheckbox('Female'),
-                                _buildGenderCheckbox('Other'),
-                                _buildGenderCheckbox('Prefer not to say'),
+                                _buildGenderOption('Male'),
+                                const SizedBox(width: 8),
+                                _buildGenderOption('Female'),
+                                const SizedBox(width: 8),
+                                _buildGenderOption('Other'),
                               ],
                             ),
                           ],
