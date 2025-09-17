@@ -168,6 +168,8 @@ flutter:
     - assets/heavy_type.jpg
     - assets/light_type.jpg
     - assets/casual_type.png
+    - assets/face_shapeicon.png
+    - assets/skin_toneicon.png
 
 
     

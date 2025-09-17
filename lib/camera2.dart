@@ -712,15 +712,14 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     }
   }
 
-  Matrix4 _getCameraPreviewTransform() {
+ Matrix4 _getCameraPreviewTransform() {
   final screenSize = MediaQuery.of(_scaffoldContext).size;
   final cameraAspectRatio = _controller!.value.aspectRatio;
   final screenAspectRatio = screenSize.width / screenSize.height;
 
   if (_isUsingFrontCamera) {
-    return Matrix4.identity()
-      ..scale(-1.0, 1.0, 1.0) // Mirror for front camera
-      ..translate(-screenSize.width, 0.0);
+    // Removed mirroring for front camera - only scaling
+    return Matrix4.identity();
   } else {
     // For back camera, handle different aspect ratios
     if (cameraAspectRatio > screenAspectRatio) {

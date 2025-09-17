@@ -32,7 +32,7 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
 
   final List<String> undertones = ["Warm", "Neutral", "Cool"];
   final Map<String, List<String>> makeupLooks = {
-    'Casual': ['No-Makeup', 'Everyday Glow', 'SunKissed Glow'],
+    'Casual': ['No-Makeup', 'Everyday Glow', 'Sun-Kissed'],
     'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
     'Heavy': ['Matte', 'Cut Crease', 'Glam Night'],
   };

@@ -271,7 +271,7 @@ static void _drawLipMakeup(
     ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15); // Additional blur effect
   
   final rightBlushPaint = Paint()
-    ..color = paint.color.withOpacity(0.6) // Increased opacity
+    ..color = paint.color.withOpacity(0.5) // Increased opacity
     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20) // Softer blur
     ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15); // Additional blur effect
 
@@ -282,7 +282,7 @@ static void _drawLipMakeup(
       leftCheek.x.toDouble() - 12, // Adjusted position
       leftCheek.y.toDouble() - 10, // Adjusted position
     ),
-    45, // Slightly larger radius
+    40, // Slightly larger radius
     leftBlushPaint,
   );
   
@@ -291,7 +291,7 @@ static void _drawLipMakeup(
       rightCheek.x.toDouble() + 12, // Adjusted position
       rightCheek.y.toDouble() - 10, // Adjusted position
     ),
-    45, // Slightly larger radius
+    40, // Slightly larger radius
     rightBlushPaint,
   );
 
@@ -499,6 +499,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   bool _hasShownCustomizationDialog = false;
   bool _isFirstTimeSelection = true;
    bool _isResetting = false;
+  bool _userChoseToCustomize = false; // Track if user chose to customize
 
   Map<String, Color?> selectedShades = {
     'Foundation': null,
@@ -700,6 +701,7 @@ Future<void> _resetVirtualMakeup() async {
     setState(() {
       _processedImage = base64Decode(response['result_image']);
       _currentMakeupImage = _processedImage;
+      _userChoseToCustomize = false; // Reset customization choice
     });
   } catch (e) {
     // If re-applying fails, show original image but keep selections cleared
@@ -884,6 +886,14 @@ Future<void> _resetVirtualMakeup() async {
     return;
   }
 
+  // Check if user chose to customize but didn't select any shades
+  if (_userChoseToCustomize && !_hasSelectedShades()) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select at least one shade to customize your look or click Reset to use AI recommendations')),
+    );
+    return;
+  }
+
   setState(() {
     isLoading = true;
   });
@@ -974,6 +984,11 @@ Future<void> _resetVirtualMakeup() async {
   }
 }
 
+  // Helper method to check if any shades are selected
+  bool _hasSelectedShades() {
+    return selectedShades.values.any((color) => color != null);
+  }
+
   Future<void> _cacheSavedLook(
     dynamic lookId, 
     String lookName, 
@@ -1024,6 +1039,7 @@ Future<void> _resetVirtualMakeup() async {
 Widget _buildShadeItem(Color color, int index, String productName) {
   final isSelected = selectedShades[productName] == color;
   final isPrimary = index == 0;
+  final isMiddleShade = index == 2; // Middle shade at index 2
   final size = isPrimary ? 70.0 : 50.0;
 
   return Column(
@@ -1050,31 +1066,41 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         ),
       GestureDetector(
         onTap: () async {
-          // Store current selection state
-          final previousSelection = selectedShades[productName];
-          
-          setState(() {
-            // Toggle selection - if already selected, unselect it
-            if (isSelected) {
-              selectedShades[productName] = null;
-            } else {
-              selectedShades[productName] = color;
-            }
+          // Only apply makeup overlay for small circle shades (non-primary)
+          if (!isPrimary) {
+            // Store current selection state
+            final previousSelection = selectedShades[productName];
             
-            // Only toggle expanded state for primary shade
-            if (isPrimary) {
-              expandedProducts[productName] = !expandedProducts[productName]!;
+            setState(() {
+              // Toggle selection - if already selected, unselect it
+              if (isSelected) {
+                selectedShades[productName] = null;
+              } else {
+                selectedShades[productName] = color;
+              }
+            });
+            
+            // Apply or remove makeup based on selection changes
+            if (previousSelection != selectedShades[productName]) {
+              if (selectedShades[productName] != null) {
+                // A shade was selected - apply makeup
+                await _applyVirtualMakeup();
+              } else {
+                // A shade was deselected - check if we should remove makeup
+                await _handleShadeDeselection(productName);
+              }
             }
-          });
-          
-          // Apply or remove makeup based on selection changes
-          if (previousSelection != selectedShades[productName]) {
-            if (selectedShades[productName] != null) {
-              // A shade was selected - apply makeup
-              await _applyVirtualMakeup();
-            } else {
-              // A shade was deselected - check if we should remove makeup
-              await _handleShadeDeselection(productName);
+          } else {
+            // For primary (big circle) shades, only toggle expansion
+            setState(() {
+              expandedProducts[productName] = !expandedProducts[productName]!;
+            });
+            
+            // Show customization dialog when primary is first clicked
+            if (_isFirstTimeSelection && !_hasShownProductDialog[productName]!) {
+              _hasShownProductDialog[productName] = true;
+              _isFirstTimeSelection = false;
+              await showCustomizationDialog();
             }
           }
         },
@@ -1090,8 +1116,10 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected ? Colors.green : 
-                        isPrimary ? Colors.green : Colors.grey,
-                  width: isPrimary ? 3 : 2,
+                        isPrimary ? Colors.green : 
+                        isMiddleShade ? Colors.green : Colors.grey, // Green border for middle shade
+                  width: isPrimary ? 3 : 
+                         isMiddleShade ? 3 : 2, // Thicker border for middle shade
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -1099,7 +1127,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
-                  if (isSelected) 
+                  if (isSelected || isMiddleShade) 
                     BoxShadow(
                       color: Colors.white.withOpacity(0.8),
                       blurRadius: 10,
@@ -1108,6 +1136,40 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 ],
               ),
             ),
+            // Add downward arrow indicator for the primary shade
+            if (isPrimary && !expandedProducts[productName]!)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                child: Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white,
+                  size: 24,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            // Add upward arrow indicator when expanded
+            if (isPrimary && expandedProducts[productName]!)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                child: Icon(
+                  Icons.arrow_drop_up,
+                  color: Colors.white,
+                  size: 24,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -1243,6 +1305,7 @@ ElevatedButton(
       // Clear manual selections but keep the AI-recommended makeup applied
       selectedShades.updateAll((key, value) => null);
       // The _processedImage already contains the AI-applied makeup
+      _userChoseToCustomize = false; // User chose not to customize
     });
     _showSatisfiedToast();
   },
@@ -1274,6 +1337,7 @@ ElevatedButton(
                             showShades = true;
                             _processedImage = null;
                             _currentMakeupImage = null;
+                            _userChoseToCustomize = true; // User chose to customize
                           });
                           // Show toastification for customization
                           _showCustomizationToast();
@@ -1524,100 +1588,57 @@ if (showMakeupProducts)
 
 
           if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
-            Positioned(
-              right: 0,
-              top: 140,
-              bottom: 0,
-              child: Container(
-                width: 110,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
-                  ),
+  Positioned(
+    right: 0,
+    top: 140,
+    bottom: 0,
+    child: Container(
+      width: 110,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 10.0),
+              child: Text(
+                selectedProduct!,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0),
-                        child: Text(
-                          selectedProduct!,
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      // Clear button - only show if a shade is selected
-                      if (selectedShades[selectedProduct] != null)
-  TextButton(
-    onPressed: () async {
-      // Store current selection and image state
-      final previousSelection = selectedShades[selectedProduct];
-      final previousImage = _processedImage;
-      
-      setState(() {
-        selectedShades[selectedProduct!] = null;
-      });
-      
-      // Only re-apply makeup if there are other products selected
-      // and the selection actually changed
-      if (previousSelection != null && 
-          (selectedShades['Eyeshadow'] != null || 
-           selectedShades['Lipstick'] != null || 
-           selectedShades['Blush'] != null)) {
-        await _applyVirtualMakeup();
-      } else {
-        // If no makeup products are selected, but we had a previous image
-        // keep the current image state instead of resetting completely
-        if (previousImage != null && 
-            (selectedShades['Eyeshadow'] == null && 
-             selectedShades['Lipstick'] == null && 
-             selectedShades['Blush'] == null)) {
-          setState(() {
-            _processedImage = previousImage;
-          });
-        } else {
-          _resetVirtualMakeup();
-        }
-      }
-    },
-    child: const Text(
-      'Clear',
-      style: TextStyle(
-        color: Colors.red,
-        fontSize: 12,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // REMOVED: Clear button section
+            const SizedBox(height: 8),
+            
+            // Always show the primary shade
+            if (makeupShades[selectedProduct]!.isNotEmpty)
+              _buildShadeItem(makeupShades[selectedProduct]![0], 0, selectedProduct!),
+            
+            // Automatically show other shades when primary is clicked
+            if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
+              ...makeupShades[selectedProduct]!
+                  .asMap()
+                  .entries
+                  .where((entry) => entry.key > 0)
+                  .map((entry) => Padding(
+                    padding: const EdgeInsets.only(top: 12.0),
+                    child: _buildShadeItem(entry.value, entry.key, selectedProduct!),
+                  )),
+          ],
+        ),
       ),
     ),
   ),
-  
-                      const SizedBox(height: 8),
-                      
-                      // Always show the primary shade
-                      if (makeupShades[selectedProduct]!.isNotEmpty)
-                        _buildShadeItem(makeupShades[selectedProduct]![0], 0, selectedProduct!),
-                      
-                      // Automatically show other shades when primary is clicked
-                      if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
-                        ...makeupShades[selectedProduct]!
-                            .asMap()
-                            .entries
-                            .where((entry) => entry.key > 0)
-                            .map((entry) => Padding(
-                              padding: const EdgeInsets.only(top: 12.0),
-                              child: _buildShadeItem(entry.value, entry.key, selectedProduct!),
-                            )),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
           // Action buttons at bottom
           Positioned(
             bottom: 20,

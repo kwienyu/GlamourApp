@@ -8,7 +8,6 @@ class TermsAndConditionsPage extends StatefulWidget {
 }
 
 class _TermsAndConditionsPageState extends State<TermsAndConditionsPage> {
-  bool _hasAgreed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -169,69 +168,7 @@ class _TermsAndConditionsPageState extends State<TermsAndConditionsPage> {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  
-                  // Agreement checkbox
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: _hasAgreed,
-                          onChanged: (value) {
-                            setState(() {
-                              _hasAgreed = value ?? false;
-                            });
-                          },
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'I have read and agree to the Terms and Conditions',
-                            style: TextStyle(fontSize: 14, color: Colors.black87),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                 ],
-              ),
-            ),
-          ),
-
-          // Accept button
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _hasAgreed
-                    ? () {
-                        // Navigate to the next screen or close the dialog
-                        Navigator.pop(context, true);
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _hasAgreed ? Colors.pink : Colors.grey[300],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Accept and Continue',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
               ),
             ),
           ),

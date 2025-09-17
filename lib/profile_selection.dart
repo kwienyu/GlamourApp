@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'selection_page.dart';
 import 'camera2.dart';
 import 'glamvault.dart';
 import 'faceshapes.dart';
@@ -11,13 +10,166 @@ import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'makeup_artistform.dart';
 import 'package:intl/intl.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'apicall_recommendation.dart';
-import 'looks_shadecombination.dart';
-import 'package:animations/animations.dart';
 import 'help_desk.dart';
 import 'terms&conditions.dart'; 
+
+// Add these classes at the top of the file
+class MakeupShade {
+  final String shadeId;
+  final String hexCode;
+  final String shadeName;
+  final String shadeType;
+
+  MakeupShade({
+    required this.shadeId,
+    required this.hexCode,
+    required this.shadeName,
+    required this.shadeType,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MakeupShade &&
+          runtimeType == other.runtimeType &&
+          shadeId == other.shadeId;
+
+  @override
+  int get hashCode => shadeId.hashCode;
+
+ factory MakeupShade.fromJson(Map<String, dynamic> json) {
+  return MakeupShade(
+    shadeId: json['shade_id'].toString(),
+    hexCode: json['hex_code'] ?? '#000000',
+    shadeName: json['shade_name'] ?? '', 
+    shadeType: json['shade_type_name'] ?? json['shade_type'] ?? '', 
+  );
+}
+}
+
+class MakeupLook {
+  final String lookId;
+  final String lookName;
+  final String makeupType;
+  final int usageCount;
+  final int saveCount;
+  final Map<String, List<MakeupShade>> shadesByType;
+  final String source;
+  final String timePeriod;
+
+  MakeupLook({
+    required this.lookId,
+    required this.lookName,
+    required this.makeupType,
+    required this.usageCount,
+    required this.saveCount,
+    required this.shadesByType,
+    required this.source,
+    required this.timePeriod,
+  });
+
+  factory MakeupLook.fromJson(Map<String, dynamic> json) {
+    Map<String, List<MakeupShade>> shadesMap = {};
+
+    if (json['shades_by_type'] != null) {
+      Map<String, dynamic> shadesData =
+          Map<String, dynamic>.from(json['shades_by_type']);
+      shadesData.forEach((key, value) {
+        if (value is List) {
+          shadesMap[key] =
+              value.map((shade) => MakeupShade.fromJson(shade)).toList();
+        }
+      });
+    }
+
+    return MakeupLook(
+      lookId: json['makeup_look_id'].toString(),
+      lookName: json['makeup_look_name'] ?? 'Unknown Look',
+      makeupType: json['makeup_type_name'] ?? 'Unknown Type',
+      usageCount: json['usage_count'] ?? json['save_count'] ?? 0,
+      saveCount: json['save_count'] ?? 0,
+      shadesByType: shadesMap,
+      source: json['source'] ?? 'unknown',
+      timePeriod: json['time_period'] ?? 'all',
+    );
+  }
+}
+
+class FullRecommendationResponse {
+  final String userId;
+  final String userFaceShape;
+  final String userSkinTone;
+  final String userUndertone;
+  final Map<String, dynamic> filtersUsed;
+  final List<MakeupLook> topMakeupLooksByType;
+  final List<MakeupLook> mostUsedSavedLooks;
+  final MakeupLook? overallMostPopularLook;
+
+  FullRecommendationResponse({
+    required this.userId,
+    required this.userFaceShape,
+    required this.userSkinTone,
+    required this.userUndertone,
+    required this.filtersUsed,
+    required this.topMakeupLooksByType,
+    required this.mostUsedSavedLooks,
+    this.overallMostPopularLook,
+  });
+
+  factory FullRecommendationResponse.fromJson(Map<String, dynamic> json) {
+    return FullRecommendationResponse(
+      userId: json['user_id'].toString(),
+      userFaceShape: json['user_face_shape'] ?? 'Unknown',
+      userSkinTone: json['user_skin_tone'] ?? 'Unknown',
+      userUndertone: json['user_undertone'] ?? 'Unknown',
+      filtersUsed: Map<String, dynamic>.from(json['filters_used'] ?? {}),
+      topMakeupLooksByType: (json['top_makeup_looks_by_type'] as List? ?? [])
+          .map((look) => MakeupLook.fromJson(look))
+          .toList(),
+      mostUsedSavedLooks: (json['most_used_saved_looks'] as List? ?? [])
+          .map((look) => MakeupLook.fromJson(look))
+          .toList(),
+      overallMostPopularLook: json['overall_most_popular_look'] != null
+          ? MakeupLook.fromJson(json['overall_most_popular_look'])
+          : null,
+    );
+  }
+}
+
+class MakeupRecommendationService {
+  final String apiBaseUrl;
+
+  MakeupRecommendationService({required this.apiBaseUrl});
+
+  Future<FullRecommendationResponse> getFullRecommendation({
+    required String userId,
+    String timeFilter = 'all',
+  }) async {
+    try {
+      final Map<String, String> queryParams = {
+        'time_filter': timeFilter,
+      };
+
+      final uri = Uri.parse('$apiBaseUrl/$userId/full_recommendation')
+          .replace(queryParameters: queryParams);
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return FullRecommendationResponse.fromJson(data);
+      } else {
+        throw Exception(
+            'Failed to load full recommendation: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch full recommendation: $e');
+    }
+  }
+}
 
 class ProfileSelection extends StatefulWidget {
   final String userId;
@@ -25,210 +177,6 @@ class ProfileSelection extends StatefulWidget {
 
   @override
   _ProfileSelectionState createState() => _ProfileSelectionState();
-}
-
-// Updated MakeupRecommendation class to match API response
-class MakeupRecommendation {
-  final int userId;
-  final String? faceShape;
-  final String? skinTone;
-  final String? undertone;
-  final List<MakeupLookByType> topMakeupLooksByType;
-  final List<SavedLook> mostUsedSavedLooks;
-  final OverallLook? overallMostPopularLook;
-  final FiltersUsed filtersUsed;
-
-  MakeupRecommendation({
-    required this.userId,
-    this.faceShape,
-    this.skinTone,
-    this.undertone,
-    required this.topMakeupLooksByType,
-    required this.mostUsedSavedLooks,
-    this.overallMostPopularLook,
-    required this.filtersUsed,
-  });
-
-  factory MakeupRecommendation.fromJson(Map<String, dynamic> json) {
-    return MakeupRecommendation(
-      userId: json['user_id'] ?? 0,
-      faceShape: json['user_face_shape']?.toString(),
-      skinTone: json['user_skin_tone']?.toString(),
-      undertone: json['user_undertone']?.toString(),
-      topMakeupLooksByType: List<MakeupLookByType>.from(
-          json['top_makeup_looks_by_type'].map((x) => MakeupLookByType.fromJson(x))),
-      mostUsedSavedLooks: List<SavedLook>.from(
-          json['most_used_saved_looks'].map((x) => SavedLook.fromJson(x))),
-      overallMostPopularLook: json['overall_most_popular_look'] != null 
-          ? OverallLook.fromJson(json['overall_most_popular_look']) 
-          : null,
-      filtersUsed: FiltersUsed.fromJson(json['filters_used']),
-    );
-  }
-}
-
-// Data models for the API response
-class FiltersUsed {
-  final int skinToneId;
-  final int faceShapeId;
-  final int undertoneId;
-  final String timePeriod;
-
-  FiltersUsed({
-    required this.skinToneId,
-    required this.faceShapeId,
-    required this.undertoneId,
-    required this.timePeriod,
-  });
-
-  factory FiltersUsed.fromJson(Map<String, dynamic> json) {
-    return FiltersUsed(
-      skinToneId: json['skin_tone_id'],
-      faceShapeId: json['face_shape_id'],
-      undertoneId: json['undertone_id'],
-      timePeriod: json['time_period'],
-    );
-  }
-}
-
-// Update your MakeupLookByType class to handle null values
-class MakeupLookByType {
-  final int makeupTypeId;
-  final String? makeupTypeName; // Changed to nullable
-  final int makeupLookId;
-  final String? makeupLookName; // Changed to nullable
-  final int usageCount;
-  final Map<String, List<Shade>> shadesByType;
-  final String? source; // Changed to nullable
-  final String? timePeriod; // Changed to nullable
-
-  MakeupLookByType({
-    required this.makeupTypeId,
-    this.makeupTypeName,
-    required this.makeupLookId,
-    this.makeupLookName,
-    required this.usageCount,
-    required this.shadesByType,
-    this.source,
-    this.timePeriod,
-  });
-
-  factory MakeupLookByType.fromJson(Map<String, dynamic> json) {
-    Map<String, List<Shade>> shadesMap = {};
-    if (json['shades_by_type'] != null) {
-      json['shades_by_type'].forEach((key, value) {
-        shadesMap[key] = List<Shade>.from(value.map((x) => Shade.fromJson(x)));
-      });
-    }
-
-    return MakeupLookByType(
-      makeupTypeId: json['makeup_type_id'] ?? 0,
-      makeupTypeName: json['makeup_type_name']?.toString(),
-      makeupLookId: json['makeup_look_id'] ?? 0,
-      makeupLookName: json['makeup_look_name']?.toString(),
-      usageCount: json['usage_count'] ?? 0,
-      shadesByType: shadesMap,
-      source: json['source']?.toString(),
-      timePeriod: json['time_period']?.toString(),
-    );
-  }
-}
-
-// Also update your SavedLook class
-class SavedLook {
-  final int makeupTypeId;
-  final String? makeupTypeName; // Changed to nullable
-  final int makeupLookId;
-  final String? makeupLookName; // Changed to nullable
-  final int saveCount;
-  final Shade? shade;
-  final String? source; // Changed to nullable
-  final String? timePeriod; // Changed to nullable
-
-  SavedLook({
-    required this.makeupTypeId,
-    this.makeupTypeName,
-    required this.makeupLookId,
-    this.makeupLookName,
-    required this.saveCount,
-    this.shade,
-    this.source,
-    this.timePeriod,
-  });
-
-  factory SavedLook.fromJson(Map<String, dynamic> json) {
-    return SavedLook(
-      makeupTypeId: json['makeup_type_id'] ?? 0,
-      makeupTypeName: json['makeup_type_name']?.toString(),
-      makeupLookId: json['makeup_look_id'] ?? 0,
-      makeupLookName: json['makeup_look_name']?.toString(),
-      saveCount: json['save_count'] ?? 0,
-      shade: json['shade'] != null ? Shade.fromJson(json['shade']) : null,
-      source: json['source']?.toString(),
-      timePeriod: json['time_period']?.toString(),
-    );
-  }
-}
-
-// Update OverallLook class
-class OverallLook {
-  final int makeupLookId;
-  final String? makeupLookName; // Changed to nullable
-  final String? makeupTypeName; // Changed to nullable
-  final int usageCount;
-  final Map<String, List<Shade>> shadesByType;
-  final String? timePeriod; // Changed to nullable
-
-  OverallLook({
-    required this.makeupLookId,
-    this.makeupLookName,
-    this.makeupTypeName,
-    required this.usageCount,
-    required this.shadesByType,
-    this.timePeriod,
-  });
-
-  factory OverallLook.fromJson(Map<String, dynamic> json) {
-    Map<String, List<Shade>> shadesMap = {};
-    if (json['shades_by_type'] != null) {
-      json['shades_by_type'].forEach((key, value) {
-        shadesMap[key] = List<Shade>.from(value.map((x) => Shade.fromJson(x)));
-      });
-    }
-
-    return OverallLook(
-      makeupLookId: json['makeup_look_id'] ?? 0,
-      makeupLookName: json['makeup_look_name']?.toString(),
-      makeupTypeName: json['makeup_type_name']?.toString(),
-      usageCount: json['usage_count'] ?? 0,
-      shadesByType: shadesMap,
-      timePeriod: json['time_period']?.toString(),
-    );
-  }
-}
-
-// Update Shade class
-class Shade {
-  final int shadeId;
-  final String? hexCode; // Changed to nullable
-  final String? shadeName; // Changed to nullable
-  final String? shadeType;
-
-  Shade({
-    required this.shadeId,
-    this.hexCode,
-    this.shadeName,
-    this.shadeType,
-  });
-
-  factory Shade.fromJson(Map<String, dynamic> json) {
-    return Shade(
-      shadeId: json['shade_id'] ?? 0,
-      hexCode: json['hex_code']?.toString(),
-      shadeName: json['shade_name']?.toString(),
-      shadeType: json['shade_type']?.toString(),
-    );
-  }
 }
 
 class _ProfileSelectionState extends State<ProfileSelection> {
@@ -250,99 +198,69 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   int? age;
   File? _selectedProfileImage;
 
-  // Shade recommendations variables
-  Map<String, dynamic>? _weeklyTopShadesData;
-  Map<String, dynamic>? _monthlyTopShadesData;
-  bool _isLoadingShades = false;
-  String? _userSkinTone;
-  String _selectedWeeklyShadeCategory = 'foundation';
-  String _selectedMonthlyShadeCategory = 'foundation';
-  final List<String> _categoryOrder = [
-    'foundation',
-    'concealer',
-    'contour',
-    'eyeshadow',
-    'blush',
-    'lipstick',
-    'eyebrow',
-    'highlighter'
-  ];
-    
-  // Makeup recommendation variables
-  Map<String, dynamic>? _makeupRecommendations;
+  // Recommendation variables
+  final MakeupRecommendationService _recommendationService = MakeupRecommendationService(
+    apiBaseUrl: 'https://glamouraika.com/api',
+  );
+  FullRecommendationResponse? _recommendation;
   bool _isLoadingRecommendations = false;
+  String _recommendationError = '';
 
   // API Service instance
-  final _recommendationService = ApiCallRecommendation();
+  final recommendationServiceOld = ApiCallRecommendation();
 
   @override
   void initState() {
     super.initState();
     _fetchProfileData().then((_) {
-      _fetchTopShades();
-      _fetchMakeupRecommendations();
+      if (_hasValidAnalysis()) {
+        _loadRecommendations();
+      }
     });
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) setState(() => showBubble = false);
     });
   }
 
+  bool _hasValidAnalysis() {
+    return skinTone != null && 
+           skinTone != "Unknown" && 
+           skinTone != "Not Available" &&
+           faceShape != null &&
+           faceShape != "Unknown" &&
+           faceShape != "Not Available";
+  }
+
+  Future<void> _loadRecommendations() async {
+    if (!_hasValidAnalysis()) return;
+
+    setState(() {
+      _isLoadingRecommendations = true;
+      _recommendationError = '';
+    });
+
+    try {
+      final response = await _recommendationService.getFullRecommendation(
+        userId: widget.userId,
+        timeFilter: 'all',
+      );
+
+      setState(() {
+        _recommendation = response;
+        _isLoadingRecommendations = false;
+      });
+    } catch (e) {
+      setState(() {
+        _recommendationError = e.toString();
+        _isLoadingRecommendations = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchMakeupRecommendations() async {
-    setState(() => _isLoadingRecommendations = true);
-    
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = int.parse(prefs.getString('user_id') ?? widget.userId);
-      
-      // Updated API call with time filter parameter
-      final response = await _recommendationService.getFullRecommendation(
-        userId,
-        timeFilter: 'all', // You can make this configurable
-      );
-      
-      setState(() {
-        _makeupRecommendations = response;
-      });
-    } on Exception catch (e) {
-      debugPrint('Error fetching recommendations: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load recommendations: $e')),
-      );
-      setState(() {
-        _makeupRecommendations = null;
-      });
-    } finally {
-      setState(() => _isLoadingRecommendations = false);
-    }
-  }
-
-  Future<void> _fetchTopShades() async {
-    if (_userSkinTone == null) return;
-
-    setState(() => _isLoadingShades = true);
-
-    try {
-      final weeklyResponse = await _recommendationService.getTopShadesMap('week', _userSkinTone!);
-      final monthlyResponse = await _recommendationService.getTopShadesMap('month', _userSkinTone!);
-
-      setState(() {
-        _weeklyTopShadesData = weeklyResponse;
-        _monthlyTopShadesData = monthlyResponse;
-      });
-    } catch (e) {
-      debugPrint('Error fetching top shades: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load shade recommendations: $e')),
-      );
-    } finally {
-      setState(() => _isLoadingShades = false);
-    }
   }
 
   @override
@@ -369,7 +287,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
                   child: Stack(
                     children: [
                       CircleAvatar(
-                        radius: 50,
+                        radius: 40,
                         backgroundColor: Colors.white,
                         backgroundImage: _getProfileImage(),
                         child: profilePic == null
@@ -481,17 +399,17 @@ class _ProfileSelectionState extends State<ProfileSelection> {
             },
           ),
           ListTile(
-  leading: const Icon(Icons.description),
-  title: const Text('Terms and Conditions'),
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const TermsAndConditionsPage(),
-      ),
-    );
-  },
-),
+            leading: const Icon(Icons.description),
+            title: const Text('Terms and Conditions'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TermsAndConditionsPage(),
+                ),
+              );
+            },
+          ),
         ], 
       ), 
     ); 
@@ -586,7 +504,6 @@ class _ProfileSelectionState extends State<ProfileSelection> {
           suffix = data['suffix'] ?? "";
           faceShape = data['face_shape'] ?? "Not Available";
           skinTone = data['skin_tone'] ?? "Not Available";
-          _userSkinTone = data['skin_tone'];
           profilePic = imageBytes;
           email = data['email'] ?? "Not available";
           username = data['username'];
@@ -685,34 +602,41 @@ class _ProfileSelectionState extends State<ProfileSelection> {
   }
 
  AppBar _buildAppBar(BuildContext context) {
-  final screenHeight = MediaQuery.of(context).size.height;
+    final screenHeight = MediaQuery.of(context).size.height;
 
-  return AppBar(
-    backgroundColor: Colors.pinkAccent,
-    elevation: 0,
-    title: Image.asset(
-      'assets/glam_logo.png',
-      height: screenHeight * 0.10,
-      fit: BoxFit.contain,
-    )
-        .animate()
-        .fadeIn(duration: 500.ms)
-        .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
-    centerTitle: true,
-    actions: [
-      IconButton(
-        icon: Image.asset(
-          'assets/facscan_icon.gif',
-          height: screenHeight * 0.05,
-        )
-            .animate()
-            .fadeIn(delay: 300.ms)
-            .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-         onPressed: null,
-      ),
-    ],
-  );
-}
+    return AppBar(
+      backgroundColor: Colors.pinkAccent,
+      elevation: 0,
+      title: Image.asset(
+        'assets/glam_logo.png',
+        height: screenHeight * 0.10,
+        fit: BoxFit.contain,
+      )
+          .animate()
+          .fadeIn(duration: 500.ms)
+          .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: Image.asset(
+            'assets/facscan_icon.gif',
+            height: screenHeight * 0.05,
+          )
+              .animate()
+              .fadeIn(delay: 300.ms)
+              .slide(begin: Offset(-0.5, 0), end: Offset.zero),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MakeupArtistForm(userId: int.parse(widget.userId)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
   Widget _buildBody(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
@@ -731,15 +655,14 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               ],
             ),
             _buildCategoriesSection(context),
-            _buildPersonalizedAnalysisSection(),
-            _buildRecommendedMakeupTypesSection(),
-            _buildWeeklyTopShadesSection(),
-            _buildMonthlyTopShadesSection(),
+            _buildRecommendationsSection(), // This now includes the beauty profile
           ],
         ),
       ),
     );
   }
+  
+
   
   Widget _buildCurvedBackground(double screenHeight) {
     return Stack(
@@ -852,37 +775,33 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildProfileCards(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    int? parsedUserId;
+Widget _buildProfileCards(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  int? parsedUserId;
 
-    try {
-      parsedUserId = int.parse(widget.userId);
-    } catch (e) {
-      parsedUserId = 0;
-    }
-
-    return SizedBox(
-      height: screenWidth * 0.7,
-      child: PageView(
-        controller: _pageController,
-        children: [
-          _buildProfileCard(context, 'assets/camera.png', "Test My Look", CameraPage())
-              .animate()
-              .fadeIn(delay: 300.ms)
-              .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard(context, Icons.star, "Glamerry", GlamVaultScreen(userId: parsedUserId))
-              .animate()
-              .fadeIn(delay: 400.ms)
-              .scaleXY(begin: 0.8, end: 1),
-          _buildProfileCard(context, 'assets/top_report.png', "Top Recommended Shades", SelectionPage(userId: widget.userId))
-              .animate()
-              .fadeIn(delay: 200.ms)
-              .scaleXY(begin: 0.8, end: 1),
-        ],
-      ),
-    );
+  try {
+    parsedUserId = int.parse(widget.userId);
+  } catch (e) {
+    parsedUserId = 0; // Or handle the error appropriately
   }
+
+  return SizedBox(
+    height: screenWidth * 0.7,
+    child: PageView(
+      controller: _pageController,
+      children: [
+        _buildProfileCard(context, 'assets/camera.png', "Test My Look", CameraPage())
+            .animate()
+            .fadeIn(delay: 300.ms)
+            .scaleXY(begin: 0.8, end: 1),
+        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) // Uses parsed int
+            .animate()
+            .fadeIn(delay: 400.ms)
+            .scaleXY(begin: 0.8, end: 1),
+      ],
+    ),
+  );
+}
   
 
   Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
@@ -994,522 +913,1159 @@ class _ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildPersonalizedAnalysisSection() {
-    if (_isLoadingRecommendations) {
-      return Center(
-        child: LoadingAnimationWidget.staggeredDotsWave(
-          color: Colors.pinkAccent,
-          size: 50,
-        ),
-      );
-    }
-
-    String? displayedUndertone;
-
-    if (_makeupRecommendations == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final prefs = await SharedPreferences.getInstance();
-        final storedUndertone = prefs.getString('user_undertone');
-        if (storedUndertone != null && mounted) {
-          setState(() {
-            displayedUndertone = storedUndertone;
-          });
-        }
-      });
-    } else {
-      final recommendation = MakeupRecommendation.fromJson(_makeupRecommendations!);
-      displayedUndertone = recommendation.undertone;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Your Personalized Analysis',
-            style: TextStyle(
-              fontSize: 22,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold,
-              color: Color.fromARGB(255, 10, 10, 10),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                _buildAttributeChip('Face Shape: ${faceShape ?? "Not analyzed"}'),
-                const SizedBox(width: 8),
-                _buildAttributeChip('Skin Tone: ${skinTone ?? "Not analyzed"}'),
-                const SizedBox(width: 8),
-                _buildAttributeChip('Undertone: ${displayedUndertone ?? "Not analyzed"}'),
-              ],
-            ),
-          ),
+  Widget _buildBeautyProfileBox() {
+  return Container(
+    width: double.infinity,
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFF8EFF4),
+          Color.fromARGB(255, 248, 191, 219),
         ],
       ),
-    );
-  }
-
-Widget _buildRecommendedMakeupTypesSection() {
-  // Default makeup types for new users or when no recommendations are available
-  final defaultMakeupTypes = [
-    MakeupLookByType(
-      makeupTypeId: 1,
-      makeupTypeName: 'Casual',
-      makeupLookId: 0,
-      makeupLookName: 'Default Look',
-      usageCount: 0,
-      shadesByType: {},
-      source: 'default',
-      timePeriod: 'all',
+      borderRadius: BorderRadius.circular(24.0),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFFD4A5BD).withOpacity(0.2),
+          blurRadius: 20.0,
+          offset: const Offset(0, 8),
+        ),
+      ],
     ),
-    MakeupLookByType(
-      makeupTypeId: 2,
-      makeupTypeName: 'Light',
-      makeupLookId: 0,
-      makeupLookName: 'Default Look',
-      usageCount: 0,
-      shadesByType: {},
-      source: 'default',
-      timePeriod: 'all',
-    ),
-    MakeupLookByType(
-      makeupTypeId: 3,
-      makeupTypeName: 'Heavy',
-      makeupLookId: 0,
-      makeupLookName: 'Default Look',
-      usageCount: 0,
-      shadesByType: {},
-      source: 'default',
-      timePeriod: 'all',
-    )
-  ];
-
-  // Determine which data to use
-  List<MakeupLookByType> typesToDisplay = _makeupRecommendations != null 
-      ? MakeupRecommendation.fromJson(_makeupRecommendations!).topMakeupLooksByType
-      : defaultMakeupTypes;
-
-  // Ensure we always show exactly 3 makeup types
-  if (typesToDisplay.length < 3) {
-    final existingTypes = typesToDisplay.map((type) => type.makeupTypeName).where((name) => name != null).toSet();
-    
-    for (final defaultType in defaultMakeupTypes) {
-      if (typesToDisplay.length >= 3) break;
-      
-      if (defaultType.makeupTypeName != null && !existingTypes.contains(defaultType.makeupTypeName)) {
-        typesToDisplay.add(defaultType);
-      }
-    }
-  }
-  
-  if (typesToDisplay.length > 3) {
-    typesToDisplay = typesToDisplay.sublist(0, 3);
-  }
-
-  return Padding(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(28.0),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Top Makeup Looks by Type',
-          style: TextStyle(
-            fontSize: 22,
-            fontFamily: 'Serif',
-            fontWeight: FontWeight.bold,
-            color: Color.fromARGB(255, 10, 10, 10),
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_makeupRecommendations == null && !_isLoadingRecommendations)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              'Explore popular makeup looks that suit your features',
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFE2A6C0),
+                    Color(0xFFC98DA9),
+                  ],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFC98DA9).withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.auto_awesome,
+                  color: Colors.white, size: 22.0),
+            ),
+            const SizedBox(width: 16.0),
+            const Text(
+              'Your Beauty Profile',
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+                fontSize: 20.0,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF7E4A71),
+                fontFamily: 'PlayfairDisplay',
+                letterSpacing: 0.5,
               ),
             ),
-          ),
-        SizedBox(
-          height: 140,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: typesToDisplay.length,
-            itemBuilder: (context, index) {
-              final type = typesToDisplay[index];
-              final typeName = type.makeupTypeName ?? 'Unknown';
-              final usageCount = type.usageCount;
-              
-              return GestureDetector(
-                onTap: () {
-                  // Use the actual user ID from widget
-                  final userId = int.tryParse(widget.userId) ?? 1;
-                  
-                  if (_makeupRecommendations != null) {
-                    // Pass the entire API response if available
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
-                          userId: userId,
-                          makeupType: typeName,
-                          apiResponse: _makeupRecommendations,
-                        ),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return FadeThroughTransition(
-                            animation: animation,
-                            secondaryAnimation: secondaryAnimation,
-                            child: child,
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 600),
-                      ),
-                    );
-                  } else {
-                    // For default data without API response
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => MakeupLooksPage(
-                          userId: userId,
-                          makeupType: typeName,
-                          isDefaultData: true,
-                        ),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return FadeThroughTransition(
-                            animation: animation,
-                            secondaryAnimation: secondaryAnimation,
-                            child: child,
-                          );
-                        },
-                        transitionDuration: const Duration(milliseconds: 600),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  width: 150,
-                  margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color.fromARGB(255, 254, 138, 177).withOpacity(0.8),
-                        Colors.pinkAccent.withOpacity(0.8),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              typeName.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.pink[800],
-                                letterSpacing: 1.2,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.7),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.pink.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (_makeupRecommendations != null)
-                                        Text(
-                                          '$usageCount\nrecommendations',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.pink[700],
-                                          ),
-                                        ),
-                                      if (_makeupRecommendations == null)
-                                        Text(
-                                          'View Top\nRecommended',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.pink[700],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            // Add "View Top Recommended" text below the count for API data
-                            if (_makeupRecommendations != null)
-                              Text(
-                                'View Top Recommended',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  fontFamily: 'Serif',
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color.fromARGB(255, 45, 44, 44),
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          ],
         ),
+        const SizedBox(height: 20.0),
+        _buildProfileDetail('Face Shape', faceShape ?? 'Not analyzed'),
+        const SizedBox(height: 16.0),
+        _buildProfileDetail('Skin Tone', skinTone ?? 'Not analyzed'),
+        const SizedBox(height: 16.0),
+        _buildProfileDetail('Undertone', _recommendation?.userUndertone ?? 'Not analyzed'),
+        const SizedBox(height: 16.0),
       ],
     ),
   );
 }
 
-  Widget _buildWeeklyTopShadesSection() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Weekly Top Recommended Shade',
-            style: TextStyle(
-              fontSize: 22,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold,
-              color: const Color.fromARGB(255, 16, 16, 16),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_userSkinTone != null)
-            Text(
-              'Based on your $_userSkinTone skin tone',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-          const SizedBox(height: 8),
-          _buildShadeCategoryTabs('weekly'),
-          const SizedBox(height: 16),
-          _buildTopShadesList(_weeklyTopShadesData, _selectedWeeklyShadeCategory),
-          const SizedBox(height: 20),
-          _buildViewAnalyticsButton(_weeklyTopShadesData, 'Weekly'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMonthlyTopShadesSection() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Monthly Top Recommended Shade',
-            style: TextStyle(
-              fontSize: 22,
-              fontFamily: 'Serif',
-              fontWeight: FontWeight.bold,
-              color: const Color.fromARGB(255, 16, 16, 16),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_userSkinTone != null)
-            Text(
-              'Based on your $_userSkinTone skin tone',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-          const SizedBox(height: 8),
-          _buildShadeCategoryTabs('monthly'),
-          const SizedBox(height: 16),
-          _buildTopShadesList(_monthlyTopShadesData, _selectedMonthlyShadeCategory),
-          const SizedBox(height: 20),
-          _buildViewAnalyticsButton(_monthlyTopShadesData, 'Monthly'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildShadeCategoryTabs(String period) {
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _categoryOrder.length,
-        itemBuilder: (context, index) {
-          final category = _categoryOrder[index];
-          final displayName = category[0].toUpperCase() + category.substring(1);
-          final isSelected = period == 'weekly' 
-              ? _selectedWeeklyShadeCategory == category
-              : _selectedMonthlyShadeCategory == category;
-          
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(
-                displayName,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isSelected ? Colors.white : Colors.pinkAccent,
-                ),
-              ),
-              selected: isSelected,
-              selectedColor: Colors.pinkAccent,
-              backgroundColor: Colors.pink[50],
-              onSelected: (selected) {
-                setState(() {
-                  if (period == 'weekly') {
-                    _selectedWeeklyShadeCategory = category;
-                  } else {
-                    _selectedMonthlyShadeCategory = category;
-                  }
-                });
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTopShadesList(Map<String, dynamic>? shadesData, String selectedCategory) {
-    if (_isLoadingShades) {
-      return Center(
-        child: LoadingAnimationWidget.staggeredDotsWave(
-          color: Colors.pinkAccent,
-          size: 50,
+  Widget _buildProfileDetail(String title, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(
+          color: const Color(0xFFE8CFDE).withOpacity(0.5),
+          width: 1.0,
         ),
-      );
-    }
-
-    if (shadesData == null || shadesData.isEmpty) {
-      return const Center(child: Text('No shade data available'));
-    }
-
-    final shades = shadesData[selectedCategory] ?? [];
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF9B6A86),
+              fontSize: 15.0,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Inter',
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF7E4A71),
+              fontSize: 15.0,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Inter',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendationsSection() {
+    if (!_hasValidAnalysis()) {
+      return _buildAnalysisRequiredSection();
+    }
+
+    if (_isLoadingRecommendations) {
+      return _buildShimmerLoading();
+    }
+
+    if (_recommendationError.isNotEmpty) {
+      return _buildErrorState();
+    }
+
+    if (_recommendation == null) {
+      return _buildEmptyState();
+    }
+
+    return _buildRecommendationContent();
+  }
+
+
+  Widget _buildAnalysisRequiredSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE5B8D2).withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
           children: [
-            if (shades.isNotEmpty)
-              _buildShadeItem(shades[0]),
-            if (shades.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text(
-                  'No shades available for this category',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
+            const Icon(Icons.face_retouching_natural,
+                size: 50, color: Color(0xFF7E4A71)),
+            const SizedBox(height: 16),
+            const Text('Complete Your Beauty Analysis',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF7E4A71))),
+            const SizedBox(height: 12),
+            const Text(
+                'Analyze your face shape and skin tone to unlock personalized recommendations',
+                style: TextStyle(color: Color(0xFF9E8296)),
+                textAlign: TextAlign.center),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildShadeItem(Map<String, dynamic> shade) {
-  return GestureDetector(
-    onTap: () => _showShadeDetails(shade),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+  Widget _buildShimmerLoading() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildShimmerCard(),
+          const SizedBox(height: 20),
+          _buildShimmerCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color.fromARGB(255, 245, 87, 156).withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 80,
-            height: 40,
+            width: 150,
+            height: 24,
             decoration: BoxDecoration(
-              color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
+              color: const Color(0xFFF5E6EF),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
             ),
-            // Removed the Text widget that was displaying the hex code
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Top Match',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.pink[800],
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            height: 16,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5E6EF),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: 200,
+            height: 16,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5E6EF),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE5B8D2).withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 50, color: Color(0xFF7E4A71)),
+            const SizedBox(height: 16),
+            const Text('Oops! Something went wrong',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF7E4A71))),
+            const SizedBox(height: 12),
+            Text(_recommendationError,
+                style: const TextStyle(color: Color(0xFF9E8296)),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loadRecommendations,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7E4A71),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE5B8D2).withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.auto_awesome, size: 50, color: Color(0xFF7E4A71)),
+            const SizedBox(height: 16),
+            const Text('No recommendations yet',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF7E4A71))),
+            const SizedBox(height: 12),
+            const Text(
+                'Your personalized beauty suggestions will appear here soon',
+                style: TextStyle(color: Color(0xFF9E8296)),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+ Widget _buildRecommendationContent() {
+    final hasValidAnalysis = _recommendation!.userSkinTone != "Unknown" &&
+        _recommendation!.userFaceShape != "Unknown";
+
+    final hasSavedData = _recommendation!.mostUsedSavedLooks.isNotEmpty ||
+        _recommendation!.topMakeupLooksByType.isNotEmpty ||
+        _recommendation!.overallMostPopularLook != null;
+
+    // Get all makeup types with looks
+    final makeupTypes = _recommendation!.topMakeupLooksByType
+        .where((look) => look.shadesByType.isNotEmpty)
+        .take(3)
+        .toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Personalized Recommendations',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF7E4A71),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Your Beauty Profile Box
+          _buildBeautyProfileBox(),
+          const SizedBox(height: 24),
+
+           // Most Popular Look
+            if (_recommendation!.overallMostPopularLook != null) ...[
+              const Text(
+                '🌟 Most Popular Look',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7E4A71),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildFeaturedLookCard(_recommendation!.overallMostPopularLook!),
+              const SizedBox(height: 24),
+            ],
+
+          if (hasValidAnalysis && hasSavedData) ...[
+            if (makeupTypes.isNotEmpty) ...[
+              const Text(
+                'Top Looks by Type',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7E4A71),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 600,
+                child: PageView.builder(
+                  itemCount: makeupTypes.length,
+                  itemBuilder: (context, index) {
+                    final makeupLook = makeupTypes[index];
+                    return _buildMakeupTypeCard(makeupLook);
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Dot indicators for page view
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(makeupTypes.length, (index) {
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: index == 0 
+                          ? const Color(0xFF7E4A71)
+                          : const Color(0xFFD4A5BD).withOpacity(0.5),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 24),
+            ],
+            
+            // Most Used Looks
+            if (_recommendation!.mostUsedSavedLooks.isNotEmpty) ...[
+              const Text(
+                'Your Most Used Looks',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7E4A71),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._recommendation!.mostUsedSavedLooks
+                  .take(3)
+                  .map(_buildLookCard)
+                  .toList(),
+              const SizedBox(height: 24),
+            ],
+            
+            // Most Used Makeup Shades
+            if (_hasSavedShades()) ...[
+              const Text(
+                'Most Used Makeup Shades',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF7E4A71),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildMostUsedShadesSection(),
+            ],
+          ] else if (hasValidAnalysis && !hasSavedData) ...[
+            _buildNoSavedDataSection(),
+          ],
+        ],
+      ),
+    );
+  }
+
+Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
+  return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFFE5B8D2).withOpacity(0.3),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: SingleChildScrollView(  
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          // Makeup Type Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD1DC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.auto_awesome,
+                    size: 20, color: Color(0xFF7E4A71)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  makeupLook.makeupType.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF7E4A71),
+                    letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 4),
-                if (shade['shade_name'] != null)
-                  Text(
-                    shade['shade_name'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          Text(
+            makeupLook.lookName,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF7E4A71),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.visibility, size: 16, color: Color(0xFF9E8296)),
+              const SizedBox(width: 6),
+              Text('${makeupLook.usageCount} uses',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF9E8296))),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          // Display all shades from this specific makeup look
+          ...makeupLook.shadesByType.entries.map((entry) {
+            final productType = entry.key;
+            final shades = entry.value;
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                Text(
+                  productType.toLowerCase(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF7E4A71),
                   ),
-                LinearProgressIndicator(
-                  value: (shade['match_count'] ?? 0) / 1500,
-                  backgroundColor: Colors.grey[200],
-                  color: Colors.pinkAccent,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: shades
+                      .map((shade) => _buildShadeChip(shade))
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+            );
+          }).toList(),
+        ],
+      ),
+    ),
+  ),
+  );
+}
+
+List<Widget> buildAllProductShadesFromUserData() {
+  final List<Widget> shadeSections = [];
+  
+  // Define all makeup product categories we want to show
+  final productTypes = [
+    'blush', 'concealer', 'contour', 'eyeshadow', 
+    'foundation', 'highlighter', 'eyebrow'
+  ];
+
+  // Get top shades for each category from ALL user data
+  for (final productType in productTypes) {
+    final topShades = _getTopShadesForCategory(productType);
+    
+    if (topShades.isNotEmpty) {
+      shadeSections.addAll([
+        const SizedBox(height: 12),
+        Text(
+          productType.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF7E4A71),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: topShades
+              .take(3) // Top 3 shades for this category
+              .map((shade) => _buildShadeChip(shade))
+              .toList(),
+        ),
+        const SizedBox(height: 16),
+      ]);
+    }
+  }
+
+  return shadeSections;
+}
+List<MakeupLook> getTopLooksByType() {
+  // Group looks by makeupType
+  final Map<String, MakeupLook> grouped = {};
+
+  for (var look in _recommendation!.topMakeupLooksByType) {
+    // Keep only the first look for each type
+    if (!grouped.containsKey(look.makeupType)) {
+      grouped[look.makeupType] = look;
+    }
+  }
+
+  // Return in fixed order: Casual → Light → Heavy
+  final order = ["Casual", "Light", "Heavy"];
+  return order
+      .map((type) => grouped[type])
+      .where((look) => look != null)
+      .cast<MakeupLook>()
+      .toList();
+}
+
+
+List<MakeupShade> _getTopShadesForCategory(String category) {
+  final Map<MakeupShade, int> shadeFrequency = {};
+  
+  // Count shades from all top looks
+  for (var look in _recommendation!.topMakeupLooksByType) {
+    final shades = look.shadesByType[category] ?? [];
+    for (var shade in shades) {
+      // Find if this shade already exists by comparing shadeId
+      bool shadeExists = false;
+      MakeupShade? existingShade;
+      
+      for (var existing in shadeFrequency.keys) {
+        if (existing.shadeId == shade.shadeId) {
+          shadeExists = true;
+          existingShade = existing;
+          break;
+        }
+      }
+      
+      if (shadeExists && existingShade != null) {
+        shadeFrequency[existingShade] = (shadeFrequency[existingShade] ?? 0) + 1;
+      } else {
+        shadeFrequency[shade] = 1;
+      }
+    }
+  }
+  
+  // Count shades from most used saved looks
+  for (var look in _recommendation!.mostUsedSavedLooks) {
+    final shades = look.shadesByType[category] ?? [];
+    for (var shade in shades) {
+      bool shadeExists = false;
+      MakeupShade? existingShade;
+      
+      for (var existing in shadeFrequency.keys) {
+        if (existing.shadeId == shade.shadeId) {
+          shadeExists = true;
+          existingShade = existing;
+          break;
+        }
+      }
+      
+      if (shadeExists && existingShade != null) {
+        shadeFrequency[existingShade] = (shadeFrequency[existingShade] ?? 0) + 1;
+      } else {
+        shadeFrequency[shade] = 1;
+      }
+    }
+  }
+  
+  // Count shades from overall most popular look
+  if (_recommendation!.overallMostPopularLook != null) {
+    final shades = _recommendation!.overallMostPopularLook!.shadesByType[category] ?? [];
+    for (var shade in shades) {
+      bool shadeExists = false;
+      MakeupShade? existingShade;
+      
+      for (var existing in shadeFrequency.keys) {
+        if (existing.shadeId == shade.shadeId) {
+          shadeExists = true;
+          existingShade = existing;
+          break;
+        }
+      }
+      
+      if (shadeExists && existingShade != null) {
+        shadeFrequency[existingShade] = (shadeFrequency[existingShade] ?? 0) + 1;
+      } else {
+        shadeFrequency[shade] = 1;
+      }
+    }
+  }
+  
+  // Sort by frequency and return the shades
+  final sortedEntries = shadeFrequency.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  
+  return sortedEntries.map((entry) => entry.key).toList();
+}
+
+// KEEP ALL THE ORIGINAL FUNCTIONS FROM YOUR CODE:
+
+bool _hasSavedShades() {
+  bool hasShades = false;
+
+  // Check top looks
+  for (var look in _recommendation!.topMakeupLooksByType) {
+    if (look.shadesByType.isNotEmpty) {
+      hasShades = true;
+      break;
+    }
+  }
+
+  // Check most used looks
+  if (!hasShades) {
+    for (var look in _recommendation!.mostUsedSavedLooks) {
+      if (look.shadesByType.isNotEmpty) {
+        hasShades = true;
+        break;
+      }
+    }
+  }
+
+  // Check most popular look
+  if (!hasShades && _recommendation!.overallMostPopularLook != null) {
+    if (_recommendation!.overallMostPopularLook!.shadesByType.isNotEmpty) {
+      hasShades = true;
+    }
+  }
+
+  return hasShades;
+}
+
+Widget _buildMostUsedShadesSection() {
+  Map<String, Map<MakeupShade, int>> shadeFrequencyByCategory = {};
+
+  void _countShadesFromLook(MakeupLook look) {
+    look.shadesByType.forEach((category, shades) {
+      if (!shadeFrequencyByCategory.containsKey(category)) {
+        shadeFrequencyByCategory[category] = {};
+      }
+      
+      for (var shade in shades) {
+        // Find if this shade already exists in the category by comparing shadeId
+        bool shadeExists = false;
+        MakeupShade? existingShade;
+        
+        for (var existing in shadeFrequencyByCategory[category]!.keys) {
+          if (existing.shadeId == shade.shadeId) {
+            shadeExists = true;
+            existingShade = existing;
+            break;
+          }
+        }
+        
+        if (shadeExists && existingShade != null) {
+          // Increment count for existing shade
+          shadeFrequencyByCategory[category]![existingShade] = 
+              (shadeFrequencyByCategory[category]![existingShade] ?? 0) + 1;
+        } else {
+          // Add new shade with count 1
+          shadeFrequencyByCategory[category]![shade] = 1;
+        }
+      }
+    });
+  }
+
+  // Count shades from all looks
+  _recommendation!.topMakeupLooksByType.forEach(_countShadesFromLook);
+  _recommendation!.mostUsedSavedLooks.forEach(_countShadesFromLook);
+  if (_recommendation!.overallMostPopularLook != null) {
+    _countShadesFromLook(_recommendation!.overallMostPopularLook!);
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: shadeFrequencyByCategory.entries.map((entry) {
+      final category = entry.key;
+      final shadeFrequency = entry.value;
+
+      // Sort by frequency and get top 10 shades for this category
+      final sortedShades = shadeFrequency.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      
+      final top10Shades = sortedShades
+          .take(10) // Limit to 10 most used shades for this category
+          .map((entry) => entry.key)
+          .toList();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+            child: Text(
+              category.toLowerCase(),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF7E4A71),
+              ),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: top10Shades.map((shade) => _buildShadeChip(shade)).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
+      );
+    }).toList(),
+  );
+}
+  bool hasSavedShades() {
+    bool hasShades = false;
+    
+    // Check top looks
+    for (var look in _recommendation!.topMakeupLooksByType) {
+      if (look.shadesByType.isNotEmpty) {
+        hasShades = true;
+        break;
+      }
+    }
+    
+    // Check most used looks
+    if (!hasShades) {
+      for (var look in _recommendation!.mostUsedSavedLooks) {
+        if (look.shadesByType.isNotEmpty) {
+          hasShades = true;
+          break;
+        }
+      }
+    }
+    
+    // Check most popular look
+    if (!hasShades && _recommendation!.overallMostPopularLook != null) {
+      if (_recommendation!.overallMostPopularLook!.shadesByType.isNotEmpty) {
+        hasShades = true;
+      }
+    }
+    
+    return hasShades;
+  }
+
+  Widget _buildNoSavedDataSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE5B8D2).withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.auto_awesome_outlined,
+              size: 50, color: Color(0xFF7E4A71)),
+          const SizedBox(height: 16),
+          const Text('No Saved Makeup Looks Yet',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF7E4A71))),
+          const SizedBox(height: 12),
+          const Text(
+              'Start saving your favorite makeup looks and shades to see personalized recommendations here',
+              style: TextStyle(color: Color(0xFF9E8296)),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeaturedLookCard(MakeupLook look) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE5B8D2).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD1DC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.star,
+                                size: 18, color: Color(0xFF7E4A71)),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(look.lookName,
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF7E4A71))),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(look.makeupType,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF9E8296),
+                              fontStyle: FontStyle.italic)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.visibility, size: 16, color: Color(0xFF9E8296)),
+                const SizedBox(width: 6),
+                Text('${look.usageCount} uses',
+                    style:
+                        const TextStyle(fontSize: 13, color: Color(0xFF9E8296))),
+              ],
+            ),
+            if (look.shadesByType.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              ...look.shadesByType.entries.map((entry) {
+                final category = entry.key;
+                final shades = entry.value.take(3).toList();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF7E4A71),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children:
+                          shades.map((shade) => _buildShadeChip(shade)).toList(),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLookCard(MakeupLook look) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE5B8D2).withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(look.lookName,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF7E4A71))),
+            const SizedBox(height: 8),
+            Text(look.makeupType,
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF9E8296))),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.visibility, size: 12, color: Color(0xFF9E8296)),
+                const SizedBox(width: 4),
+                Text('${look.usageCount} uses',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF9E8296))),
+              ],
+            ),
+            if (look.shadesByType.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ...look.shadesByType.entries.map((entry) {
+                final category = entry.key;
+                final shades = entry.value.take(3).toList();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF7E4A71),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children:
+                          shades.map((shade) => _buildShadeChip(shade)).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                );
+              }).toList(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildMostUsedShadesSection() {
+    Map<String, Map<MakeupShade, int>> shadeFrequencyByCategory = {};
+
+    void _countShadesFromLook(MakeupLook look) {
+      look.shadesByType.forEach((category, shades) {
+        if (!shadeFrequencyByCategory.containsKey(category)) {
+          shadeFrequencyByCategory[category] = {};
+        }
+        
+        for (var shade in shades) {
+          // Find if this shade already exists in the category by comparing shadeId
+          bool shadeExists = false;
+          MakeupShade? existingShade;
+          
+          for (var existing in shadeFrequencyByCategory[category]!.keys) {
+            if (existing.shadeId == shade.shadeId) {
+              shadeExists = true;
+              existingShade = existing;
+              break;
+            }
+          }
+          
+          if (shadeExists && existingShade != null) {
+            // Increment count for existing shade
+            shadeFrequencyByCategory[category]![existingShade] = 
+                (shadeFrequencyByCategory[category]![existingShade] ?? 0) + 1;
+          } else {
+            // Add new shade with count 1
+            shadeFrequencyByCategory[category]![shade] = 1;
+          }
+        }
+      });
+    }
+
+    // Count shades from all looks
+    _recommendation!.topMakeupLooksByType.forEach(_countShadesFromLook);
+    _recommendation!.mostUsedSavedLooks.forEach(_countShadesFromLook);
+    if (_recommendation!.overallMostPopularLook != null) {
+      _countShadesFromLook(_recommendation!.overallMostPopularLook!);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: shadeFrequencyByCategory.entries.map((entry) {
+        final category = entry.key;
+        final shadeFrequency = entry.value;
+
+        // Sort by frequency and get top shades
+        final sortedShades = shadeFrequency.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        
+        final topShades = sortedShades
+            .take(3) // Limit to 3 shades
+            .map((entry) => entry.key)
+            .toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+              child: Text(
+                category,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF7E4A71),
+                ),
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: topShades.map((shade) => _buildShadeChip(shade)).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+Widget _buildShadeChip(MakeupShade shade) {
+  return GestureDetector(
+    onTap: () => _showShadeVisualization(shade),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: _parseHexColor(shade.hexCode),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Text(
-            '${shade['match_count'] ?? 0}',
+            shade.shadeName,
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.bold,
+              color: Color(0xFF7E4A71),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -1518,178 +2074,159 @@ Widget _buildRecommendedMakeupTypesSection() {
   );
 }
 
-  Widget _buildViewAnalyticsButton(Map<String, dynamic>? shadesData, String period) {
-    return Center(
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.pinkAccent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-        onPressed: () {
-          _showDetailedAnalytics(shadesData, period);
-        },
-        child: Text(
-          'View $period Shades Applied',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showDetailedAnalytics(Map<String, dynamic>? shadesData, String period) {
-    if (shadesData == null) return;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$period Top Shades',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.pink[800],
-                ),
+void _showShadeVisualization(MakeupShade shade) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Main content container - centered properly
+            Container(
+              constraints: BoxConstraints(
+                minWidth: MediaQuery.of(context).size.width * 0.8,
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Based on your $_userSkinTone skin tone',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 25,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Text(
-                        'Top Shades Across Categories',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.pink[800],
+              padding: const EdgeInsets.all(30), // Increased padding for better centering
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Larger color visualization - properly centered
+                  Container(
+                    width: 200, // Increased from 160
+                    height: 200, // Increased from 160
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0.8),
+                          Colors.white.withOpacity(0.2),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 20,
+                          spreadRadius: 1,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 180, // Increased from 140
+                        height: 180, // Increased from 140
+                        decoration: BoxDecoration(
+                          color: _parseHexColor(shade.hexCode),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 18,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      ...shadesData.entries.map((entry) {
-                        if (entry.value.isEmpty) return const SizedBox();
-                        final shade = entry.value[0];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${entry.key[0].toUpperCase()}${entry.key.substring(1)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.pinkAccent,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _buildDetailedShadeItem(shade, 1),
-                            const Divider(),
-                          ],
-                        );
-                      }),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 25), // Increased spacing
+                  
+                  // Shade name with elegant typography - properly centered
+                  Container(
+                    width: double.infinity,
+                    child: Text(
+                      shade.shadeName.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 18, // Slightly larger font
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF7E4A71),
+                        letterSpacing: 1.0,
+                        fontFamily: 'PlayfairDisplay',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 8), // Increased spacing
+                  
+                  // Shade type with subtle styling - properly centered
+                  Container(
+                    width: double.infinity,
+                    child: Text(
+                      shade.shadeType,
+                      style: TextStyle(
+                        fontSize: 14, // Slightly larger font
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 0.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // X button positioned properly
+            Positioned(
+              top: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF7E4A71).withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF7E4A71),
+                    size: 20,
                   ),
                 ),
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailedShadeItem(Map<String, dynamic> shade, int rank) {
-  return ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-    ),
-    title: Text(shade['shade_name'] ?? 'Shade'), // Removed hex code from title
-    subtitle: Text('Top #$rank'), // Removed hex code from subtitle
-    trailing: Text('${shade['match_count'] ?? 0} matches'),
-    onTap: () => _showShadeDetails(shade),
-  );
-}
-
-  void _showShadeDetails(Map<String, dynamic> shade) {
-  showModalBottomSheet(
-    context: context,
-    builder: (context) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Color(int.parse(shade['hex_code'].replaceAll('#', '0xFF'))),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              // Removed the Text widget that was displaying the hex code
             ),
-            const SizedBox(height: 16),
-            if (shade['shade_name'] != null)
-              Text(
-                shade['shade_name'],
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            const SizedBox(height: 8),
-            Text(
-              'Match Count: ${shade['match_count'] ?? 0}',
-              style: const TextStyle(
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 16),
           ],
         ),
       );
     },
   );
 }
-
-  Widget _buildAttributeChip(String text) {
-    return Chip(
-      backgroundColor: Colors.pink[50],
-      label: Text(
-        text,
-        style: TextStyle(
-          color: Colors.pink[800],
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
- Widget _buildCategoryItem(BuildContext context, String imagePath, String label, Widget route) {
+  Widget _buildCategoryItem(BuildContext context, String imagePath, String label, Widget route) {
     final size = MediaQuery.of(context).size;
 
     return GestureDetector(
@@ -1728,13 +2265,34 @@ Widget _buildRecommendedMakeupTypesSection() {
       ),
     );
   }
+
+  Color _parseHexColor(String hexCode) {
+    try {
+      return Color(int.parse(hexCode.replaceFirst('#', ''), radix: 16) + 0xFF000000);
+    } catch (e) {
+      return const Color(0xFFE5D0DA);
+    }
+  }
+
+  Widget buildAttributeChip(String text) {
+    return Chip(
+      backgroundColor: Colors.pink[50],
+      label: Text(
+        text,
+        style: TextStyle(
+          color: Colors.pink[800],
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Color getContrastColor(String hexColor) {
     final color = Color(int.parse(hexColor.replaceAll('#', '0xFF')));
     final brightness = color.computeLuminance();
     return brightness > 0.5 ? Colors.black : Colors.white;
   }
 }
-
 
 class ElegantTopCurveClipper extends CustomClipper<Path> {
   @override

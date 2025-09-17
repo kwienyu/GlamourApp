@@ -368,15 +368,13 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
               
               const SizedBox(height: 30),
               
-              // FAQ Section
-              const Center(
-                child: Text(
-                  'FAQ',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Color.fromARGB(255, 253, 90, 180),
-                  ),
+              // FAQ Section - Changed from Center to Align to left
+              const Text(
+                'FAQ',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color.fromARGB(255, 6, 6, 6),
                 ),
               ),
               const SizedBox(height: 16),

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'faceshapes.dart';
 
 class MakeupLooksPage extends StatefulWidget {
   final int userId;
@@ -26,6 +28,10 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
   List<Map<String, dynamic>> makeupLooks = [];
   bool isLoading = true;
   String? errorMessage;
+  bool _hasCompletedAnalysis = false;
+  String? _faceShape;
+  String? _skinTone;
+  String? _undertone;
 
   /// Map makeup types to static profile images
   final Map<String, String> makeupTypeImages = {
@@ -52,10 +58,44 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.apiResponse != null) {
-      _processApiResponse(widget.apiResponse!);
-    } else {
-      recommendationData = _fetchRecommendationData();
+    _checkAnalysisStatus();
+  }
+
+  Future<void> _checkAnalysisStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _faceShape = prefs.getString('face_shape');
+      _skinTone = prefs.getString('skin_tone');
+      _undertone = prefs.getString('user_undertone');
+
+      setState(() {
+        _hasCompletedAnalysis = _faceShape != null && 
+                              _faceShape != "Not Available" && 
+                              _faceShape != "Not analyzed" &&
+                              _skinTone != null && 
+                              _skinTone != "Not Available" && 
+                              _skinTone != "Not analyzed" &&
+                              _undertone != null && 
+                              _undertone != "Not Available" && 
+                              _undertone != "Not analyzed";
+      });
+
+      if (_hasCompletedAnalysis) {
+        if (widget.apiResponse != null) {
+          _processApiResponse(widget.apiResponse!);
+        } else {
+          recommendationData = _fetchRecommendationData();
+        }
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error checking analysis status: $e';
+        isLoading = false;
+      });
     }
   }
 
@@ -141,6 +181,7 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
       'makeup_type_name': apiLook['makeup_type_name'],
       'times_used': apiLook['usage_count'] ?? apiLook['save_count'] ?? 0,
       'source': source,
+      'shades_by_type': apiLook['shades_by_type'],
       'shade_combinations': [
         {
           'combination_id': '${apiLook['makeup_look_id']}_1',
@@ -181,6 +222,10 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
           ),
         ),
       );
+    }
+
+    if (!_hasCompletedAnalysis) {
+      return _buildAnalysisRequiredScreen();
     }
 
     String? profileImagePath = makeupTypeImages[widget.makeupType];
@@ -367,6 +412,107 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
     );
   }
 
+  Widget _buildAnalysisRequiredScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFDF8F6),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFE91E63).withOpacity(0.2),
+                      const Color.fromARGB(255, 255, 108, 186).withOpacity(0.2),
+                    ],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.face_retouching_natural,
+                  size: 60,
+                  color: Color(0xFFE91E63),
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'Complete Your Face Analysis',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D1B69),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'To see personalized makeup recommendations and top shades, please complete your face analysis first.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF666666),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              _buildAnalysisStatus(),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalysisStatus() {
+    return Column(
+      children: [
+        _buildAnalysisItem('Face Shape', _faceShape),
+        const SizedBox(height: 12),
+        _buildAnalysisItem('Skin Tone', _skinTone),
+        const SizedBox(height: 12),
+        _buildAnalysisItem('Undertone', _undertone),
+      ],
+    );
+  }
+
+  Widget _buildAnalysisItem(String title, String? status) {
+    final isCompleted = status != null && 
+                       status != "Not Available" && 
+                       status != "Not analyzed";
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          isCompleted ? Icons.check_circle : Icons.circle,
+          color: isCompleted ? Colors.green : Colors.grey,
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: isCompleted ? Colors.green : Colors.grey,
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (!isCompleted)
+          const Icon(
+            Icons.info_outline,
+            color: Colors.orange,
+            size: 16,
+          ),
+      ],
+    );
+  }
+
   Widget _buildNoImageAvailable() {
     return Container(
       decoration: const BoxDecoration(
@@ -465,6 +611,30 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
         ? (displayCombinations.first['shades'] as List).where((shade) => shade != null).toList()
         : [];
 
+    // Extract top 3 most used shades for each product type from shades_by_type
+    Map<String, List<dynamic>> mostUsedShadesByProduct = {};
+    
+    // Process shades_by_type from API response
+    if (look['shades_by_type'] != null && look['shades_by_type'] is Map) {
+      final shadesByType = Map<String, dynamic>.from(look['shades_by_type']);
+      
+      shadesByType.forEach((productType, shadeList) {
+        if (shadeList is List) {
+          final List<dynamic> productShades = List.from(shadeList);
+          
+          // Sort by usage count (assuming usage_count is available, otherwise use times_used)
+          productShades.sort((a, b) {
+            final aCount = a['usage_count'] ?? a['times_used'] ?? 0;
+            final bCount = b['usage_count'] ?? b['times_used'] ?? 0;
+            return bCount.compareTo(aCount);
+          });
+          
+          // Take top 3 shades
+          mostUsedShadesByProduct[productType.toLowerCase()] = productShades.take(3).toList();
+        }
+      });
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       width: double.infinity,
@@ -509,7 +679,20 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
             const SizedBox(height: 20),
             _buildProductCategories(),
             const SizedBox(height: 20),
-            _buildShadesGrid(shades),
+            
+            // Top 3 Most Used Shades Section
+            if (mostUsedShadesByProduct.isNotEmpty) ...[
+              const Text(
+                'Top 3 Most Used Shades',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D1B69),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildProductShadesSection(mostUsedShadesByProduct),
+            ],
           ],
         ),
       ),
@@ -580,101 +763,105 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
     );
   }
 
-Widget _buildShadesGrid(List<dynamic> shades) {
-  if (shades.isEmpty) {
-    return const Center(
-      child: Text(
-        'No shades available',
-        style: TextStyle(color: Colors.grey),
-      ),
-    );
-  }
-
-  List<dynamic> filteredShades = shades;
-  if (selectedProduct != 'all') {
-    filteredShades = shades.where((shade) => 
-        shade['product_type']?.toString().toLowerCase() == selectedProduct).toList();
-  }
-
-  if (filteredShades.isEmpty) {
-    return Center(
-      child: Column(
-        children: [
-          Text(
-            'No $selectedProduct shades available',
-            style: const TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Added "Shade Combinations" text at the top left with reduced bottom padding
-      Padding(
-        padding: const EdgeInsets.only(left: 8.0, bottom: 4.0), // Reduced bottom padding
-        child: Text(
-          'Shade Combinations',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D1B69),
-          ),
-        ),
-      ),
-      const SizedBox(height: 4), // Reduced spacing between text and grid
-      GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 4.0), // Reduced top padding of the grid
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 8, // Reduced main axis spacing
-          childAspectRatio: 1.0,
-        ),
-        itemCount: filteredShades.length,
-        itemBuilder: (context, index) {
-          return _buildEnhancedShadeChip(filteredShades[index]);
-        },
-      ),
+  Widget _buildProductShadesSection(Map<String, List<dynamic>> shadesByProduct) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...shadesByProduct.entries.map((entry) {
+          final productType = entry.key;
+          final productShades = entry.value;
+          
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${productType[0].toUpperCase()}${productType.substring(1)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFE91E63),
+                ),
+              ),
+              const SizedBox(height: 8),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 1.2,
+                ),
+                itemCount: productShades.length,
+                itemBuilder: (context, index) {
+                  final shade = productShades[index];
+                  final usageCount = shade['usage_count'] ?? shade['times_used'] ?? 0;
+                  
+                  return Column(
+                    children: [
+                      _buildEnhancedShadeChip(shade),
+                      const SizedBox(height: 4),
+                      Text(
+                        shade['shade_name']?.toString() ?? 'Unknown',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$usageCount uses',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        }).toList(),
     ],
   );
 }
 
-  Widget _buildEnhancedShadeChip(Map<String, dynamic> shade) {
-    final hexCode = shade['hex_code']?.toString() ?? '#FFFFFF';
-    final color = _parseColor(hexCode);
+Widget _buildEnhancedShadeChip(Map<String, dynamic> shade) {
+  final hexCode = shade['hex_code']?.toString() ?? '#FFFFFF';
+  final color = _parseColor(hexCode);
 
-    return Center(
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade300, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+  return Center(
+    child: Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey.shade300, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Color _parseColor(String hexColor) {
-    try {
-      return Color(int.parse(hexColor.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return Colors.white;
-    }
+Color _parseColor(String hexColor) {
+  try {
+    return Color(int.parse(hexColor.replaceAll('#', '0xFF')));
+  } catch (e) {
+    return Colors.white;
   }
+}
 }
 
 class EnhancedUShapeClipper extends CustomClipper<Path> {

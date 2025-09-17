@@ -14,12 +14,26 @@ class SkinTone extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.pinkAccent,
           elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: const Color.fromARGB(255, 4, 4, 4)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           title: Image.asset(
             'assets/glam_logo.png',
-            height: MediaQuery.of(context).size.height * 0.08, 
+            height: MediaQuery.of(context).size.height * 0.10, 
             fit: BoxFit.contain,
           ),
           centerTitle: true,
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: Image.asset(
+                'assets/skin_toneicon.png',
+                height: MediaQuery.of(context).size.height * 0.05,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
         ),
         body: SafeArea(
           child: FaceShapesWidget(),
