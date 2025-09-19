@@ -318,12 +318,11 @@ static void _drawLipMakeup(
       rightCheek.x.toDouble() + 12,
       rightCheek.y.toDouble() - 10,
     ),
-    30, // Smaller radius for center
+    30, 
     rightCenterPaint,
   );
 }
 }
-
 
 // API makeup
 class MakeupOverlayApiService {
@@ -387,7 +386,7 @@ class MakeupOverlayApiService {
           'user_input': {
             'skin_tone': skinTone,
             'undertone': undertone,
-            'makeup_look': makeupLook,
+            'makeup_look': makeupLook,  
             'makeup_type': makeupType,
             if (eyeshadowColor != null) 'eyeshadow_color': eyeshadowColor,
             if (lipstickColor != null) 'lipstick_color': lipstickColor,

@@ -1317,18 +1317,18 @@ Widget _buildProfileCards(BuildContext context) {
             // Most Used Looks
             if (_recommendation!.mostUsedSavedLooks.isNotEmpty) ...[
               const Text(
-                'Your Most Used Looks',
+                'Most Used Looks',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF7E4A71),
-                ),
+                ), 
               ),
               const SizedBox(height: 12),
               ..._recommendation!.mostUsedSavedLooks
                   .take(3)
                   .map(_buildLookCard)
-                  .toList(),
+                  ,
               const SizedBox(height: 24),
             ],
             
@@ -1448,7 +1448,7 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
                 const SizedBox(height: 16),
               ],
             );
-          }).toList(),
+          }),
         ],
       ),
     ),
@@ -1633,7 +1633,7 @@ bool _hasSavedShades() {
 Widget _buildMostUsedShadesSection() {
   Map<String, Map<MakeupShade, int>> shadeFrequencyByCategory = {};
 
-  void _countShadesFromLook(MakeupLook look) {
+  void countShadesFromLook(MakeupLook look) {
     look.shadesByType.forEach((category, shades) {
       if (!shadeFrequencyByCategory.containsKey(category)) {
         shadeFrequencyByCategory[category] = {};
@@ -1665,10 +1665,10 @@ Widget _buildMostUsedShadesSection() {
   }
 
   // Count shades from all looks
-  _recommendation!.topMakeupLooksByType.forEach(_countShadesFromLook);
-  _recommendation!.mostUsedSavedLooks.forEach(_countShadesFromLook);
+  _recommendation!.topMakeupLooksByType.forEach(countShadesFromLook);
+  _recommendation!.mostUsedSavedLooks.forEach(countShadesFromLook);
   if (_recommendation!.overallMostPopularLook != null) {
-    _countShadesFromLook(_recommendation!.overallMostPopularLook!);
+    countShadesFromLook(_recommendation!.overallMostPopularLook!);
   }
 
   return Column(
@@ -1869,7 +1869,7 @@ Widget _buildMostUsedShadesSection() {
                     ),
                   ],
                 );
-              }).toList(),
+              }),
             ],
           ],
         ),
@@ -1942,7 +1942,7 @@ Widget _buildMostUsedShadesSection() {
                     const SizedBox(height: 8),
                   ],
                 );
-              }).toList(),
+              }),
             ],
           ],
         ),
@@ -1953,7 +1953,7 @@ Widget _buildMostUsedShadesSection() {
   Widget buildMostUsedShadesSection() {
     Map<String, Map<MakeupShade, int>> shadeFrequencyByCategory = {};
 
-    void _countShadesFromLook(MakeupLook look) {
+    void countShadesFromLook(MakeupLook look) {
       look.shadesByType.forEach((category, shades) {
         if (!shadeFrequencyByCategory.containsKey(category)) {
           shadeFrequencyByCategory[category] = {};
@@ -1985,10 +1985,10 @@ Widget _buildMostUsedShadesSection() {
     }
 
     // Count shades from all looks
-    _recommendation!.topMakeupLooksByType.forEach(_countShadesFromLook);
-    _recommendation!.mostUsedSavedLooks.forEach(_countShadesFromLook);
+    _recommendation!.topMakeupLooksByType.forEach(countShadesFromLook);
+    _recommendation!.mostUsedSavedLooks.forEach(countShadesFromLook);
     if (_recommendation!.overallMostPopularLook != null) {
-      _countShadesFromLook(_recommendation!.overallMostPopularLook!);
+      countShadesFromLook(_recommendation!.overallMostPopularLook!);
     }
 
     return Column(
@@ -2152,7 +2152,7 @@ void _showShadeVisualization(MakeupShade shade) {
                   const SizedBox(height: 25), // Increased spacing
                   
                   // Shade name with elegant typography - properly centered
-                  Container(
+                  SizedBox(
                     width: double.infinity,
                     child: Text(
                       shade.shadeName.toUpperCase(),
@@ -2170,7 +2170,7 @@ void _showShadeVisualization(MakeupShade shade) {
                   const SizedBox(height: 8), // Increased spacing
                   
                   // Shade type with subtle styling - properly centered
-                  Container(
+                  SizedBox(
                     width: double.infinity,
                     child: Text(
                       shade.shadeType,

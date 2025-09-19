@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'faceshapes.dart';
 
 class MakeupLooksPage extends StatefulWidget {
   final int userId;
@@ -826,7 +825,7 @@ class _MakeupLooksPageState extends State<MakeupLooksPage> {
               const SizedBox(height: 16),
             ],
           );
-        }).toList(),
+        }),
     ],
   );
 }

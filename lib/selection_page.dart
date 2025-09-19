@@ -7,10 +7,10 @@ class RecommendationScreen extends StatefulWidget {
   final bool hasCompletedAnalysis;
 
   const RecommendationScreen({
-    Key? key,
+    super.key,
     required this.userId,
     required this.hasCompletedAnalysis,
-  }) : super(key: key);
+  });
 
   @override
   _RecommendationScreenState createState() => _RecommendationScreenState();
@@ -383,7 +383,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                       color: Color(0xFF7E4A71),
                       fontFamily: 'PlayfairDisplay')),
             ),
-            ..._recommendation!.mostUsedSavedLooks.map(_buildLookCard).toList(),
+            ..._recommendation!.mostUsedSavedLooks.map(_buildLookCard),
             const SizedBox(height: 30),
           ],
           
@@ -531,7 +531,7 @@ Widget _buildNoSavedDataSection() {
  Widget buildMostUsedShadesSection() {
   Map<String, Map<MakeupShade, int>> shadeFrequencyByCategory = {};
 
-  void _countShadesFromLook(MakeupLook look) {
+  void countShadesFromLook(MakeupLook look) {
     look.shadesByType.forEach((category, shades) {
       if (!shadeFrequencyByCategory.containsKey(category)) {
         shadeFrequencyByCategory[category] = {};
@@ -563,10 +563,10 @@ Widget _buildNoSavedDataSection() {
   }
 
   // Count shades from all looks
-  _recommendation!.topMakeupLooksByType.forEach(_countShadesFromLook);
-  _recommendation!.mostUsedSavedLooks.forEach(_countShadesFromLook);
+  _recommendation!.topMakeupLooksByType.forEach(countShadesFromLook);
+  _recommendation!.mostUsedSavedLooks.forEach(countShadesFromLook);
   if (_recommendation!.overallMostPopularLook != null) {
-    _countShadesFromLook(_recommendation!.overallMostPopularLook!);
+    countShadesFromLook(_recommendation!.overallMostPopularLook!);
   }
 
   return Column(
@@ -855,7 +855,7 @@ Widget _buildNoSavedDataSection() {
                     ),
                   ],
                 );
-              }).toList(),
+              }),
             ],
           ],
         ),
@@ -962,7 +962,7 @@ Widget _buildNoSavedDataSection() {
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
               const SizedBox(height: 20),
             ],
@@ -1119,7 +1119,7 @@ Widget _buildNoSavedDataSection() {
                         const SizedBox(height: 12),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ],
             ),
@@ -1309,12 +1309,15 @@ class MakeupRecommendationService {
     try {
       final Map<String, String> queryParams = {};
 
-      if (skinToneId != null)
+      if (skinToneId != null) {
         queryParams['skin_tone_id'] = skinToneId.toString();
-      if (faceShapeId != null)
+      }
+      if (faceShapeId != null) {
         queryParams['face_shape_id'] = faceShapeId.toString();
-      if (undertoneId != null)
+      }
+      if (undertoneId != null) {
         queryParams['undertone_id'] = undertoneId.toString();
+      }
       queryParams['time_filter'] = timeFilter;
 
       final uri = Uri.parse('$apiBaseUrl/$userId/full_recommendation')
@@ -1458,10 +1461,10 @@ class TopShadesWidget extends StatelessWidget {
   final UserPreferences userPreferences;
 
   const TopShadesWidget({
-    Key? key,
+    super.key,
     required this.topShades,
     required this.userPreferences,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1475,7 +1478,7 @@ class TopShadesWidget extends StatelessWidget {
         const SizedBox(height: 16),
         ...topShades.entries.map((entry) {
           return _buildCategorySection(entry.key, entry.value);
-        }).toList(),
+        }),
       ],
     );
   }

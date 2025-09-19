@@ -872,7 +872,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                               Divider(height: 8, color: Colors.grey[200]),
                           ],
                         )
-                      ).toList(),
+                      ),
                     ],
                   ),
                 ),

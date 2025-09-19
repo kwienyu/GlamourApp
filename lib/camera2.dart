@@ -492,20 +492,21 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
   final previewSize = _controller!.value.previewSize!;
 
   if (_isUsingFrontCamera) {
-    // Front camera - mirror and scale
+    // Front camera - mirror the coordinates for proper alignment
     final scaleX = screenSize.width / previewSize.height;
     final scaleY = screenSize.height / previewSize.width;
     
-    final flippedLeft = previewSize.height - faceRect.right;
+    // Mirror the x-coordinate for front camera
+    final mirroredLeft = previewSize.height - faceRect.right;
+    
     return Rect.fromLTRB(
-      flippedLeft * scaleX,
+      mirroredLeft * scaleX,
       faceRect.top * scaleY,
-      (flippedLeft + faceRect.width) * scaleX,
+      (mirroredLeft + faceRect.width) * scaleX,
       (faceRect.top + faceRect.height) * scaleY,
     );
   } else {
     // Back camera - simpler approach
-    // Camera preview is rotated 90 degrees, so we need to swap coordinates
     final scaleX = screenSize.width / previewSize.height;
     final scaleY = screenSize.height / previewSize.width;
     
@@ -523,7 +524,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     );
   }
 }
-
   bool _isFaceInOval(Rect faceRect) {
     final screenSize = MediaQuery.of(_scaffoldContext).size;
     final ovalCenter = Offset(screenSize.width / 2, screenSize.height * 0.4);
@@ -718,10 +718,16 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
   final screenAspectRatio = screenSize.width / screenSize.height;
 
   if (_isUsingFrontCamera) {
-    // Removed mirroring for front camera - only scaling
-    return Matrix4.identity();
+    // For front camera - apply horizontal mirroring (flip)
+    if (cameraAspectRatio > screenAspectRatio) {
+      final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
+      return Matrix4.diagonal3Values(-1.0, scale, 1.0); // Note the -1.0 for mirroring
+    } else {
+      final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
+      return Matrix4.diagonal3Values(-scale, 1.0, 1.0); // Note the -scale for mirroring
+    }
   } else {
-    // For back camera, handle different aspect ratios
+    // For back camera, handle different aspect ratios normally
     if (cameraAspectRatio > screenAspectRatio) {
       final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
       return Matrix4.diagonal3Values(1.0, scale, 1.0);
@@ -774,13 +780,19 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
       final XFile file = await _controller!.takePicture();
       final File imageFile = File(file.path);
 
-      if (!mounted) return;
-      
-      setState(() {
-        _capturedImage = imageFile;
-      });
-
-      await _analyzeImage(imageFile);
+      // Fix: Process the image to correct front camera mirroring
+      if (_isUsingFrontCamera) {
+        final processedImage = await _processFrontCameraImage(imageFile);
+        setState(() {
+          _capturedImage = processedImage;
+        });
+        await _analyzeImage(processedImage);
+      } else {
+        setState(() {
+          _capturedImage = imageFile;
+        });
+        await _analyzeImage(imageFile);
+      }
       
     } catch (e) {
       print("Auto capture error: $e");
@@ -796,6 +808,37 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
           _isProcessing = false;
         });
       }
+    }
+  }
+
+  // NEW METHOD: Process front camera image to remove mirroring effect
+  Future<File> _processFrontCameraImage(File originalImage) async {
+    try {
+      // Decode the original image
+      final originalBytes = await originalImage.readAsBytes();
+      img.Image? image = img.decodeImage(originalBytes);
+      
+      if (image == null) {
+        return originalImage;
+      }
+      
+      // Flip the image horizontally to correct front camera mirroring
+      img.Image flippedImage = img.flipHorizontal(image);
+      
+      // Encode the processed image
+      final processedBytes = img.encodeJpg(flippedImage);
+      
+      // Create a new file with the processed image
+      final processedFile = File(originalImage.path.replaceFirst('.jpg', '_processed.jpg'));
+      await processedFile.writeAsBytes(processedBytes);
+      
+      // Delete the original image
+      await originalImage.delete();
+      
+      return processedFile;
+    } catch (e) {
+      print('Error processing front camera image: $e');
+      return originalImage;
     }
   }
 
@@ -888,11 +931,11 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
                                 return RadialGradient(
                                   center: Alignment.center,
                                   radius: 0.5,
-                                  colors: [
-                                    Colors.pink.shade200,
-                                    Colors.purple.shade200,
-                                    Colors.pink.shade400,
-                                  ],
+                                    colors: [
+                                      Colors.pink.shade200,
+                                      Colors.purple.shade200,
+                                      Colors.pink.shade400,
+                                    ],
                                   stops: const [0.0, 0.5, 1.0],
                                 ).createShader(bounds);
                               },
@@ -987,8 +1030,16 @@ Widget build(BuildContext context) {
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  CameraPreview(
-                    _controller!,
+                  // Fixed ternary operator syntax
+                  Transform(
+                    alignment: Alignment.center,
+                    transform: _isUsingFrontCamera
+                        ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0)) // Mirror for front camera
+                        : Matrix4.identity(),
+                    child: CameraPreview(_controller!),
+                  ),
+                  // Moved the LayoutBuilder and Transform to be siblings
+                  Positioned.fill(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         return Transform(
@@ -1087,7 +1138,7 @@ Widget build(BuildContext context) {
               "Your Captured Photo",
               style: TextStyle(
                 color: Colors.white,
-                fontSize: screenWidth * 0.045,
+                fontSize: screenWidth * 0.070,
                 fontWeight: FontWeight.bold,
                 shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
               ),
@@ -1115,49 +1166,7 @@ Widget build(BuildContext context) {
                 children: [
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    child: _ovalColor == Colors.white
-                        ? Text(
-                            'No face detected (White)',
-                            key: const ValueKey('status_white'),
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: screenWidth * 0.035,
-                              fontWeight: FontWeight.bold,
-                              shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                            ),
-                          )
-                        : _ovalColor == Colors.red
-                          ? Text(
-                              'Face detected but not aligned (Red)',
-                              key: const ValueKey('status_red'),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: screenWidth * 0.035,
-                                fontWeight: FontWeight.bold,
-                                shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                              ),
-                            )
-                          : _ovalColor == Colors.orange
-                            ? Text(
-                                'Face detected but moving (Orange)',
-                                key: const ValueKey('status_orange'),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: screenWidth * 0.035,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                                ),
-                              )
-                            : Text(
-                                'Face aligned and stable (Green)',
-                                key: const ValueKey('status_green'),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: screenWidth * 0.035,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                                ),
-                              ),
+                    child: _getStatusText(screenWidth),
                   ),
                   SizedBox(height: screenHeight * 0.01),
                   Text(
@@ -1191,13 +1200,7 @@ Widget build(BuildContext context) {
                   ),
                   SizedBox(height: screenHeight * 0.01),
                   Text(
-                    _ovalColor == Colors.white
-                        ? 'Please position your face in the oval'
-                        : _ovalColor == Colors.red
-                          ? 'Move your face closer to the center'
-                          : _ovalColor == Colors.orange
-                            ? 'Hold still for a moment'
-                            : 'Perfect! Get ready for your photo',
+                    _getStatusMessage(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
@@ -1214,6 +1217,67 @@ Widget build(BuildContext context) {
   );
 }
 
+// Helper method to extract complex ternary logic
+Widget _getStatusText(double screenWidth) {
+  if (_ovalColor == Colors.white) {
+    return Text(
+      'No face detected (White)',
+      key: const ValueKey('status_white'),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: screenWidth * 0.035,
+        fontWeight: FontWeight.bold,
+        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+      ),
+    );
+  } else if (_ovalColor == Colors.red) {
+    return Text(
+      'Face detected but not aligned (Red)',
+      key: const ValueKey('status_red'),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: screenWidth * 0.035,
+        fontWeight: FontWeight.bold,
+        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+      ),
+    );
+  } else if (_ovalColor == Colors.orange) {
+    return Text(
+      'Face detected but moving (Orange)',
+      key: const ValueKey('status_orange'),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: screenWidth * 0.035,
+        fontWeight: FontWeight.bold,
+        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+      ),
+    );
+  } else {
+    return Text(
+      'Face aligned and stable (Green)',
+      key: const ValueKey('status_green'),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: screenWidth * 0.035,
+        fontWeight: FontWeight.bold,
+        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+      ),
+    );
+  }
+}
+
+// Helper method for status message
+String _getStatusMessage() {
+  if (_ovalColor == Colors.white) {
+    return 'Please position your face in the oval';
+  } else if (_ovalColor == Colors.red) {
+    return 'Move your face closer to the center';
+  } else if (_ovalColor == Colors.orange) {
+    return 'Hold still for a moment';
+  } else {
+    return 'Perfect! Get ready for your photo';
+  }
+}
 
   Widget _buildResultsPanel() {
     return Center(
