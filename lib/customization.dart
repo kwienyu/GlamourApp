@@ -13,7 +13,7 @@ import 'camera2.dart';
 import 'glamvault.dart';
 import 'package:toastification/toastification.dart';
 
-//  Face Landmark detector
+// Face Landmark detector
 class FaceLandmarkHelper {
   static final FaceDetector _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
@@ -34,13 +34,11 @@ class FaceLandmarkHelper {
   static void dispose() => _faceDetector.close();
 }
 
-//  Makeup Overlay
+// Makeup Overlay Engine with synchronized application
 class MakeupOverlayEngine {
   static Future<Uint8List> applyMakeup({
     required File imageFile,
-    required Color lipstickColor,
-    required Color eyeshadowColor,
-    required Color blushColor,
+    required Map<String, Color?> selectedShades,
   }) async {
     try {
       final faces = await FaceLandmarkHelper.detectFaces(imageFile);
@@ -49,20 +47,19 @@ class MakeupOverlayEngine {
       final originalBytes = await imageFile.readAsBytes();
       final originalImage = img.decodeImage(originalBytes)!;
       
-      final overlay = await _createMakeupOverlay(
+      // Create unified makeup overlay
+      final overlay = await _createUnifiedMakeupOverlay(
         originalImage.width,
         originalImage.height,
         faces,
-        lipstickColor,
-        eyeshadowColor,
-        blushColor,
+        selectedShades,
       );
 
-      // Apply the overlay with a softer blend mode
+      // Apply the overlay with soft light blend
       img.compositeImage(
         originalImage,
         img.decodeImage(overlay)!,
-        blend: img.BlendMode.softLight, // Changed from overlay to softLight
+        blend: img.BlendMode.softLight,
       );
 
       return Uint8List.fromList(img.encodePng(originalImage));
@@ -71,64 +68,20 @@ class MakeupOverlayEngine {
     }
   }
 
-  static Future<Uint8List> _createMakeupOverlay(
+  static Future<Uint8List> _createUnifiedMakeupOverlay(
     int width,
     int height,
     List<Face> faces,
-    Color lipstickColor,
-    Color eyeshadowColor,
-    Color blushColor,
+    Map<String, Color?> selectedShades,
   ) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()));
-    final paint = Paint()..blendMode = BlendMode.srcOver;
 
     for (final face in faces) {
       final landmarks = face.landmarks;
       
-      // Draw eyeshadow
-      if (landmarks[FaceLandmarkType.leftEye] != null && 
-          landmarks[FaceLandmarkType.rightEye] != null) {
-        paint.color = eyeshadowColor.withOpacity(0.5);
-        
-        // Left eye
-        _drawEyeMakeup(
-          canvas,
-          landmarks[FaceLandmarkType.leftEye]!.position,
-          isLeftEye: true,
-          paint: paint,
-        );
-        
-        // Right eye
-        _drawEyeMakeup(
-          canvas,
-          landmarks[FaceLandmarkType.rightEye]!.position,
-          isLeftEye: false,
-          paint: paint,
-        );
-      }
-
-      // Draw lips (using bottom mouth landmark only)
-      if (landmarks[FaceLandmarkType.bottomMouth] != null) {
-        paint.color = lipstickColor.withOpacity(0.5);
-        _drawLipMakeup(
-          canvas,
-          landmarks[FaceLandmarkType.bottomMouth]!.position,
-          paint: paint,
-        );
-      }
-
-      // Draw blush (using available cheek landmarks)
-      if (landmarks[FaceLandmarkType.leftCheek] != null &&
-          landmarks[FaceLandmarkType.rightCheek] != null) {
-        paint.color = blushColor.withOpacity(0.2);
-        _drawBlush(
-          canvas,
-          landmarks[FaceLandmarkType.leftCheek]!.position,
-          landmarks[FaceLandmarkType.rightCheek]!.position,
-          paint: paint,
-        );
-      }
+      // Apply all makeup components in sync
+      _applySynchronizedMakeup(canvas, landmarks, selectedShades);
     }
 
     final picture = recorder.endRecording();
@@ -137,200 +90,240 @@ class MakeupOverlayEngine {
     return byteData!.buffer.asUint8List();
   }
 
-  static void _drawEyeMakeup(
-  Canvas canvas,
-  Point<int> eyePosition,
-  {
-    required bool isLeftEye,
-    required Paint paint,
-  }
-) {
-  // Create a more natural eyeshadow with multiple layers
-  final eyeCenter = Offset(eyePosition.x.toDouble(), eyePosition.y.toDouble());
-  
-  // First layer: larger, softer base
-  final basePaint = Paint()
-    ..color = paint.color.withOpacity(0.6)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
-    ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12);
-  
-  // Base shape (adjusted for left/right eye)
-  final baseRect = Rect.fromCenter(
-    center: eyeCenter,
-    width: 70,
-    height: 35,
-  );
-  
-  // Offset slightly differently for left vs right eye
-  final translatedRect = isLeftEye 
-      ? baseRect.translate(-12, 0) 
-      : baseRect.translate(12, 0);
-  
-  canvas.drawOval(translatedRect, basePaint);
-  
-  // Second layer: more concentrated color
-  final intensityPaint = Paint()
-    ..color = paint.color.withOpacity(0.6)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-  
-  final intensityRect = Rect.fromCenter(
-    center: eyeCenter,
-    width: 50,
-    height: 25,
-  );
-  
-  final translatedIntensityRect = isLeftEye 
-      ? intensityRect.translate(-8, 0) 
-      : intensityRect.translate(8, 0);
-  
-  canvas.drawOval(translatedIntensityRect, intensityPaint);
-  
-  // Third layer: subtle highlight/definition
-  final definitionPaint = Paint()
-    ..color = paint.color.withOpacity(0.5)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-  
-  final definitionRect = Rect.fromCenter(
-    center: Offset(eyeCenter.dx, eyeCenter.dy - 5),
-    width: 30,
-    height: 15,
-  );
-  
-  final translatedDefinitionRect = isLeftEye 
-      ? definitionRect.translate(-5, 0) 
-      : definitionRect.translate(5, 0);
-  
-  canvas.drawOval(translatedDefinitionRect, definitionPaint);
-}
+  static void _applySynchronizedMakeup(
+    Canvas canvas,
+    Map<FaceLandmarkType, FaceLandmark?> landmarks, // Changed to accept nullable FaceLandmark
+    Map<String, Color?> selectedShades,
+  ) {
+    // Eyeshadow
+    if (selectedShades['Eyeshadow'] != null && 
+        landmarks[FaceLandmarkType.leftEye] != null && 
+        landmarks[FaceLandmarkType.rightEye] != null) {
+      _drawEyeMakeup(
+        canvas,
+        landmarks[FaceLandmarkType.leftEye]!.position, // Use ! to assert non-null
+        isLeftEye: true,
+        color: selectedShades['Eyeshadow']!,
+      );
+      
+      _drawEyeMakeup(
+        canvas,
+        landmarks[FaceLandmarkType.rightEye]!.position, // Use ! to assert non-null
+        isLeftEye: false,
+        color: selectedShades['Eyeshadow']!,
+      );
+    }
 
-static void _drawLipMakeup(
-  Canvas canvas,
-  Point<int> bottomMouth,
-  {
-    required Paint paint,
+    // Lipstick
+    if (selectedShades['Lipstick'] != null && 
+        landmarks[FaceLandmarkType.bottomMouth] != null) {
+      _drawLipMakeup(
+        canvas,
+        landmarks[FaceLandmarkType.bottomMouth]!.position, // Use ! to assert non-null
+        color: selectedShades['Lipstick']!,
+      );
+    }
+
+    // Blush
+    if (selectedShades['Blush'] != null &&
+        landmarks[FaceLandmarkType.leftCheek] != null &&
+        landmarks[FaceLandmarkType.rightCheek] != null) {
+      _drawBlush(
+        canvas,
+        landmarks[FaceLandmarkType.leftCheek]!.position, // Use ! to assert non-null
+        landmarks[FaceLandmarkType.rightCheek]!.position, // Use ! to assert non-null
+        color: selectedShades['Blush']!,
+      );
+    }
   }
-) {
-  final lipCenter = Offset(
-    bottomMouth.x.toDouble(), 
-    bottomMouth.y.toDouble() - 10 // Moved further upward
-  );
-  
-  // First layer: soft base color
-  final basePaint = Paint()
-    ..color = paint.color.withOpacity(0.5)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
-    ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 8);
-  
-  final baseRect = Rect.fromCenter(
-    center: lipCenter,
-    width: 75,
-    height: 50,
-  );
-  
-  canvas.drawOval(baseRect, basePaint);
-  
-  // Second layer: more intense color in the center
-  final intensityPaint = Paint()
-    ..color = paint.color.withOpacity(0.7)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-  
-  final intensityRect = Rect.fromCenter(
-    center: lipCenter,
-    width: 60,
-    height: 30,
-  );
-  
-  canvas.drawOval(intensityRect, intensityPaint);
-  
-  // Third layer: subtle definition
-  final definitionPaint = Paint()
-    ..color = paint.color.withOpacity(0.5)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-  
-  final upperLipRect = Rect.fromCenter(
-    center: Offset(lipCenter.dx, lipCenter.dy - 8),
-    width: 50,
-    height: 30,
-  );
-  
-  canvas.drawOval(upperLipRect, definitionPaint);
-}
+
+  static void _drawEyeMakeup(
+    Canvas canvas,
+    Point<int> eyePosition,
+    {
+      required bool isLeftEye,
+      required Color color,
+    }
+  ) {
+    final eyeCenter = Offset(eyePosition.x.toDouble(), eyePosition.y.toDouble());
+    
+    // Base layer
+    final basePaint = Paint()
+      ..color = color.withOpacity(0.6)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
+      ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12);
+    
+    final baseRect = Rect.fromCenter(
+      center: eyeCenter,
+      width: 70,
+      height: 35,
+    );
+    
+    final translatedRect = isLeftEye 
+        ? baseRect.translate(-12, 0) 
+        : baseRect.translate(12, 0);
+    
+    canvas.drawOval(translatedRect, basePaint);
+    
+    // Intensity layer
+    final intensityPaint = Paint()
+      ..color = color.withOpacity(0.6)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    
+    final intensityRect = Rect.fromCenter(
+      center: eyeCenter,
+      width: 50,
+      height: 25,
+    );
+    
+    final translatedIntensityRect = isLeftEye 
+        ? intensityRect.translate(-8, 0) 
+        : intensityRect.translate(8, 0);
+    
+    canvas.drawOval(translatedIntensityRect, intensityPaint);
+    
+    // Definition layer
+    final definitionPaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    
+    final definitionRect = Rect.fromCenter(
+      center: Offset(eyeCenter.dx, eyeCenter.dy - 5),
+      width: 30,
+      height: 15,
+    );
+    
+    final translatedDefinitionRect = isLeftEye 
+        ? definitionRect.translate(-5, 0) 
+        : definitionRect.translate(5, 0);
+    
+    canvas.drawOval(translatedDefinitionRect, definitionPaint);
+  }
+
+  static void _drawLipMakeup(
+    Canvas canvas,
+    Point<int> bottomMouth,
+    {
+      required Color color,
+    }
+  ) {
+    final lipCenter = Offset(
+      bottomMouth.x.toDouble(), 
+      bottomMouth.y.toDouble() - 10
+    );
+    
+    // Base layer
+    final basePaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
+      ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 8);
+    
+    final baseRect = Rect.fromCenter(
+      center: lipCenter,
+      width: 75,
+      height: 50,
+    );
+    
+    canvas.drawOval(baseRect, basePaint);
+    
+    // Intensity layer
+    final intensityPaint = Paint()
+      ..color = color.withOpacity(0.7)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    
+    final intensityRect = Rect.fromCenter(
+      center: lipCenter,
+      width: 60,
+      height: 30,
+    );
+    
+    canvas.drawOval(intensityRect, intensityPaint);
+    
+    // Definition layer
+    final definitionPaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    
+    final upperLipRect = Rect.fromCenter(
+      center: Offset(lipCenter.dx, lipCenter.dy - 8),
+      width: 50,
+      height: 30,
+    );
+    
+    canvas.drawOval(upperLipRect, definitionPaint);
+  }
 
   static void _drawBlush(
-  Canvas canvas,
-  Point<int> leftCheek,
-  Point<int> rightCheek,
-  {
-    required Paint paint,
+    Canvas canvas,
+    Point<int> leftCheek,
+    Point<int> rightCheek,
+    {
+      required Color color,
+    }
+  ) {
+    final leftBlushPaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20)
+      ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15);
+  
+    final rightBlushPaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20)
+      ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15);
+
+    // First layer
+    canvas.drawCircle(
+      Offset(
+        leftCheek.x.toDouble() - 12,
+        leftCheek.y.toDouble() - 10,
+      ),
+      40,
+      leftBlushPaint,
+    );
+    
+    canvas.drawCircle(
+      Offset(
+        rightCheek.x.toDouble() + 12,
+        rightCheek.y.toDouble() - 10,
+      ),
+      40,
+      rightBlushPaint,
+    );
+
+    // Second layer
+    final leftCenterPaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    
+    final rightCenterPaint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+
+    canvas.drawCircle(
+      Offset(
+        leftCheek.x.toDouble() - 12,
+        leftCheek.y.toDouble() - 10,
+      ),
+      30,
+      leftCenterPaint,
+    );
+    
+    canvas.drawCircle(
+      Offset(
+        rightCheek.x.toDouble() + 12,
+        rightCheek.y.toDouble() - 10,
+      ),
+      30, 
+      rightCenterPaint,
+    );
   }
-) {
-  // Create a more vibrant blush with better opacity
-  final leftBlushPaint = Paint()
-    ..color = paint.color.withOpacity(0.5) // Increased opacity
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20) // Softer blur
-    ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15); // Additional blur effect
-  
-  final rightBlushPaint = Paint()
-    ..color = paint.color.withOpacity(0.5) // Increased opacity
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20) // Softer blur
-    ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15); // Additional blur effect
-
-  // Draw multiple layers for a more natural blush effect
-  // First layer: larger, softer blush
-  canvas.drawCircle(
-    Offset(
-      leftCheek.x.toDouble() - 12, // Adjusted position
-      leftCheek.y.toDouble() - 10, // Adjusted position
-    ),
-    40, // Slightly larger radius
-    leftBlushPaint,
-  );
-  
-  canvas.drawCircle(
-    Offset(
-      rightCheek.x.toDouble() + 12, // Adjusted position
-      rightCheek.y.toDouble() - 10, // Adjusted position
-    ),
-    40, // Slightly larger radius
-    rightBlushPaint,
-  );
-
-  // Second layer: more concentrated blush
-  final leftCenterPaint = Paint()
-    ..color = paint.color.withOpacity(0.5) // Higher opacity for center
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-  
-  final rightCenterPaint = Paint()
-    ..color = paint.color.withOpacity(0.5) // Higher opacity for center
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-
-  canvas.drawCircle(
-    Offset(
-      leftCheek.x.toDouble() - 12,
-      leftCheek.y.toDouble() - 10,
-    ),
-    30, // Smaller radius for center
-    leftCenterPaint,
-  );
-  
-  canvas.drawCircle(
-    Offset(
-      rightCheek.x.toDouble() + 12,
-      rightCheek.y.toDouble() - 10,
-    ),
-    30, 
-    rightCenterPaint,
-  );
-}
 }
 
-// API makeup
+// API makeup service
 class MakeupOverlayApiService {
   Future<Map<String, dynamic>> applyMakeup({
     required File imageFile,
-    String? eyeshadowColor,
-    String? lipstickColor,
-    String? blushColor,
+    required Map<String, Color?> selectedShades,
     required String skinTone,
     required String undertone,
     required String makeupLook,
@@ -339,9 +332,7 @@ class MakeupOverlayApiService {
     try {
       final apiResponse = await _callMakeupApi(
         imageFile,
-        eyeshadowColor,
-        lipstickColor,
-        blushColor,
+        selectedShades,
         skinTone,
         undertone,
         makeupLook,
@@ -351,26 +342,20 @@ class MakeupOverlayApiService {
       if (apiResponse != null) return apiResponse;
       return await _applyLocalMakeup(
         imageFile: imageFile,
-        eyeshadowColor: eyeshadowColor,
-        lipstickColor: lipstickColor,
-        blushColor: blushColor,
+        selectedShades: selectedShades,
       );
     } catch (e) {
       debugPrint('Makeup application failed: $e');
       return await _mockApplyMakeup(
         imageFile: imageFile,
-        eyeshadowColor: eyeshadowColor,
-        lipstickColor: lipstickColor,
-        blushColor: blushColor,
+        selectedShades: selectedShades,
       );
     }
   }
 
   Future<Map<String, dynamic>?> _callMakeupApi(
     File imageFile,
-    String? eyeshadowColor,
-    String? lipstickColor,
-    String? blushColor,
+    Map<String, Color?> selectedShades,
     String skinTone,
     String undertone,
     String makeupLook,
@@ -378,6 +363,15 @@ class MakeupOverlayApiService {
   ) async {
     try {
       final bytes = await imageFile.readAsBytes();
+      
+      // Convert selected shades to hex codes
+      final Map<String, String> shadeHexCodes = {};
+      selectedShades.forEach((product, color) {
+        if (color != null) {
+          shadeHexCodes[product] = '#${color.value.toRadixString(16).substring(2)}';
+        }
+      });
+
       final response = await http.post(
         Uri.parse('https://glamouraika.com/api/apply-makeup'),
         headers: {'Content-Type': 'application/json'},
@@ -388,9 +382,7 @@ class MakeupOverlayApiService {
             'undertone': undertone,
             'makeup_look': makeupLook,  
             'makeup_type': makeupType,
-            if (eyeshadowColor != null) 'eyeshadow_color': eyeshadowColor,
-            if (lipstickColor != null) 'lipstick_color': lipstickColor,
-            if (blushColor != null) 'blush_color': blushColor,
+            'selected_shades': shadeHexCodes,
           }
         }),
       ).timeout(const Duration(seconds: 10));
@@ -403,23 +395,14 @@ class MakeupOverlayApiService {
       return null;
     }
   }
-
   Future<Map<String, dynamic>> _applyLocalMakeup({
     required File imageFile,
-    String? eyeshadowColor,
-    String? lipstickColor,
-    String? blushColor,
+    required Map<String, Color?> selectedShades,
   }) async {
     try {
-      final lipColor = lipstickColor != null ? HexColor(lipstickColor) : Colors.transparent;
-      final eyeColor = eyeshadowColor != null ? HexColor(eyeshadowColor) : Colors.transparent;
-      final blushColorObj = blushColor != null ? HexColor(blushColor) : Colors.transparent;
-
       final result = await MakeupOverlayEngine.applyMakeup(
         imageFile: imageFile,
-        lipstickColor: lipColor,
-        eyeshadowColor: eyeColor,
-        blushColor: blushColorObj,
+        selectedShades: selectedShades,
       );
 
       return {
@@ -434,9 +417,7 @@ class MakeupOverlayApiService {
 
   Future<Map<String, dynamic>> _mockApplyMakeup({
     required File imageFile,
-    String? eyeshadowColor,
-    String? lipstickColor,
-    String? blushColor,
+    required Map<String, Color?> selectedShades,
   }) async {
     final bytes = await imageFile.readAsBytes();
     return {
@@ -447,7 +428,7 @@ class MakeupOverlayApiService {
   }
 }
 
-// ==================== HEX COLOR HELPER ====================
+// Hex Color Helper
 class HexColor extends Color {
   HexColor(String hexColor) : super(_parseHex(hexColor));
 
@@ -457,6 +438,8 @@ class HexColor extends Color {
     return int.parse(hex, radix: 16);
   }
 }
+
+// Customization Page
 class CustomizationPage extends StatefulWidget {
   final File capturedImage;
   final String? selectedMakeupType;
@@ -497,8 +480,8 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   Uint8List? _currentMakeupImage;
   bool _hasShownCustomizationDialog = false;
   bool _isFirstTimeSelection = true;
-   bool _isResetting = false;
-  bool _userChoseToCustomize = false; // Track if user chose to customize
+  bool _isResetting = false;
+  bool _userChoseToCustomize = false;
 
   Map<String, Color?> selectedShades = {
     'Foundation': null,
@@ -539,36 +522,36 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
 
   final String? _apiToken = null;
 
-@override
-void initState() {
-  super.initState();
-  _makeupApiService = MakeupOverlayApiService();
-  _processRecommendationData();
-  _fetchRecommendations();
-  
-  for (var product in orderedProductNames) {
-    expandedProducts[product] = false;
-    _hasShownProductDialog[product] = false; // Initialize dialog tracking
-  }
+  @override
+  void initState() {
+    super.initState();
+    _makeupApiService = MakeupOverlayApiService();
+    _processRecommendationData();
+    _fetchRecommendations();
+    
+    for (var product in orderedProductNames) {
+      expandedProducts[product] = false;
+      _hasShownProductDialog[product] = false;
+    }
 
-  _heartController = AnimationController(
-    duration: const Duration(milliseconds: 1500),
-    vsync: this,
-  )..repeat(reverse: true);
-  
-  _heartAnimation = TweenSequence<double>(
-    <TweenSequenceItem<double>>[
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.0, end: 1.08),
-        weight: 50,
-      ),
-      TweenSequenceItem<double>(
-        tween: Tween<double>(begin: 1.1, end: 1.0),
-        weight: 50,
-      ),
-    ],
-  ).animate(_heartController);
-}
+    _heartController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _heartAnimation = TweenSequence<double>(
+      <TweenSequenceItem<double>>[
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 1.0, end: 1.08),
+          weight: 50,
+        ),
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 1.1, end: 1.0),
+          weight: 50,
+        ),
+      ],
+    ).animate(_heartController);
+  }
 
   @override
   void dispose() {
@@ -576,71 +559,60 @@ void initState() {
     super.dispose();
   }
 
-Future<void> _applyVirtualMakeup() async {
-  // Store the current makeup state before applying new changes
-  final previousImage = _processedImage;
-  
-  setState(() => _isApplyingMakeup = true);
+  Future<void> _applyVirtualMakeup() async {
+    final previousImage = _processedImage;
+    
+    setState(() => _isApplyingMakeup = true);
 
-  try {
-    // Get hex codes for selected shades
-    final eyeshadowHex = selectedShades['Eyeshadow'] != null 
-        ? '#${selectedShades['Eyeshadow']!.value.toRadixString(16).substring(2)}'
-        : null;
-    final lipstickHex = selectedShades['Lipstick'] != null
-        ? '#${selectedShades['Lipstick']!.value.toRadixString(16).substring(2)}'
-        : null;
-    final blushHex = selectedShades['Blush'] != null
-        ? '#${selectedShades['Blush']!.value.toRadixString(16).substring(2)}'
-        : null;
+    try {
+      final response = await _makeupApiService.applyMakeup(
+        imageFile: widget.capturedImage,
+        selectedShades: selectedShades,
+        skinTone: widget.skinTone ?? 'medium',
+        undertone: widget.undertone,
+        makeupLook: widget.selectedMakeupLook ?? 'natural',
+        makeupType: widget.selectedMakeupType ?? 'everyday',
+      );
 
-    final response = await _makeupApiService.applyMakeup(
-      imageFile: widget.capturedImage,
-      eyeshadowColor: eyeshadowHex,
-      lipstickColor: lipstickHex,
-      blushColor: blushHex,
-      skinTone: widget.skinTone ?? 'medium',
-      undertone: widget.undertone,
-      makeupLook: widget.selectedMakeupLook ?? 'natural',
-      makeupType: widget.selectedMakeupType ?? 'everyday',
-    );
-
-    setState(() {
-      _processedImage = base64Decode(response['result_image']);
-      _currentMakeupImage = _processedImage; // Store the current state
-      
-      if (response['status'] == 'success' && response['message']?.contains('Mock') == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['message'])),
-        );
-      }
-    });
-  } catch (e) {
-    // If makeup application fails, revert to previous state
-    setState(() {
-      _processedImage = previousImage;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error applying makeup: $e')),
-    );
-  } finally {
-    setState(() => _isApplyingMakeup = false);
+      setState(() {
+        _processedImage = base64Decode(response['result_image']);
+        _currentMakeupImage = _processedImage;
+        
+        if (response['status'] == 'success' && response['message']?.contains('Mock') == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(response['message'])),
+          );
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _processedImage = previousImage;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error applying makeup: $e')),
+      );
+    } finally {
+      setState(() => _isApplyingMakeup = false);
+    }
   }
-}
+
   Future<void> _applyVirtualMakeupAutomatically(Map<String, dynamic> recommendations) async {
     setState(() => _isApplyingMakeup = true);
 
     try {
-      // Extract the primary shades for Eyeshadow, Lipstick, and Blush
-      final eyeshadowHex = recommendations['Eyeshadow']?['Primary'] as String?;
-      final lipstickHex = recommendations['Lipstick']?['Primary'] as String?;
-      final blushHex = recommendations['Blush']?['Primary'] as String?;
+      // Apply all recommended shades at once
+      final Map<String, Color?> autoSelectedShades = {};
+      
+      recommendations.forEach((category, shadeMap) {
+        if (shadeMap is Map && shadeMap.containsKey('Primary')) {
+          final hexCode = shadeMap['Primary'] as String;
+          autoSelectedShades[category] = _parseHexColor(hexCode);
+        }
+      });
 
       final response = await _makeupApiService.applyMakeup(
         imageFile: widget.capturedImage,
-        eyeshadowColor: eyeshadowHex,
-        lipstickColor: lipstickHex,
-        blushColor: blushHex,
+        selectedShades: autoSelectedShades,
         skinTone: widget.skinTone ?? 'medium',
         undertone: widget.undertone,
         makeupLook: widget.selectedMakeupLook ?? 'natural',
@@ -665,56 +637,49 @@ Future<void> _applyVirtualMakeup() async {
     }
   }
 
-// Replace the current reset function with this:
-Future<void> _resetVirtualMakeup() async {
-  setState(() {
-    _isResetting = true; // Use reset-specific loading state
-  });
-
-  try {
-    // Clear any manual selections
-    selectedShades.updateAll((key, value) => null);
-    
-    // Re-apply the AI-recommended makeup
-    final eyeshadowHex = shadeHexCodes['Eyeshadow']?.isNotEmpty == true 
-        ? shadeHexCodes['Eyeshadow']![0] 
-        : null;
-    final lipstickHex = shadeHexCodes['Lipstick']?.isNotEmpty == true 
-        ? shadeHexCodes['Lipstick']![0] 
-        : null;
-    final blushHex = shadeHexCodes['Blush']?.isNotEmpty == true 
-        ? shadeHexCodes['Blush']![0] 
-        : null;
-
-    final response = await _makeupApiService.applyMakeup(
-      imageFile: widget.capturedImage,
-      eyeshadowColor: eyeshadowHex,
-      lipstickColor: lipstickHex,
-      blushColor: blushHex,
-      skinTone: widget.skinTone ?? 'medium',
-      undertone: widget.undertone,
-      makeupLook: widget.selectedMakeupLook ?? 'natural',
-      makeupType: widget.selectedMakeupType ?? 'everyday',
-    );
-
+  Future<void> _resetVirtualMakeup() async {
     setState(() {
-      _processedImage = base64Decode(response['result_image']);
-      _currentMakeupImage = _processedImage;
-      _userChoseToCustomize = false; // Reset customization choice
+      _isResetting = true;
     });
-  } catch (e) {
-    // If re-applying fails, show original image but keep selections cleared
-    setState(() {
-      _processedImage = null;
-      _currentMakeupImage = null;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error resetting to AI recommendations: $e')),
-    );
-  } finally {
-    setState(() => _isResetting = false); // Reset the reset-specific loading state
+
+    try {
+      // Clear manual selections
+      selectedShades.updateAll((key, value) => null);
+      
+      // Re-apply AI recommendations
+      final Map<String, Color?> aiShades = {};
+      shadeHexCodes.forEach((product, hexCodes) {
+        if (hexCodes.isNotEmpty) {
+          aiShades[product] = _parseHexColor(hexCodes[0]);
+        }
+      });
+
+      final response = await _makeupApiService.applyMakeup(
+        imageFile: widget.capturedImage,
+        selectedShades: aiShades,
+        skinTone: widget.skinTone ?? 'medium',
+        undertone: widget.undertone,
+        makeupLook: widget.selectedMakeupLook ?? 'natural',
+        makeupType: widget.selectedMakeupType ?? 'everyday',
+      );
+
+      setState(() {
+        _processedImage = base64Decode(response['result_image']);
+        _currentMakeupImage = _processedImage;
+        _userChoseToCustomize = false;
+      });
+    } catch (e) {
+      setState(() {
+        _processedImage = null;
+        _currentMakeupImage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error resetting to AI recommendations: $e')),
+      );
+    } finally {
+      setState(() => _isResetting = false);
+    }
   }
-}
 
   void _processRecommendationData() {
     if (widget.recommendationData != null) {
@@ -798,17 +763,12 @@ Future<void> _resetVirtualMakeup() async {
           shadeHexCodes.clear();
           recommendations.forEach((category, shadeMap) {
             if (shadeMap is Map) {
-              // First add the Primary shade if it exists
               if (shadeMap.containsKey('Primary')) {
                 final hexCode = shadeMap['Primary'] as String;
                 shadeHexCodes[category] = [hexCode];
                 makeupShades[category] = [_parseHexColor(hexCode)];
-                
-                // REMOVED: Auto-selecting primary shades
-                // selectedShades[category] = _parseHexColor(hexCode);
               }
               
-              // Then add other shades (Light, Medium, Dark)
               final shadeTypes = ['Light', 'Medium', 'Dark'];
               for (var shadeType in shadeTypes) {
                 if (shadeMap.containsKey(shadeType)) {
@@ -821,10 +781,9 @@ Future<void> _resetVirtualMakeup() async {
           });
         });
       
-      // AUTO-APPLY MAKEUP AFTER RECOMMENDATIONS ARE LOADED
-      await _applyVirtualMakeupAutomatically(recommendations);
+        await _applyVirtualMakeupAutomatically(recommendations);
       
-    } else if (response.statusCode == 400) {
+      } else if (response.statusCode == 400) {
         final errorData = jsonDecode(response.body);
         if (errorData['message'] == 'User profile incomplete') {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -849,15 +808,15 @@ Future<void> _resetVirtualMakeup() async {
         );
       }
     }  catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error fetching recommendations: $e')),
-    );
-  } finally {
-    setState(() {
-      isLoading = false;
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching recommendations: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
-}
 
   Future<String> compressAndEncodeImage(File imageFile) async {
     try {
@@ -1105,72 +1064,72 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         },
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: size,
-              height: size,
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? Colors.green : 
-                        isPrimary ? Colors.green : 
-                        isMiddleShade ? Colors.green : Colors.grey, // Green border for middle shade
-                  width: isPrimary ? 3 : 
-                         isMiddleShade ? 3 : 2, // Thicker border for middle shade
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const ui.Color.fromARGB(255, 255, 255, 255).withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                  if (isSelected || isMiddleShade) 
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.8),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                ],
-              ),
+  children: [
+    Container(
+      width: size,
+      height: size,
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isSelected ? Colors.green : 
+                isPrimary ? Colors.green : 
+                isMiddleShade ? Colors.green : Colors.grey, // Green border for middle shade
+          width: isPrimary ? 3 : 
+                 isMiddleShade ? 3 : 2, // Thicker border for middle shade
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const ui.Color.fromARGB(255, 255, 255, 255).withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+          if (isSelected || isMiddleShade) 
+            BoxShadow(
+              color: Colors.white.withOpacity(0.8),
+              blurRadius: 10,
+              spreadRadius: 2,
             ),
-            // Add downward arrow indicator for the primary shade
-            if (isPrimary && !expandedProducts[productName]!)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                child: Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.white,
-                  size: 24,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            // Add upward arrow indicator when expanded
-            if (isPrimary && expandedProducts[productName]!)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                child: Icon(
-                  Icons.arrow_drop_up,
-                  color: Colors.white,
-                  size: 24,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
+        ],
+      ),
+    ),
+    // Add downward arrow indicator for the primary shade
+    if (isPrimary && !expandedProducts[productName]!)
+      Container(
+        margin: const EdgeInsets.only(top: 4),
+        child: Icon(
+          Icons.arrow_drop_down,
+          color: Colors.white,
+          size: 24,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
           ],
         ),
+      ),
+    // Add upward arrow indicator when expanded
+    if (isPrimary && expandedProducts[productName]!)
+      Container(
+        margin: const EdgeInsets.only(top: 4),
+        child: Icon(
+          Icons.arrow_drop_up,
+          color: Colors.white,
+          size: 24,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+      ),
+  ],
+),
       ),
     ],
   );
@@ -1295,38 +1254,37 @@ Future<void> showCustomizationDialog() async {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       // No button
-                      // No button
-ElevatedButton(
-  onPressed: () {
-    Navigator.of(context).pop();
-    // Keep the AI-applied makeup but clear any manual selections
-    setState(() {
-      // Clear manual selections but keep the AI-recommended makeup applied
-      selectedShades.updateAll((key, value) => null);
-      // The _processedImage already contains the AI-applied makeup
-      _userChoseToCustomize = false; // User chose not to customize
-    });
-    _showSatisfiedToast();
-  },
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.white.withOpacity(0.9),
-    foregroundColor: Colors.pink.shade600,
-    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-      side: BorderSide(color: Colors.pink.shade300, width: 2),
-    ),
-    elevation: 4,
-    shadowColor: Colors.pink.withOpacity(0.3),
-  ),
-  child: const Text(
-    'No',
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 16,
-    ),
-  ),
-),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          // Keep the AI-applied makeup but clear any manual selections
+                          setState(() {
+                            // Clear manual selections but keep the AI-recommended makeup applied
+                            selectedShades.updateAll((key, value) => null);
+                            // The _processedImage already contains the AI-applied makeup
+                            _userChoseToCustomize = false; // User chose not to customize
+                          });
+                          _showSatisfiedToast();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.9),
+                          foregroundColor: Colors.pink.shade600,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(color: Colors.pink.shade300, width: 2),
+                          ),
+                          elevation: 4,
+                          shadowColor: Colors.pink.withOpacity(0.3),
+                        ),
+                        child: const Text(
+                          'No',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
                       
                       // Yes button
                       ElevatedButton(
@@ -1616,7 +1574,6 @@ if (showMakeupProducts)
                 textAlign: TextAlign.center,
               ),
             ),
-            // REMOVED: Clear button section
             const SizedBox(height: 8),
             
             // Always show the primary shade
@@ -1678,25 +1635,25 @@ if (showMakeupProducts)
                     child: const Text("Retake"),
                   ),
                   ElevatedButton(
-  onPressed: _isResetting ? null : _resetVirtualMakeup, // Use _isResetting here
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.orange,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-  ),
-  child: _isResetting // Check _isResetting instead of _isApplyingMakeup
-      ? const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 2,
-          ),
-        )
-      : const Text("Reset"),
-),
+                    onPressed: _isResetting ? null : _resetVirtualMakeup,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: _isResetting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text("Reset"),
+                  ),
                   ElevatedButton(
                     onPressed: _saveLook,
                     style: ElevatedButton.styleFrom(
@@ -2212,7 +2169,7 @@ class _FeedbackDialogState extends State<FeedbackDialog> with TickerProviderStat
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(16),
                             ),
                             backgroundColor: Colors.white.withOpacity(0.7),
                           ),
