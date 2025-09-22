@@ -46,10 +46,10 @@ class SignUpPage2 extends StatefulWidget {
   });
 
   @override
-  _SignUpPage2State createState() => _SignUpPage2State();
+  SignUpPage2State createState() => SignUpPage2State();
 }
 
-class _SignUpPage2State extends State<SignUpPage2> {
+class SignUpPage2State extends State<SignUpPage2> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -98,7 +98,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
             ),
           ),
           Container(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
           ),
           SingleChildScrollView(
             child: Padding(
@@ -116,11 +116,11 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   Container(
                     padding: const EdgeInsets.all(25.0),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           spreadRadius: 2,
                         ),
@@ -301,7 +301,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pink.withOpacity(0.2),
+                      color: Colors.pink.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),

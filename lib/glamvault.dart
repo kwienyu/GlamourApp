@@ -39,10 +39,10 @@ class GlamVaultScreen extends StatefulWidget {
   });
 
   @override
-  _GlamVaultScreenState createState() => _GlamVaultScreenState();
+  GlamVaultScreenState createState() => GlamVaultScreenState();
 }
 
-class _GlamVaultScreenState extends State<GlamVaultScreen> {
+class GlamVaultScreenState extends State<GlamVaultScreen> {
   List<SavedLook> savedLooks = [];
   bool isLoading = true;
   Map<int, Map<String, dynamic>> lookShades = {};
@@ -82,11 +82,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
 
   Future<void> _loadTagsAndLookTags() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // Load available tags
     final tags = prefs.getStringList('available_tags') ?? ['All'];
-    
-    // Load look tags (lookId -> tag mapping)
     final lookTagsJson = prefs.getString('look_tags');
     if (lookTagsJson != null) {
       try {
@@ -161,8 +157,8 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
     final grouped = <String, List<SavedLook>>{};
     
     // Create separate categories
-    grouped['All Looks'] = []; // This will contain ONLY untagged looks
-    grouped['Tagged Looks'] = []; // This will contain ALL tagged looks
+    grouped['All Looks'] = []; 
+    grouped['Tagged Looks'] = []; 
     
     for (var look in savedLooks) {
       final String? tag = _lookTags[look.savedLookId] ?? look.tag;
@@ -394,7 +390,7 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.pinkAccent.withOpacity(0.1),
+                        color: Colors.pinkAccent.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: Offset(0, 4),
                       ),
@@ -473,14 +469,14 @@ class _GlamVaultScreenState extends State<GlamVaultScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.pinkAccent.withOpacity(0.2),
+                              color: Colors.pinkAccent.withValues(alpha: 0.2),
                               blurRadius: 3,
                               offset: Offset(0, 1),
                             ),
                           ],
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min, // Important: Don't expand to full width
+                          mainAxisSize: MainAxisSize.min, 
                           children: [
                             GestureDetector(
                               onTap: () {
@@ -1567,7 +1563,7 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),

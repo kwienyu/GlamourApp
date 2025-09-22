@@ -9,10 +9,10 @@ class MakeupArtistForm extends StatefulWidget {
   const MakeupArtistForm({super.key, required this.userId});
   
   @override
-  _MakeupArtistFormState createState() => _MakeupArtistFormState();
+  MakeupArtistFormState createState() => MakeupArtistFormState();
 }
 
-class _MakeupArtistFormState extends State<MakeupArtistForm> {
+class MakeupArtistFormState extends State<MakeupArtistForm> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -290,16 +290,16 @@ _buildSectionHeader('ID Verification', screenWidth),
 SizedBox(height: screenHeight * 0.02),
 Center(
   child: Container(
-    width: screenWidth * 0.9, // Expanded width
+    width: screenWidth * 0.9, 
     padding: EdgeInsets.all(screenWidth * 0.04),
     decoration: BoxDecoration(
       color: Colors.pink[50],
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.pinkAccent, width: 2), // Added pink border
+      border: Border.all(color: Colors.pinkAccent, width: 2), 
     ),
     child: Column(
-      mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
-      crossAxisAlignment: CrossAxisAlignment.center, // Center content horizontally
+      mainAxisAlignment: MainAxisAlignment.center, 
+      crossAxisAlignment: CrossAxisAlignment.center, 
       children: [
         Text(
           'Take two photos for ID verification:',
@@ -307,7 +307,7 @@ Center(
             fontSize: screenWidth * 0.04,
             fontWeight: FontWeight.w500,
           ),
-          textAlign: TextAlign.center, // Center text
+          textAlign: TextAlign.center, 
         ),
         SizedBox(height: screenHeight * 0.02),
         

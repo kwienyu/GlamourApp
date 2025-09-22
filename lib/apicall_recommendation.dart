@@ -9,20 +9,12 @@ class ApiCallRecommendation {
   factory ApiCallRecommendation() => _instance;
   ApiCallRecommendation._internal();
 
-  /// Fetches full makeup recommendations based on user's attributes
-  /// 
-  /// Parameters:
-  /// - userId: The ID of the user
-  /// - skinToneId: Optional filter for skin tone
-  /// - faceShapeId: Optional filter for face shape
-  /// - undertoneId: Optional filter for undertone
-  /// - timeFilter: Time period filter ('weekly', 'monthly', 'all') - defaults to 'all'
   Future<Map<String, dynamic>> getFullRecommendation(
     int userId, {
     int? skinToneId,
     int? faceShapeId,
     int? undertoneId,
-    String timeFilter = 'all', // Added time filter parameter
+    String timeFilter = 'all', 
   }) async {
     final uri = Uri.parse('$_baseUrl/$userId/full_recommendation');
     
@@ -31,7 +23,7 @@ class ApiCallRecommendation {
     if (skinToneId != null) params['skin_tone_id'] = skinToneId.toString();
     if (faceShapeId != null) params['face_shape_id'] = faceShapeId.toString();
     if (undertoneId != null) params['undertone_id'] = undertoneId.toString();
-    params['time_filter'] = timeFilter; // Add time filter parameter
+    params['time_filter'] = timeFilter; 
     
     final response = await http.get(uri.replace(queryParameters: params));
     
@@ -42,11 +34,6 @@ class ApiCallRecommendation {
     }
   }
 
-  /// Fetches top shades by type and skin tone for a given period
-  ///
-  /// Parameters:
-  /// - period: 'week' or 'month' for the time period
-  /// - skinTone: The skin tone to filter by
   Future<List<Map<String, dynamic>>> getTopShades(String period, String skinTone) async {
     final uri = Uri.parse('https://glamouraika.com/api/top_3_shades_by_type_and_skintone?period=$period');
     
@@ -298,7 +285,7 @@ class Shade {
   final int shadeId;
   final String hexCode;
   final String shadeName;
-  final String? shadeType; // Only present in SavedLook shades
+  final String? shadeType;
 
   Shade({
     required this.shadeId,

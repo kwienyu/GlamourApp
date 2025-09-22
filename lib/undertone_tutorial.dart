@@ -5,10 +5,10 @@ class UndertoneTutorial extends StatefulWidget {
   const UndertoneTutorial({super.key});
 
   @override
-  _UndertoneTutorialState createState() => _UndertoneTutorialState();
+  UndertoneTutorialState createState() => UndertoneTutorialState();
 }
 
-class _UndertoneTutorialState extends State<UndertoneTutorial> {
+class UndertoneTutorialState extends State<UndertoneTutorial> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,7 +176,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withValues(alpha: 0.2),
                       spreadRadius: 2,
                       blurRadius: 5,
                       offset: const Offset(0, 3),
@@ -225,7 +225,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
+                  color: Colors.grey.withValues(alpha: 0.2),
                   spreadRadius: 2,
                   blurRadius: 5,
                   offset: const Offset(0, 3),
@@ -273,7 +273,7 @@ class _UndertoneTutorialState extends State<UndertoneTutorial> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.3),
+        color: color.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(

@@ -18,21 +18,21 @@ class MakeupHubPage extends StatefulWidget {
   final File capturedImage;
   
   @override
-  _MakeupHubPageState createState() => _MakeupHubPageState();
+  MakeupHubPageState createState() => MakeupHubPageState();
 }
 
-class _MakeupHubPageState extends State<MakeupHubPage> {
+class MakeupHubPageState extends State<MakeupHubPage> {
   String? selectedUndertone;
   String? selectedMakeupType;
   String? selectedMakeupLook;
   String? userSkinTone;
   bool isLoadingSkinTone = false;
   bool isProcessingMakeupLook = false;
-  String? currentlyProcessingLook; // Track which look is being processed
+  String? currentlyProcessingLook; 
 
   final List<String> undertones = ["Warm", "Neutral", "Cool"];
   final Map<String, List<String>> makeupLooks = {
-    'Casual': ['No-Makeup', 'Everyday Glow', 'Sun-Kissed Glow'],
+    'Casual': ['No-Makeup', 'Everyday Glow', 'Sun-Kissed'],
     'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
     'Heavy': ['Matte', 'Cut Crease', 'Glam Night'],
   };
@@ -277,7 +277,7 @@ class _MakeupHubPageState extends State<MakeupHubPage> {
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 20),
       child: ElevatedButton(
         onPressed: () async {
-          if (isProcessingMakeupLook) return; // Prevent multiple clicks
+          if (isProcessingMakeupLook) return; 
           
           setState(() {
             selectedMakeupLook = look;

@@ -6,10 +6,10 @@ class MakeupGuide extends StatefulWidget {
   const MakeupGuide({super.key, required this.userId});
 
   @override
-  _MakeupGuideState createState() => _MakeupGuideState();
+  MakeupGuideState createState() => MakeupGuideState();
 }
 
-class _MakeupGuideState extends State<MakeupGuide> {
+class MakeupGuideState extends State<MakeupGuide> {
   void _onProceed() {
     Future.delayed(const Duration(milliseconds: 300), () {
       Navigator.push(
@@ -46,7 +46,7 @@ class _MakeupGuideState extends State<MakeupGuide> {
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      splashColor: Colors.white.withOpacity(0.3),
+                      splashColor: Colors.white.withValues(alpha: 0.3),
                       onTap: _onProceed,
                       child: const Center(
                         child: Text(

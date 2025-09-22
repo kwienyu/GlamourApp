@@ -252,7 +252,7 @@ class _CameraClientState extends State<CameraClient> {
                   width: MediaQuery.of(context).size.width * 0.9,
                   padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(

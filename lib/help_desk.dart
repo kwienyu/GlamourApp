@@ -9,10 +9,10 @@ class HelpDeskScreen extends StatefulWidget {
   const HelpDeskScreen({super.key});
 
   @override
-  _HelpDeskScreenState createState() => _HelpDeskScreenState();
+  HelpDeskScreenState createState() => HelpDeskScreenState();
 }
 
-class _HelpDeskScreenState extends State<HelpDeskScreen> {
+class HelpDeskScreenState extends State<HelpDeskScreen> {
   final TextEditingController _messageController = TextEditingController();
   File? _screenshot;
   bool _isSubmitting = false;
@@ -169,7 +169,7 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color.fromARGB(255, 253, 89, 176).withOpacity(0.2),
+                      color: const Color.fromARGB(255, 253, 89, 176).withValues(alpha: 0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -196,7 +196,7 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
                       'Describe your issue and we\'ll get back to you as soon as possible.',
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         height: 1.4,
                       ),
                     ),
@@ -222,7 +222,7 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.1),
+                      color: const Color.fromARGB(255, 0, 0, 0).withValues(alpha: 0.1),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -324,14 +324,14 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
                     ? null 
                     : _submitReport,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.pink.shade200.withOpacity(0.9),
+                    backgroundColor: Colors.pink.shade200.withValues(alpha: 0.9),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 2,
-                    shadowColor: Colors.pink.shade200.withOpacity(0.9),
+                    shadowColor: Colors.pink.shade200.withValues(alpha: 0.9),
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
@@ -425,7 +425,7 @@ class _HelpDeskScreenState extends State<HelpDeskScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

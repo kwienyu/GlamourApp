@@ -204,7 +204,7 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
           width: 1.5,
         ),
       ),
-      color: Colors.white.withOpacity(0.7),
+      color: Colors.white.withValues(alpha: 0.7),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -263,7 +263,7 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
-      color: Colors.white.withOpacity(0.9),
+      color: Colors.white.withValues(alpha: 0.9),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         leading: Container(

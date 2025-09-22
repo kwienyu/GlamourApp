@@ -130,8 +130,8 @@ class MakeupOverlayEngine {
         landmarks[FaceLandmarkType.rightCheek] != null) {
       _drawBlush(
         canvas,
-        landmarks[FaceLandmarkType.leftCheek]!.position, // Use ! to assert non-null
-        landmarks[FaceLandmarkType.rightCheek]!.position, // Use ! to assert non-null
+        landmarks[FaceLandmarkType.leftCheek]!.position, 
+        landmarks[FaceLandmarkType.rightCheek]!.position, 
         color: selectedShades['Blush']!,
       );
     }
@@ -1073,7 +1073,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         color: color,
         shape: BoxShape.circle,
         border: Border.all(
-          color: isSelected ? Colors.green : 
+          color: isSelected ? const ui.Color.fromARGB(255, 239, 107, 157) : 
                 isPrimary ? Colors.green : 
                 isMiddleShade ? Colors.green : Colors.grey, // Green border for middle shade
           width: isPrimary ? 3 : 

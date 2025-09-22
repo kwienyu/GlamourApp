@@ -14,7 +14,7 @@ import 'makeup_artistform.dart';
 import 'package:intl/intl.dart';
 import 'apicall_recommendation.dart';
 import 'help_desk.dart';
-import 'terms&conditions.dart'; 
+import 'terms_and_conditions.dart'; 
 
 // Add these classes at the top of the file
 class MakeupShade {
@@ -655,7 +655,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
               ],
             ),
             _buildCategoriesSection(context),
-            _buildRecommendationsSection(), // This now includes the beauty profile
+            _buildRecommendationsSection(), 
           ],
         ),
       ),
@@ -674,7 +674,7 @@ class _ProfileSelectionState extends State<ProfileSelection> {
             decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
-                  color: Colors.pinkAccent.withOpacity(0.5),
+                  color: Colors.pinkAccent.withValues(alpha: 0.5),
                   blurRadius: 20,
                   spreadRadius: 5,
                   offset: const Offset(0, 10),
@@ -794,7 +794,7 @@ Widget _buildProfileCards(BuildContext context) {
             .animate()
             .fadeIn(delay: 300.ms)
             .scaleXY(begin: 0.8, end: 1),
-        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) // Uses parsed int
+        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) 
             .animate()
             .fadeIn(delay: 400.ms)
             .scaleXY(begin: 0.8, end: 1),
@@ -928,7 +928,7 @@ Widget _buildProfileCards(BuildContext context) {
       borderRadius: BorderRadius.circular(24.0),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFD4A5BD).withOpacity(0.2),
+          color: const Color(0xFFD4A5BD).withValues(alpha: 0.2),
           blurRadius: 20.0,
           offset: const Offset(0, 8),
         ),
@@ -952,7 +952,7 @@ Widget _buildProfileCards(BuildContext context) {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFC98DA9).withOpacity(0.4),
+                    color: const Color(0xFFC98DA9).withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -990,10 +990,10 @@ Widget _buildProfileCards(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: const Color(0xFFE8CFDE).withOpacity(0.5),
+          color: const Color(0xFFE8CFDE).withValues(alpha: 0.5),
           width: 1.0,
         ),
       ),
@@ -1054,7 +1054,7 @@ Widget _buildProfileCards(BuildContext context) {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE5B8D2).withOpacity(0.2),
+              color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1101,7 +1101,7 @@ Widget _buildProfileCards(BuildContext context) {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 245, 87, 156).withOpacity(0.2),
+            color: const Color.fromARGB(255, 245, 87, 156).withValues(alpha: 0.2),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -1152,7 +1152,7 @@ Widget _buildProfileCards(BuildContext context) {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE5B8D2).withOpacity(0.2),
+              color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1199,7 +1199,7 @@ Widget _buildProfileCards(BuildContext context) {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE5B8D2).withOpacity(0.2),
+              color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1306,7 +1306,7 @@ Widget _buildProfileCards(BuildContext context) {
                       shape: BoxShape.circle,
                       color: index == 0 
                           ? const Color(0xFF7E4A71)
-                          : const Color(0xFFD4A5BD).withOpacity(0.5),
+                          : const Color(0xFFD4A5BD).withValues(alpha: 0.5),
                     ),
                   );
                 }),
@@ -1361,7 +1361,7 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFE5B8D2).withOpacity(0.3),
+          color: const Color(0xFFE5B8D2).withValues(alpha: 0.3),
           blurRadius: 15,
           offset: const Offset(0, 5),
         ),
@@ -1682,7 +1682,7 @@ Widget _buildMostUsedShadesSection() {
         ..sort((a, b) => b.value.compareTo(a.value));
       
       final top10Shades = sortedShades
-          .take(10) // Limit to 10 most used shades for this category
+          .take(10) 
           .map((entry) => entry.key)
           .toList();
 
@@ -1750,7 +1750,7 @@ Widget _buildMostUsedShadesSection() {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE5B8D2).withOpacity(0.2),
+            color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1784,7 +1784,7 @@ Widget _buildMostUsedShadesSection() {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE5B8D2).withOpacity(0.3),
+            color: const Color(0xFFE5B8D2).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -1885,7 +1885,7 @@ Widget _buildMostUsedShadesSection() {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE5B8D2).withOpacity(0.2),
+            color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -2047,12 +2047,12 @@ Widget _buildShadeChip(MakeupShade shade) {
               color: _parseHexColor(shade.hexCode),
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -2094,14 +2094,14 @@ void _showShadeVisualization(MakeupShade shade) {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 25,
                     spreadRadius: 1,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(30), // Increased padding for better centering
+              padding: const EdgeInsets.all(30), 
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -2109,21 +2109,21 @@ void _showShadeVisualization(MakeupShade shade) {
                 children: [
                   // Larger color visualization - properly centered
                   Container(
-                    width: 200, // Increased from 160
-                    height: 200, // Increased from 160
+                    width: 200, 
+                    height: 200, 
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white.withOpacity(0.8),
-                          Colors.white.withOpacity(0.2),
+                          Colors.white.withValues(alpha: 0.8),
+                          Colors.white.withValues(alpha: 0.2),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 20,
                           spreadRadius: 1,
                           offset: const Offset(0, 6),
@@ -2132,14 +2132,14 @@ void _showShadeVisualization(MakeupShade shade) {
                     ),
                     child: Center(
                       child: Container(
-                        width: 180, // Increased from 140
-                        height: 180, // Increased from 140
+                        width: 180, 
+                        height: 180, 
                         decoration: BoxDecoration(
                           color: _parseHexColor(shade.hexCode),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 18,
                               offset: const Offset(0, 5),
                             ),
@@ -2149,7 +2149,7 @@ void _showShadeVisualization(MakeupShade shade) {
                     ),
                   ),
                   
-                  const SizedBox(height: 25), // Increased spacing
+                  const SizedBox(height: 25), 
                   
                   // Shade name with elegant typography - properly centered
                   SizedBox(
@@ -2157,7 +2157,7 @@ void _showShadeVisualization(MakeupShade shade) {
                     child: Text(
                       shade.shadeName.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 18, // Slightly larger font
+                        fontSize: 18, 
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF7E4A71),
                         letterSpacing: 1.0,
@@ -2167,7 +2167,7 @@ void _showShadeVisualization(MakeupShade shade) {
                     ),
                   ),
                   
-                  const SizedBox(height: 8), // Increased spacing
+                  const SizedBox(height: 8), 
                   
                   // Shade type with subtle styling - properly centered
                   SizedBox(
@@ -2175,7 +2175,7 @@ void _showShadeVisualization(MakeupShade shade) {
                     child: Text(
                       shade.shadeType,
                       style: TextStyle(
-                        fontSize: 14, // Slightly larger font
+                        fontSize: 14, 
                         color: Colors.grey[600],
                         fontStyle: FontStyle.italic,
                         fontWeight: FontWeight.w300,
@@ -2201,12 +2201,12 @@ void _showShadeVisualization(MakeupShade shade) {
                     color: Colors.white,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF7E4A71).withOpacity(0.3),
+                      color: const Color(0xFF7E4A71).withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -2244,7 +2244,7 @@ void _showShadeVisualization(MakeupShade shade) {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.5),
+                  color: Colors.grey.withValues(alpha: 0.5),
                   spreadRadius: 2,
                   blurRadius: 5,
                   offset: const Offset(0, 3),

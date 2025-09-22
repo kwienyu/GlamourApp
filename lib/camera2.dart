@@ -17,10 +17,10 @@ class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
 
   @override
-  _CameraPageState createState() => _CameraPageState();
+  CameraPageState createState() => CameraPageState();
 }
 
-class _CameraPageState extends State<CameraPage> {
+class CameraPageState extends State<CameraPage> {
   CameraController? _controller;
   late Future<void> _initializeControllerFuture;
   bool _isUsingFrontCamera = true;
@@ -39,14 +39,14 @@ class _CameraPageState extends State<CameraPage> {
   bool _isFaceStable = false;
   DateTime? _lastFaceMovementTime;
   Rect? _lastFacePosition;
-  static const double _stabilityThreshold = 0.05; // Increased from 0.03 (less sensitive to movement)
-static const int _stabilityDurationMs = 500; // Reduced from 1000 (faster stability detection)
+  static const double _stabilityThreshold = 0.05; 
+static const int _stabilityDurationMs = 500; 
   bool _isProcessingFrame = false;
   bool _isTakingPicture = false;
   InputImageRotation _rotation = InputImageRotation.rotation0deg;
 
   // Color indicator state
-  Color _ovalColor = Colors.white; // Default color
+  Color _ovalColor = Colors.white; 
   bool _isFaceDetected = false;
   bool _isFaceInFrame = false;
   bool _isFaceMoving = false;
@@ -141,7 +141,7 @@ static const int _stabilityDurationMs = 500; // Reduced from 1000 (faster stabil
         }
       }
       
-      _lightLevel = (totalLuminance / pixelCount) / 255.0; // Normalized 0-1
+      _lightLevel = (totalLuminance / pixelCount) / 255.0; 
       
       // Calculate confidence based on face detection metrics
       final inputImage = InputImage.fromFilePath(imageFile.path);
@@ -249,7 +249,7 @@ static const int _stabilityDurationMs = 500; // Reduced from 1000 (faster stabil
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
@@ -540,12 +540,10 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
       adjustedFaceRect.top + adjustedFaceRect.height / 2,
     );
 
-    // Check if the face center is within the oval using ellipse equation
     final normalizedX = pow((faceCenter.dx - ovalCenter.dx) / (ovalWidth / 2), 2);
     final normalizedY = pow((faceCenter.dy - ovalCenter.dy) / (ovalHeight / 2), 2);
 
-    // Face is in oval if its center is within the ellipse (more lenient)
-    return (normalizedX + normalizedY) <= 1.2; // Increased from 1.0 to 1.2
+    return (normalizedX + normalizedY) <= 1.2; 
   }
 
   bool isFaceCenteredInOval(Rect faceRect) {
@@ -563,12 +561,8 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
   // Calculate the distance from face center to oval center
   final dx = (faceCenter.dx - ovalCenter.dx).abs();
   final dy = (faceCenter.dy - ovalCenter.dy).abs();
-
-  // Increased tolerance from 10% to 15% of oval dimensions for centering
   final xTolerance = ovalWidth * 0.15;
   final yTolerance = ovalHeight * 0.15;
-
-  // Face is centered if it's within the tolerance zone
   final isCentered = dx <= xTolerance && dy <= yTolerance;
   
   // Debug output
@@ -590,8 +584,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     if (leftEye == null || rightEye == null || noseBase == null) {
       return true;
     }
-
-    // More lenient eye open probability check (reduced from 0.3 to 0.2)
     if (face.leftEyeOpenProbability != null && face.rightEyeOpenProbability != null) {
       if (face.leftEyeOpenProbability! < 0.2 || face.rightEyeOpenProbability! < 0.2) {
         return true;
@@ -610,8 +602,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
       return false;
     }
 
-    // Skip the detailed eye-level check to make it easier for users
-    // Just ensure basic facial landmarks are present
     final leftEye = face.landmarks[FaceLandmarkType.leftEye];
     final rightEye = face.landmarks[FaceLandmarkType.rightEye];
     final noseBase = face.landmarks[FaceLandmarkType.noseBase];
@@ -718,10 +708,10 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     // For front camera - apply horizontal mirroring (flip)
     if (cameraAspectRatio > screenAspectRatio) {
       final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
-      return Matrix4.diagonal3Values(-1.0, scale, 1.0); // Note the -1.0 for mirroring
+      return Matrix4.diagonal3Values(-1.0, scale, 1.0); 
     } else {
       final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
-      return Matrix4.diagonal3Values(-scale, 1.0, 1.0); // Note the -scale for mirroring
+      return Matrix4.diagonal3Values(-scale, 1.0, 1.0); 
     }
   } else {
     // For back camera, handle different aspect ratios normally
@@ -736,7 +726,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
 }
 
   void _switchCamera() async {
-    // Cancel any ongoing countdown
     _cancelCountdown();
 
     setState(() {
@@ -746,14 +735,13 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
       _lastFacePosition = null;
       _lastFaceMovementTime = null;
       _isFaceStable = false;
-      _ovalColor = Colors.white; // Reset color when switching camera
-      _hasCaptured = false; // Reset capture flag
+      _ovalColor = Colors.white; 
+      _hasCaptured = false; 
     });
     _initializeControllerFuture = _initializeCamera();
   }
 
   Future<void> _autoCapturePicture() async {
-    // Cancel countdown before capturing
     _cancelCountdown();
 
     if (_isTakingPicture || _hasCaptured) return;
@@ -768,7 +756,7 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
         _isProcessing = true;
         _showResults = false;
         _capturedImage = null;
-        _hasCaptured = true; // Set flag to indicate capture has happened
+        _hasCaptured = true; 
       });
       
       await _initializeControllerFuture;
@@ -777,7 +765,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
       final XFile file = await _controller!.takePicture();
       final File imageFile = File(file.path);
 
-      // Fix: Process the image to correct front camera mirroring
       if (_isUsingFrontCamera) {
         final processedImage = await _processFrontCameraImage(imageFile);
         setState(() {
@@ -808,10 +795,8 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     }
   }
 
-  // NEW METHOD: Process front camera image to remove mirroring effect
   Future<File> _processFrontCameraImage(File originalImage) async {
     try {
-      // Decode the original image
       final originalBytes = await originalImage.readAsBytes();
       img.Image? image = img.decodeImage(originalBytes);
       
@@ -819,7 +804,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
         return originalImage;
       }
       
-      // Flip the image horizontally to correct front camera mirroring
       img.Image flippedImage = img.flipHorizontal(image);
       
       // Encode the processed image
@@ -828,8 +812,6 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
       // Create a new file with the processed image
       final processedFile = File(originalImage.path.replaceFirst('.jpg', '_processed.jpg'));
       await processedFile.writeAsBytes(processedBytes);
-      
-      // Delete the original image
       await originalImage.delete();
       
       return processedFile;
@@ -903,7 +885,7 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.pink.withOpacity(0.2),
+                        color: Colors.pink.withValues(alpha: 0.2),
                         blurRadius: 20,
                         spreadRadius: 5,
                       ),
@@ -1027,15 +1009,13 @@ Widget build(BuildContext context) {
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Fixed ternary operator syntax
                   Transform(
                     alignment: Alignment.center,
                     transform: _isUsingFrontCamera
-                        ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0)) // Mirror for front camera
+                        ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0)) 
                         : Matrix4.identity(),
                     child: CameraPreview(_controller!),
                   ),
-                  // Moved the LayoutBuilder and Transform to be siblings
                   Positioned.fill(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -1053,7 +1033,6 @@ Widget build(BuildContext context) {
                         ovalColor: _ovalColor,
                         countdownSeconds: _isCountingDown ? _countdownSeconds : null,
                         isCountingDown: _isCountingDown,
-                        // Pass the screen height to adjust oval position
                         screenHeight: screenHeight,
                       ),
                     ),
@@ -1096,7 +1075,6 @@ Widget build(BuildContext context) {
         if (_capturedImage == null)
           Column(
             children: [
-              // Switch button positioned at the top
               Container(
                 padding: EdgeInsets.only(
                   top: MediaQuery.of(context).padding.top + 20,
@@ -1151,10 +1129,10 @@ Widget build(BuildContext context) {
             child: Container(
               padding: EdgeInsets.all(screenWidth * 0.03),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _ovalColor.withOpacity(0.8),
+                  color: _ovalColor.withValues(alpha: 0.8),
                   width: 2,
                 ),
               ),
@@ -1169,7 +1147,7 @@ Widget build(BuildContext context) {
                   Text(
                     'Detailed Status:',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: screenWidth * 0.03,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1200,7 +1178,7 @@ Widget build(BuildContext context) {
                     _getStatusMessage(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: screenWidth * 0.03,
                       fontStyle: FontStyle.italic,
                     ),
@@ -1286,7 +1264,7 @@ String _getStatusMessage() {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.pink.withOpacity(0.3),
+              color: Colors.pink.withValues(alpha: 0.3),
               blurRadius: 10,
               spreadRadius: 2,
               offset: const Offset(0, 4),
@@ -1383,7 +1361,7 @@ class DashedOvalPainter extends CustomPainter {
     
     final Rect ovalRect = Rect.fromCenter(center: center, width: width, height: height);
 
-    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.5);
+    final backgroundPaint = Paint()..color = Colors.black.withValues(alpha: 0.5);
     canvas.drawRect(Offset.zero & size, backgroundPaint);
 
     final clipPath = Path()..addOval(ovalRect);
@@ -1411,7 +1389,7 @@ class DashedOvalPainter extends CustomPainter {
             color: ovalColor,
             shadows: [
               Shadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 10,
                 offset: const Offset(2, 2),
               ),
@@ -1461,9 +1439,9 @@ void paint(Canvas canvas, Size size) {
     final radius = random.nextDouble() * 1.5 + 0.5;
     final opacity = random.nextDouble() * 0.7 + 0.3;
     
-    paint.color = Colors.white.withOpacity(opacity);
+    paint.color = Colors.white.withValues(alpha: opacity);
     if (random.nextBool()) {
-      paint.color = Colors.pink.shade200.withOpacity(opacity);
+      paint.color = Colors.pink.shade200.withValues(alpha: opacity);
     }
     
     canvas.drawCircle(Offset(x, y), radius, paint);
