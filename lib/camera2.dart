@@ -3,13 +3,13 @@ import 'dart:io';
 import 'dart:math';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';  
-import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'makeuphub.dart';
 
@@ -40,7 +40,7 @@ class CameraPageState extends State<CameraPage> {
   DateTime? _lastFaceMovementTime;
   Rect? _lastFacePosition;
   static const double _stabilityThreshold = 0.05; 
-static const int _stabilityDurationMs = 500; 
+  static const int _stabilityDurationMs = 500; 
   bool _isProcessingFrame = false;
   bool _isTakingPicture = false;
   InputImageRotation _rotation = InputImageRotation.rotation0deg;
@@ -63,6 +63,12 @@ static const int _stabilityDurationMs = 500;
   bool _isCountingDown = false;
   bool _hasCaptured = false;
 
+  // Navigation footer state
+  bool _isFooterVisible = false;
+  bool _isFooterAutoHidden = false;
+  double _dragOffset = 0.0;
+  final double _swipeThreshold = 50.0;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +76,18 @@ static const int _stabilityDurationMs = 500;
     _initializeControllerFuture = _initializeCamera();
     _loadUserEmail();
     _startFaceDetectionTimer();
+    
+    // Hide navigation bar when camera page loads
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    
+    // Auto-hide navigation footer after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && !_isFooterVisible) {
+        setState(() {
+          _isFooterAutoHidden = true;
+        });
+      }
+    });
   }
 
   void _initializeFaceDetector() {
@@ -85,12 +103,62 @@ static const int _stabilityDurationMs = 500;
 
   @override
   void dispose() {
+    // Restore navigation bar when leaving camera page
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    
     _faceCheckTimer?.cancel();
     _countdownTimer?.cancel();
     _controller?.dispose();
     _faceDetector?.close();
     _isTakingPicture = false; 
     super.dispose();
+  }
+
+  // Handle swipe gestures to show/hide footer
+  void _handleVerticalDrag(DragUpdateDetails details) {
+    if (_isFooterAutoHidden && details.delta.dy < 0) {
+      // Swiping up to reveal footer
+      setState(() {
+        _dragOffset += details.delta.dy.abs();
+      });
+      
+      if (_dragOffset >= _swipeThreshold) {
+        setState(() {
+          _isFooterVisible = true;
+          _isFooterAutoHidden = false;
+          _dragOffset = 0.0;
+        });
+      }
+    } else if (_isFooterVisible && details.delta.dy > 0) {
+      // Swiping down to hide footer
+      setState(() {
+        _dragOffset += details.delta.dy;
+      });
+      
+      if (_dragOffset >= _swipeThreshold) {
+        setState(() {
+          _isFooterVisible = false;
+          _isFooterAutoHidden = true;
+          _dragOffset = 0.0;
+        });
+      }
+    }
+  }
+
+  void _handleVerticalDragEnd(DragEndDetails details) {
+    if (_dragOffset > 0) {
+      setState(() {
+        _dragOffset = 0.0;
+      });
+    }
+  }
+
+  // Manual toggle function (in case you want to add a button later)
+  void _toggleNavigationFooter() {
+    setState(() {
+      _isFooterVisible = !_isFooterVisible;
+      _isFooterAutoHidden = !_isFooterVisible;
+    });
   }
 
   // Countdown timer methods
@@ -480,47 +548,48 @@ static const int _stabilityDurationMs = 500;
     return movement <= 0.08; // Increased from 0.02
   }
 
-Rect _getAdjustedFaceRect(Rect faceRect) {
-  if (_controller == null || !_controller!.value.isInitialized) {
-    return faceRect;
+  Rect _getAdjustedFaceRect(Rect faceRect) {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return faceRect;
+    }
+
+    final screenSize = MediaQuery.of(_scaffoldContext).size;
+    final previewSize = _controller!.value.previewSize!;
+
+    if (_isUsingFrontCamera) {
+      // Front camera - mirror the coordinates for proper alignment
+      final scaleX = screenSize.width / previewSize.height;
+      final scaleY = screenSize.height / previewSize.width;
+      
+      // Mirror the x-coordinate for front camera
+      final mirroredLeft = previewSize.height - faceRect.right;
+      
+      return Rect.fromLTRB(
+        mirroredLeft * scaleX,
+        faceRect.top * scaleY,
+        (mirroredLeft + faceRect.width) * scaleX,
+        (faceRect.top + faceRect.height) * scaleY,
+      );
+    } else {
+      // Back camera - simpler approach
+      final scaleX = screenSize.width / previewSize.height;
+      final scaleY = screenSize.height / previewSize.width;
+      
+      // For back camera, the coordinates need to be rotated and scaled
+      final rotatedTop = faceRect.left;
+      final rotatedLeft = previewSize.height - faceRect.bottom;
+      final rotatedWidth = faceRect.height;
+      final rotatedHeight = faceRect.width;
+      
+      return Rect.fromLTRB(
+        rotatedLeft * scaleX,
+        rotatedTop * scaleY,
+        (rotatedLeft + rotatedWidth) * scaleX,
+        (rotatedTop + rotatedHeight) * scaleY,
+      );
+    }
   }
 
-  final screenSize = MediaQuery.of(_scaffoldContext).size;
-  final previewSize = _controller!.value.previewSize!;
-
-  if (_isUsingFrontCamera) {
-    // Front camera - mirror the coordinates for proper alignment
-    final scaleX = screenSize.width / previewSize.height;
-    final scaleY = screenSize.height / previewSize.width;
-    
-    // Mirror the x-coordinate for front camera
-    final mirroredLeft = previewSize.height - faceRect.right;
-    
-    return Rect.fromLTRB(
-      mirroredLeft * scaleX,
-      faceRect.top * scaleY,
-      (mirroredLeft + faceRect.width) * scaleX,
-      (faceRect.top + faceRect.height) * scaleY,
-    );
-  } else {
-    // Back camera - simpler approach
-    final scaleX = screenSize.width / previewSize.height;
-    final scaleY = screenSize.height / previewSize.width;
-    
-    // For back camera, the coordinates need to be rotated and scaled
-    final rotatedTop = faceRect.left;
-    final rotatedLeft = previewSize.height - faceRect.bottom;
-    final rotatedWidth = faceRect.height;
-    final rotatedHeight = faceRect.width;
-    
-    return Rect.fromLTRB(
-      rotatedLeft * scaleX,
-      rotatedTop * scaleY,
-      (rotatedLeft + rotatedWidth) * scaleX,
-      (rotatedTop + rotatedHeight) * scaleY,
-    );
-  }
-}
   bool _isFaceInOval(Rect faceRect) {
     final screenSize = MediaQuery.of(_scaffoldContext).size;
     final ovalCenter = Offset(screenSize.width / 2, screenSize.height * 0.4);
@@ -547,33 +616,33 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
   }
 
   bool isFaceCenteredInOval(Rect faceRect) {
-  final screenSize = MediaQuery.of(_scaffoldContext).size;
-  final ovalCenter = Offset(screenSize.width / 2, screenSize.height * 0.4);
-  final ovalWidth = screenSize.width * 0.75;
-  final ovalHeight = screenSize.height * 0.45;
+    final screenSize = MediaQuery.of(_scaffoldContext).size;
+    final ovalCenter = Offset(screenSize.width / 2, screenSize.height * 0.4);
+    final ovalWidth = screenSize.width * 0.75;
+    final ovalHeight = screenSize.height * 0.45;
 
-  final adjustedFaceRect = _getAdjustedFaceRect(faceRect);
-  final faceCenter = Offset(
-    adjustedFaceRect.left + adjustedFaceRect.width / 2,
-    adjustedFaceRect.top + adjustedFaceRect.height / 2,
-  );
+    final adjustedFaceRect = _getAdjustedFaceRect(faceRect);
+    final faceCenter = Offset(
+      adjustedFaceRect.left + adjustedFaceRect.width / 2,
+      adjustedFaceRect.top + adjustedFaceRect.height / 2,
+    );
 
-  // Calculate the distance from face center to oval center
-  final dx = (faceCenter.dx - ovalCenter.dx).abs();
-  final dy = (faceCenter.dy - ovalCenter.dy).abs();
-  final xTolerance = ovalWidth * 0.15;
-  final yTolerance = ovalHeight * 0.15;
-  final isCentered = dx <= xTolerance && dy <= yTolerance;
-  
-  // Debug output
-  print('Face center: ($faceCenter.dx, $faceCenter.dy)');
-  print('Oval center: ($ovalCenter.dx, $ovalCenter.dy)');
-  print('Distance: (${dx.toStringAsFixed(1)}, ${dy.toStringAsFixed(1)})');
-  print('Tolerance: (${xTolerance.toStringAsFixed(1)}, ${yTolerance.toStringAsFixed(1)})');
-  print('Is centered: $isCentered');
-  
-  return isCentered;
-}
+    // Calculate the distance from face center to oval center
+    final dx = (faceCenter.dx - ovalCenter.dx).abs();
+    final dy = (faceCenter.dy - ovalCenter.dy).abs();
+    final xTolerance = ovalWidth * 0.15;
+    final yTolerance = ovalHeight * 0.15;
+    final isCentered = dx <= xTolerance && dy <= yTolerance;
+    
+    // Debug output
+    print('Face center: ($faceCenter.dx, $faceCenter.dy)');
+    print('Oval center: ($ovalCenter.dx, $ovalCenter.dy)');
+    print('Distance: (${dx.toStringAsFixed(1)}, ${dy.toStringAsFixed(1)})');
+    print('Tolerance: (${xTolerance.toStringAsFixed(1)}, ${yTolerance.toStringAsFixed(1)})');
+    print('Is centered: $isCentered');
+    
+    return isCentered;
+  }
 
   bool _isFaceCovered(Face face) {
     final leftEye = face.landmarks[FaceLandmarkType.leftEye];
@@ -699,31 +768,31 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     }
   }
 
- Matrix4 _getCameraPreviewTransform() {
-  final screenSize = MediaQuery.of(_scaffoldContext).size;
-  final cameraAspectRatio = _controller!.value.aspectRatio;
-  final screenAspectRatio = screenSize.width / screenSize.height;
+  Matrix4 _getCameraPreviewTransform() {
+    final screenSize = MediaQuery.of(_scaffoldContext).size;
+    final cameraAspectRatio = _controller!.value.aspectRatio;
+    final screenAspectRatio = screenSize.width / screenSize.height;
 
-  if (_isUsingFrontCamera) {
-    // For front camera - apply horizontal mirroring (flip)
-    if (cameraAspectRatio > screenAspectRatio) {
-      final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
-      return Matrix4.diagonal3Values(-1.0, scale, 1.0); 
+    if (_isUsingFrontCamera) {
+      // For front camera - apply horizontal mirroring (flip)
+      if (cameraAspectRatio > screenAspectRatio) {
+        final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
+        return Matrix4.diagonal3Values(-1.0, scale, 1.0); 
+      } else {
+        final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
+        return Matrix4.diagonal3Values(-scale, 1.0, 1.0); 
+      }
     } else {
-      final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
-      return Matrix4.diagonal3Values(-scale, 1.0, 1.0); 
-    }
-  } else {
-    // For back camera, handle different aspect ratios normally
-    if (cameraAspectRatio > screenAspectRatio) {
-      final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
-      return Matrix4.diagonal3Values(1.0, scale, 1.0);
-    } else {
-      final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
-      return Matrix4.diagonal3Values(scale, 1.0, 1.0);
+      // For back camera, handle different aspect ratios normally
+      if (cameraAspectRatio > screenAspectRatio) {
+        final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
+        return Matrix4.diagonal3Values(1.0, scale, 1.0);
+      } else {
+        final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
+        return Matrix4.diagonal3Values(scale, 1.0, 1.0);
+      }
     }
   }
-}
 
   void _switchCamera() async {
     _cancelCountdown();
@@ -990,269 +1059,277 @@ Rect _getAdjustedFaceRect(Rect faceRect) {
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  _scaffoldContext = context;
-  final screenWidth = MediaQuery.of(context).size.width;
-  final screenHeight = MediaQuery.of(context).size.height;
+  @override
+  Widget build(BuildContext context) {
+    _scaffoldContext = context;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
-  return Scaffold(
-    body: Stack(
-      children: [
-        if (_capturedImage == null)
-          FutureBuilder<void>(
-            future: _initializeControllerFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done || _controller == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  Transform(
-                    alignment: Alignment.center,
-                    transform: _isUsingFrontCamera
-                        ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0)) 
-                        : Matrix4.identity(),
-                    child: CameraPreview(_controller!),
-                  ),
-                  Positioned.fill(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Transform(
-                          transform: _getCameraPreviewTransform(),
+    return Scaffold(
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      body: SafeArea(
+        bottom: false,
+        child: GestureDetector(
+          onVerticalDragUpdate: _handleVerticalDrag,
+          onVerticalDragEnd: _handleVerticalDragEnd,
+          child: Stack(
+            children: [
+              if (_capturedImage == null)
+                FutureBuilder<void>(
+                  future: _initializeControllerFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done || _controller == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Transform(
                           alignment: Alignment.center,
-                          child: Container(),
-                        );
-                      },
+                          transform: _isUsingFrontCamera
+                              ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0)) 
+                              : Matrix4.identity(),
+                          child: CameraPreview(_controller!),
+                        ),
+                        Positioned.fill(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Transform(
+                                transform: _getCameraPreviewTransform(),
+                                alignment: Alignment.center,
+                                child: Container(),
+                              );
+                            },
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: DashedOvalPainter(
+                              ovalColor: _ovalColor,
+                              countdownSeconds: _isCountingDown ? _countdownSeconds : null,
+                              isCountingDown: _isCountingDown,
+                              screenHeight: screenHeight,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              else
+                Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(
+                      _capturedImage!,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.low,
                     ),
-                  ),
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: DashedOvalPainter(
-                        ovalColor: _ovalColor,
-                        countdownSeconds: _isCountingDown ? _countdownSeconds : null,
-                        isCountingDown: _isCountingDown,
-                        screenHeight: screenHeight,
+                    if (_isLoading)
+                      Center(
+                        child: LoadingAnimationWidget.flickr(
+                          leftDotColor: Colors.pinkAccent,
+                          rightDotColor: Colors.pinkAccent,
+                          size: screenWidth * 0.1,
+                        ),
+                      )
+                    else if (_showResults && _faceShape != null && _skinTone != null)
+                      Positioned(
+                        bottom: MediaQuery.of(context).padding.bottom + 20,
+                        left: 20,
+                        right: 20,
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: _buildResultsPanel(),
+                        ),
+                      ),
+                  ],
+                ),
+
+              // Combined title and switch button in a row
+              if (_capturedImage == null)
+                Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top + 20,
+                        left: 16,
+                      ),
+                      alignment: Alignment.topLeft,
+                      child: IconButton(
+                        icon: Icon(Icons.flip_camera_android, 
+                                   color: Colors.white, 
+                                   size: screenWidth * 0.08),
+                        onPressed: _isProcessing ? null : _switchCamera,
                       ),
                     ),
-                  ),
-                ],
-              );
-            },
-          )
-        else
-          Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.file(
-                _capturedImage!,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.low,
-              ),
-              if (_isLoading)
-                Center(
-                  child: LoadingAnimationWidget.flickr(
-                    leftDotColor: Colors.pinkAccent,
-                    rightDotColor: Colors.pinkAccent,
-                    size: screenWidth * 0.1,
-                  ),
+                    // Text positioned slightly lower
+                    Container(
+                      margin: EdgeInsets.only(top: screenHeight * 0.01),
+                      child: Text(
+                        "Position your face in the oval",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: screenWidth * 0.045,
+                          fontWeight: FontWeight.bold,
+                          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 )
-              else if (_showResults && _faceShape != null && _skinTone != null)
+              else
                 Positioned(
-                  bottom: 20,
-                  left: 20,
-                  right: 20,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: _buildResultsPanel(),
-                  ),
-                ),
-            ],
-          ),
-
-        // Combined title and switch button in a row
-        if (_capturedImage == null)
-          Column(
-            children: [
-              Container(
-                padding: EdgeInsets.only(
                   top: MediaQuery.of(context).padding.top + 20,
-                  left: 16,
-                ),
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: Icon(Icons.flip_camera_android, 
-                             color: Colors.white, 
-                             size: screenWidth * 0.08),
-                  onPressed: _isProcessing ? null : _switchCamera,
-                ),
-              ),
-              // Text positioned slightly lower
-              Container(
-                margin: EdgeInsets.only(top: screenHeight * 0.01),
-                child: Text(
-                  "Position your face in the oval",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: screenWidth * 0.045,
-                    fontWeight: FontWeight.bold,
-                    shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          )
-        else
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 20,
-            left: 0,
-            right: 0,
-            child: Text(
-              "Your Captured Photo",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: screenWidth * 0.070,
-                fontWeight: FontWeight.bold,
-                shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-        if (_capturedImage == null)
-          Positioned(
-            bottom: screenHeight * 0.08,
-            left: screenWidth * 0.05,
-            right: screenWidth * 0.05,
-            child: Container(
-              padding: EdgeInsets.all(screenWidth * 0.03),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _ovalColor.withValues(alpha: 0.8),
-                  width: 2,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _getStatusText(screenWidth),
-                  ),
-                  SizedBox(height: screenHeight * 0.01),
-                  Text(
-                    'Detailed Status:',
+                  left: 0,
+                  right: 0,
+                  child: Text(
+                    "Your Captured Photo",
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: screenWidth * 0.03,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontSize: screenWidth * 0.070,
+                      fontWeight: FontWeight.bold,
+                      shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
                     ),
-                  ),
-                  SizedBox(height: screenHeight * 0.005),
-                  Text(
-                    '• Detected: $_isFaceDetected',
-                    style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
-                  ),
-                  Text(
-                    '• In Frame: $_isFaceInFrame',
-                    style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
-                  ),
-                  Text(
-                    '• Stable: $_isFaceStable',
-                    style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
-                  ),
-                  Text(
-                    '• Centered: $_isFaceCentered',
-                    style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
-                  ),
-                  Text(
-                    '• Moving: $_isFaceMoving',
-                    style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
-                  ),
-                  SizedBox(height: screenHeight * 0.01),
-                  Text(
-                    _getStatusMessage(),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: screenWidth * 0.03,
-                      fontStyle: FontStyle.italic,
+                  ),
+                ),
+
+              if (_capturedImage == null)
+                Positioned(
+                  bottom: screenHeight * 0.08,
+                  left: screenWidth * 0.05,
+                  right: screenWidth * 0.05,
+                  child: Container(
+                    padding: EdgeInsets.all(screenWidth * 0.03),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _ovalColor.withValues(alpha: 0.8),
+                        width: 2,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _getStatusText(screenWidth),
+                        ),
+                        SizedBox(height: screenHeight * 0.01),
+                        Text(
+                          'Detailed Status:',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: screenWidth * 0.03,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: screenHeight * 0.005),
+                        Text(
+                          '• Detected: $_isFaceDetected',
+                          style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
+                        ),
+                        Text(
+                          '• In Frame: $_isFaceInFrame',
+                          style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
+                        ),
+                        Text(
+                          '• Stable: $_isFaceStable',
+                          style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
+                        ),
+                        Text(
+                          '• Centered: $_isFaceCentered',
+                          style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
+                        ),
+                        Text(
+                          '• Moving: $_isFaceMoving',
+                          style: TextStyle(color: Colors.white, fontSize: screenWidth * 0.03),
+                        ),
+                        SizedBox(height: screenHeight * 0.01),
+                        Text(
+                          _getStatusMessage(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: screenWidth * 0.03,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
-      ],
-    ),
-  );
-}
-
-// Helper method to extract complex ternary logic
-Widget _getStatusText(double screenWidth) {
-  if (_ovalColor == Colors.white) {
-    return Text(
-      'No face detected (White)',
-      key: const ValueKey('status_white'),
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: screenWidth * 0.035,
-        fontWeight: FontWeight.bold,
-        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-      ),
-    );
-  } else if (_ovalColor == Colors.red) {
-    return Text(
-      'Face detected but not aligned (Red)',
-      key: const ValueKey('status_red'),
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: screenWidth * 0.035,
-        fontWeight: FontWeight.bold,
-        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-      ),
-    );
-  } else if (_ovalColor == Colors.orange) {
-    return Text(
-      'Face detected but moving (Orange)',
-      key: const ValueKey('status_orange'),
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: screenWidth * 0.035,
-        fontWeight: FontWeight.bold,
-        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-      ),
-    );
-  } else {
-    return Text(
-      'Face aligned and stable (Green)',
-      key: const ValueKey('status_green'),
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: screenWidth * 0.035,
-        fontWeight: FontWeight.bold,
-        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
       ),
     );
   }
-}
-
-// Helper method for status message
-String _getStatusMessage() {
-  if (_ovalColor == Colors.white) {
-    return 'Please position your face in the oval';
-  } else if (_ovalColor == Colors.red) {
-    return 'Move your face closer to the center';
-  } else if (_ovalColor == Colors.orange) {
-    return 'Hold still for a moment';
-  } else {
-    return 'Perfect! Get ready for your photo';
+  // Helper method to extract complex ternary logic
+  Widget _getStatusText(double screenWidth) {
+    if (_ovalColor == Colors.white) {
+      return Text(
+        'No face detected (White)',
+        key: const ValueKey('status_white'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    } else if (_ovalColor == Colors.red) {
+      return Text(
+        'Face detected but not aligned (Red)',
+        key: const ValueKey('status_red'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    } else if (_ovalColor == Colors.orange) {
+      return Text(
+        'Face detected but moving (Orange)',
+        key: const ValueKey('status_orange'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    } else {
+      return Text(
+        'Face aligned and stable (Green)',
+        key: const ValueKey('status_green'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    }
   }
-}
+
+  // Helper method for status message
+  String _getStatusMessage() {
+    if (_ovalColor == Colors.white) {
+      return 'Please position your face in the oval';
+    } else if (_ovalColor == Colors.red) {
+      return 'Move your face closer to the center';
+    } else if (_ovalColor == Colors.orange) {
+      return 'Hold still for a moment';
+    } else {
+      return 'Perfect! Get ready for your photo';
+    }
+  }
 
   Widget _buildResultsPanel() {
     return Center(
@@ -1329,6 +1406,8 @@ String _getStatusMessage() {
                 ),
               ),
             ),
+            // Add extra space at the bottom to ensure button is not covered
+            SizedBox(height: MediaQuery.of(_scaffoldContext).padding.bottom),
           ],
         ),
       ),
@@ -1426,28 +1505,28 @@ class DashedOvalPainter extends CustomPainter {
 }
 
 class _GlitterPainter extends CustomPainter {
-@override
-void paint(Canvas canvas, Size size) {
-  final random = Random();
-  final paint = Paint()
-    ..color = Colors.white
-    ..style = PaintingStyle.fill;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = Random();
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
 
-  for (int i = 0; i < 30; i++) {
-    final x = random.nextDouble() * size.width;
-    final y = random.nextDouble() * size.height;
-    final radius = random.nextDouble() * 1.5 + 0.5;
-    final opacity = random.nextDouble() * 0.7 + 0.3;
-    
-    paint.color = Colors.white.withValues(alpha: opacity);
-    if (random.nextBool()) {
-      paint.color = Colors.pink.shade200.withValues(alpha: opacity);
+    for (int i = 0; i < 30; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 1.5 + 0.5;
+      final opacity = random.nextDouble() * 0.7 + 0.3;
+      
+      paint.color = Colors.white.withValues(alpha: opacity);
+      if (random.nextBool()) {
+        paint.color = Colors.pink.shade200.withValues(alpha: opacity);
+      }
+      
+      canvas.drawCircle(Offset(x, y), radius, paint);
     }
-    
-    canvas.drawCircle(Offset(x, y), radius, paint);
   }
-}
 
-@override
-bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
