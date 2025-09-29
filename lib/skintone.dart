@@ -172,7 +172,7 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                 ),
 
                 // Skin Tone Icons - Horizontal Scrollable
-                Container(
+                SizedBox(
                   height: isLandscape ? screenHeight * 0.28 : screenHeight * 0.22,
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -235,7 +235,7 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                                   SizedBox(height: basePadding),
                                   
                                   // Tone Name
-                                  Container(
+                                  SizedBox(
                                     width: iconSize * 1.5,
                                     child: Text(
                                       tone['name']!.replaceAll(' Skin Tone', ''),
@@ -306,7 +306,7 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                                       crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         // Image
-                                        Container(
+                                        SizedBox(
                                           width: displayImageSize,
                                           height: displayImageSize,
                                           child: ClipRRect(

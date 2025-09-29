@@ -1,439 +1,15 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'dart:math';
 import 'dart:ui' as ui;
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Add this import
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:image/image.dart' as img;
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'makeuphub.dart';
 import 'glamvault.dart';
 import 'package:toastification/toastification.dart';
-
-// Face Landmark detector
-class FaceLandmarkHelper {
-  static final FaceDetector _faceDetector = FaceDetector(
-    options: FaceDetectorOptions(
-      performanceMode: FaceDetectorMode.accurate,
-      enableLandmarks: true,
-    ),
-  );
-
-  static Future<List<Face>> detectFaces(File imageFile) async {
-    try {
-      final inputImage = InputImage.fromFilePath(imageFile.path);
-      return await _faceDetector.processImage(inputImage);
-    } catch (e) {
-      throw Exception('Face detection failed: $e');
-    }
-  }
-
-  static void dispose() => _faceDetector.close();
-}
-
-// Makeup Overlay Engine with synchronized application
-class MakeupOverlayEngine {
-  static Future<Uint8List> applyMakeup({
-    required File imageFile,
-    required Map<String, Color?> selectedShades,
-  }) async {
-    try {
-      final faces = await FaceLandmarkHelper.detectFaces(imageFile);
-      if (faces.isEmpty) throw Exception('No faces detected');
-
-      final originalBytes = await imageFile.readAsBytes();
-      final originalImage = img.decodeImage(originalBytes)!;
-      
-      // Create unified makeup overlay with same dimensions as original
-      final overlay = await _createUnifiedMakeupOverlay(
-        originalImage.width,
-        originalImage.height,
-        faces,
-        selectedShades,
-      );
-
-      // Create a copy of the original image to preserve quality
-      final resultImage = img.copyResize(originalImage, width: originalImage.width, height: originalImage.height);
-      
-      // Apply the overlay with soft light blend using high quality settings
-      img.compositeImage(
-        resultImage,
-        img.decodeImage(overlay)!,
-        blend: img.BlendMode.softLight,
-      );
-
-      // Use PNG format to preserve quality (no compression loss)
-      return Uint8List.fromList(img.encodePng(resultImage));
-    } catch (e) {
-      throw Exception('Makeup application failed: $e');
-    }
-  }
-
-  static Future<Uint8List> _createUnifiedMakeupOverlay(
-    int width,
-    int height,
-    List<Face> faces,
-    Map<String, Color?> selectedShades,
-  ) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()));
-
-    for (final face in faces) {
-      final landmarks = face.landmarks;
-      
-      // Apply all makeup components in sync
-      _applySynchronizedMakeup(canvas, landmarks, selectedShades);
-    }
-
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(width, height);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    return byteData!.buffer.asUint8List();
-  }
-
-  static void _applySynchronizedMakeup(
-    Canvas canvas,
-    Map<FaceLandmarkType, FaceLandmark?> landmarks, // Changed to accept nullable FaceLandmark
-    Map<String, Color?> selectedShades,
-  ) {
-    // Eyeshadow
-    if (selectedShades['Eyeshadow'] != null && 
-        landmarks[FaceLandmarkType.leftEye] != null && 
-        landmarks[FaceLandmarkType.rightEye] != null) {
-      _drawEyeMakeup(
-        canvas,
-        landmarks[FaceLandmarkType.leftEye]!.position, // Use ! to assert non-null
-        isLeftEye: true,
-        color: selectedShades['Eyeshadow']!,
-      );
-      
-      _drawEyeMakeup(
-        canvas,
-        landmarks[FaceLandmarkType.rightEye]!.position, // Use ! to assert non-null
-        isLeftEye: false,
-        color: selectedShades['Eyeshadow']!,
-      );
-    }
-
-    // Lipstick
-    if (selectedShades['Lipstick'] != null && 
-        landmarks[FaceLandmarkType.bottomMouth] != null) {
-      _drawLipMakeup(
-        canvas,
-        landmarks[FaceLandmarkType.bottomMouth]!.position, // Use ! to assert non-null
-        color: selectedShades['Lipstick']!,
-      );
-    }
-
-    // Blush
-    if (selectedShades['Blush'] != null &&
-        landmarks[FaceLandmarkType.leftCheek] != null &&
-        landmarks[FaceLandmarkType.rightCheek] != null) {
-      _drawBlush(
-        canvas,
-        landmarks[FaceLandmarkType.leftCheek]!.position, 
-        landmarks[FaceLandmarkType.rightCheek]!.position, 
-        color: selectedShades['Blush']!,
-      );
-    }
-  }
-
-  static void _drawEyeMakeup(
-    Canvas canvas,
-    Point<int> eyePosition,
-    {
-      required bool isLeftEye,
-      required Color color,
-    }
-  ) {
-    final eyeCenter = Offset(eyePosition.x.toDouble(), eyePosition.y.toDouble());
-    
-    // Base layer
-    final basePaint = Paint()
-      ..color = color.withOpacity(0.6)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
-      ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12);
-    
-    final baseRect = Rect.fromCenter(
-      center: eyeCenter,
-      width: 70,
-      height: 35,
-    );
-    
-    final translatedRect = isLeftEye 
-        ? baseRect.translate(-12, 0) 
-        : baseRect.translate(12, 0);
-    
-    canvas.drawOval(translatedRect, basePaint);
-    
-    // Intensity layer
-    final intensityPaint = Paint()
-      ..color = color.withOpacity(0.6)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    
-    final intensityRect = Rect.fromCenter(
-      center: eyeCenter,
-      width: 50,
-      height: 25,
-    );
-    
-    final translatedIntensityRect = isLeftEye 
-        ? intensityRect.translate(-8, 0) 
-        : intensityRect.translate(8, 0);
-    
-    canvas.drawOval(translatedIntensityRect, intensityPaint);
-    
-    // Definition layer
-    final definitionPaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    
-    final definitionRect = Rect.fromCenter(
-      center: Offset(eyeCenter.dx, eyeCenter.dy - 5),
-      width: 30,
-      height: 15,
-    );
-    
-    final translatedDefinitionRect = isLeftEye 
-        ? definitionRect.translate(-5, 0) 
-        : definitionRect.translate(5, 0);
-    
-    canvas.drawOval(translatedDefinitionRect, definitionPaint);
-  }
-
-  static void _drawLipMakeup(
-    Canvas canvas,
-    Point<int> bottomMouth,
-    {
-      required Color color,
-    }
-  ) {
-    final lipCenter = Offset(
-      bottomMouth.x.toDouble(), 
-      bottomMouth.y.toDouble() - 10
-    );
-    
-    // Base layer
-    final basePaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15)
-      ..imageFilter = ui.ImageFilter.blur(sigmaX: 12, sigmaY: 8);
-    
-    final baseRect = Rect.fromCenter(
-      center: lipCenter,
-      width: 75,
-      height: 50,
-    );
-    
-    canvas.drawOval(baseRect, basePaint);
-    
-    // Intensity layer
-    final intensityPaint = Paint()
-      ..color = color.withOpacity(0.7)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    
-    final intensityRect = Rect.fromCenter(
-      center: lipCenter,
-      width: 60,
-      height: 30,
-    );
-    
-    canvas.drawOval(intensityRect, intensityPaint);
-    
-    // Definition layer
-    final definitionPaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    
-    final upperLipRect = Rect.fromCenter(
-      center: Offset(lipCenter.dx, lipCenter.dy - 8),
-      width: 50,
-      height: 30,
-    );
-    
-    canvas.drawOval(upperLipRect, definitionPaint);
-  }
-
-  static void _drawBlush(
-    Canvas canvas,
-    Point<int> leftCheek,
-    Point<int> rightCheek,
-    {
-      required Color color,
-    }
-  ) {
-    final leftBlushPaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20)
-      ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15);
-  
-    final rightBlushPaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20)
-      ..imageFilter = ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15);
-
-    // First layer
-    canvas.drawCircle(
-      Offset(
-        leftCheek.x.toDouble() - 12,
-        leftCheek.y.toDouble() - 10,
-      ),
-      40,
-      leftBlushPaint,
-    );
-    
-    canvas.drawCircle(
-      Offset(
-        rightCheek.x.toDouble() + 12,
-        rightCheek.y.toDouble() - 10,
-      ),
-      40,
-      rightBlushPaint,
-    );
-
-    // Second layer
-    final leftCenterPaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    
-    final rightCenterPaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-
-    canvas.drawCircle(
-      Offset(
-        leftCheek.x.toDouble() - 12,
-        leftCheek.y.toDouble() - 10,
-      ),
-      30,
-      leftCenterPaint,
-    );
-    
-    canvas.drawCircle(
-      Offset(
-        rightCheek.x.toDouble() + 12,
-        rightCheek.y.toDouble() - 10,
-      ),
-      30, 
-      rightCenterPaint,
-    );
-  }
-}
-
-// API makeup service
-class MakeupOverlayApiService {
-  Future<Map<String, dynamic>> applyMakeup({
-    required File imageFile,
-    required Map<String, Color?> selectedShades,
-    required String skinTone,
-    required String undertone,
-    required String makeupLook,
-    required String makeupType,
-  }) async {
-    try {
-      final apiResponse = await _callMakeupApi(
-        imageFile,
-        selectedShades,
-        skinTone,
-        undertone,
-        makeupLook,
-        makeupType,
-      );
-      
-      if (apiResponse != null) return apiResponse;
-      return await _applyLocalMakeup(
-        imageFile: imageFile,
-        selectedShades: selectedShades,
-      );
-    } catch (e) {
-      debugPrint('Makeup application failed: $e');
-      return await _mockApplyMakeup(
-        imageFile: imageFile,
-        selectedShades: selectedShades,
-      );
-    }
-  }
-
-  Future<Map<String, dynamic>?> _callMakeupApi(
-    File imageFile,
-    Map<String, Color?> selectedShades,
-    String skinTone,
-    String undertone,
-    String makeupLook,
-    String makeupType,
-  ) async {
-    try {
-      // Use original image bytes without compression for API
-      final bytes = await imageFile.readAsBytes();
-      
-      // Convert selected shades to hex codes
-      final Map<String, String> shadeHexCodes = {};
-      selectedShades.forEach((product, color) {
-        if (color != null) {
-          shadeHexCodes[product] = '#${color.value.toRadixString(16).substring(2)}';
-        }
-      });
-
-      final response = await http.post(
-        Uri.parse('https://glamouraika.com/api/apply-makeup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'image': base64Encode(bytes),
-          'user_input': {
-            'skin_tone': skinTone,
-            'undertone': undertone,
-            'makeup_look': makeupLook,  
-            'makeup_type': makeupType,
-            'selected_shades': shadeHexCodes,
-          }
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-  Future<Map<String, dynamic>> _applyLocalMakeup({
-    required File imageFile,
-    required Map<String, Color?> selectedShades,
-  }) async {
-    try {
-      final result = await MakeupOverlayEngine.applyMakeup(
-        imageFile: imageFile,
-        selectedShades: selectedShades,
-      );
-
-      return {
-        'status': 'success',
-        'message': 'Makeup applied locally',
-        'result_image': base64Encode(result),
-      };
-    } catch (e) {
-      throw Exception('Local makeup failed: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> _mockApplyMakeup({
-    required File imageFile,
-    required Map<String, Color?> selectedShades,
-  }) async {
-    // Use original image bytes without compression for mock
-    final bytes = await imageFile.readAsBytes();
-    return {
-      'status': 'success',
-      'message': 'Mock makeup applied',
-      'result_image': base64Encode(bytes),
-    };
-  }
-}
 
 // Hex Color Helper
 class HexColor extends Color {
@@ -468,10 +44,10 @@ class CustomizationPage extends StatefulWidget {
   });
 
   @override
-  _CustomizationPageState createState() => _CustomizationPageState();
+  CustomizationPageState createState() => CustomizationPageState();
 }
 
-class _CustomizationPageState extends State<CustomizationPage> with SingleTickerProviderStateMixin {
+class CustomizationPageState extends State<CustomizationPage> with SingleTickerProviderStateMixin {
   String? selectedProduct;
   bool showMakeupProducts = false;
   bool showShades = false;
@@ -481,7 +57,6 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   late Animation<double> _heartAnimation;
   bool _showHeart = true;
   Map<String, bool> expandedProducts = {};
-  late MakeupOverlayApiService _makeupApiService;
   bool _isApplyingMakeup = false;
   Uint8List? _processedImage;
   Uint8List? _currentMakeupImage;
@@ -494,6 +69,20 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   bool _isNavigationBarVisible = false;
   DateTime? _lastTapTime;
 
+  // Track last changed product for incremental updates
+  String? _lastChangedProduct;
+
+  // Store all recommended shades from API
+  Map<String, Map<String, String>> allRecommendedShades = {};
+  
+  // Current selected shades for overlay products (Eyeshadow, Blush, Lipstick)
+  Map<String, String> currentShades = {
+    'Eyeshadow': 'Primary',
+    'Blush': 'Primary',
+    'Lipstick': 'Primary',
+  };
+
+  // For non-overlay products (just display)
   Map<String, Color?> selectedShades = {
     'Foundation': null,
     'Concealer': null,
@@ -511,7 +100,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
 
   final Map<String, String> productIcons = {
     'Foundation': 'assets/foundation.png',
-    'Concealer': 'assets/concelear.png',
+    'Concealer': 'assets/concealer.png',
     'Contour': 'assets/contour.png',
     'Eyeshadow': 'assets/eyeshadow.png',
     'Blush': 'assets/blush.png',
@@ -522,7 +111,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
 
   final List<String> orderedProductNames = [
     'Foundation',
-    'Concelear',
+    'Concealer',
     'Contour',
     'Eyeshadow',
     'Blush',
@@ -536,7 +125,6 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _makeupApiService = MakeupOverlayApiService();
     _processRecommendationData();
     _fetchRecommendations();
     
@@ -545,6 +133,7 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
       _hasShownProductDialog[product] = false;
     }
 
+    // Initialize heart animation controller
     _heartController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -563,19 +152,16 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
       ],
     ).animate(_heartController);
 
-    // Hide navigation bar when page loads
     _hideNavigationBar();
   }
 
   @override
   void dispose() {
     _heartController.dispose();
-    // Restore navigation bar when leaving this screen
     _showNavigationBar();
     super.dispose();
   }
 
-  // Method to hide navigation bar
   void _hideNavigationBar() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     setState(() {
@@ -583,7 +169,6 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     });
   }
 
-  // Method to show navigation bar
   void _showNavigationBar() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     setState(() {
@@ -591,7 +176,6 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     });
   }
 
-  // Method to toggle navigation bar visibility
   void _toggleNavigationBar() {
     if (_isNavigationBarVisible) {
       _hideNavigationBar();
@@ -600,14 +184,11 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     }
   }
 
-  // Handle tap gestures to show/hide navigation bar
   void _handleTap() {
     final now = DateTime.now();
     if (_lastTapTime != null && now.difference(_lastTapTime!) < Duration(milliseconds: 300)) {
-      // Double tap detected - toggle navigation bar
       _toggleNavigationBar();
     } else {
-      // Single tap - hide navigation bar after a delay if it's visible
       if (_isNavigationBarVisible) {
         Future.delayed(Duration(seconds: 3), () {
           if (mounted && _isNavigationBarVisible) {
@@ -619,11 +200,9 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     _lastTapTime = now;
   }
 
-  // Handle swipe up gesture to show navigation bar
   void _handleSwipeUp() {
     if (!_isNavigationBarVisible) {
       _showNavigationBar();
-      // Auto-hide after 3 seconds
       Future.delayed(Duration(seconds: 3), () {
         if (mounted && _isNavigationBarVisible) {
           _hideNavigationBar();
@@ -632,31 +211,216 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     }
   }
 
+  // NEW: Helper method to get current overlay code (e.g., "E+L", "E+B", etc.)
+  String _getCurrentOverlayCode() {
+    final List<String> activeOverlays = [];
+    
+    if (selectedShades['Eyeshadow'] != null) activeOverlays.add('E');
+    if (selectedShades['Blush'] != null) activeOverlays.add('B');
+    if (selectedShades['Lipstick'] != null) activeOverlays.add('L');
+    
+    return activeOverlays.isNotEmpty ? activeOverlays.join('+') : 'none';
+  }
+
+  // NEW: Helper method to get current shades in the format expected by API
+  Map<String, String> _getCurrentShadesMap() {
+    final Map<String, String> shadesMap = {};
+    
+    if (selectedShades['Eyeshadow'] != null) {
+      shadesMap['E'] = _getShadeType('Eyeshadow', selectedShades['Eyeshadow']!);
+    }
+    if (selectedShades['Blush'] != null) {
+      shadesMap['B'] = _getShadeType('Blush', selectedShades['Blush']!);
+    }
+    if (selectedShades['Lipstick'] != null) {
+      shadesMap['L'] = _getShadeType('Lipstick', selectedShades['Lipstick']!);
+    }
+    
+    return shadesMap;
+  }
+
+  // NEW: Helper method to convert color to shade type (Primary, Light, Medium, Dark)
+  String _getShadeType(String productName, Color color) {
+    final shades = makeupShades[productName];
+    if (shades == null || shades.isEmpty) return 'Primary';
+    
+    // Find the index of the selected color
+    final index = shades.indexOf(color);
+    if (index == -1) return 'Primary';
+    
+    // Map index to shade type
+    switch (index) {
+      case 0: return 'Primary';
+      case 1: return 'Light';
+      case 2: return 'Medium';
+      case 3: return 'Dark';
+      default: return 'Primary';
+    }
+  }
+
+  // NEW: Helper method to detect what changed
+  Map<String, String>? _getChangedOverlayInfo() {
+    if (_lastChangedProduct != null && selectedShades[_lastChangedProduct!] != null) {
+      final overlayType = _getOverlayType(_lastChangedProduct!);
+      final shadeValue = _getShadeType(_lastChangedProduct!, selectedShades[_lastChangedProduct!]!);
+      
+      return {
+        'overlayType': overlayType,
+        'shadeValue': shadeValue,
+      };
+    }
+    
+    return null;
+  }
+
+  // NEW: Convert product name to overlay code
+  String _getOverlayType(String productName) {
+    switch (productName) {
+      case 'Eyeshadow': return 'E';
+      case 'Blush': return 'B';
+      case 'Lipstick': return 'L';
+      default: return '';
+    }
+  }
+
+  // NEW: Helper to update current shades from API response
+  void _updateCurrentShades(Map<String, dynamic> updatedShades) {
+    updatedShades.forEach((overlayCode, shadeType) {
+      final productName = _getProductName(overlayCode);
+      if (productName != null && makeupShades.containsKey(productName)) {
+        final color = _getColorForShadeType(productName, shadeType.toString());
+        if (color != null) {
+          selectedShades[productName] = color;
+          currentShades[productName] = shadeType.toString();
+        }
+      }
+    });
+  }
+
+  // NEW: Convert overlay code to product name
+  String? _getProductName(String overlayCode) {
+    switch (overlayCode) {
+      case 'E': return 'Eyeshadow';
+      case 'B': return 'Blush';
+      case 'L': return 'Lipstick';
+      default: return null;
+    }
+  }
+
+  // NEW: Get color for shade type
+  Color? _getColorForShadeType(String productName, String shadeType) {
+    final shades = makeupShades[productName];
+    if (shades == null) return null;
+    
+    final index = _getShadeIndex(shadeType);
+    return index < shades.length ? shades[index] : null;
+  }
+
+  // NEW: Get shade index from type
+  int _getShadeIndex(String shadeType) {
+    switch (shadeType.toLowerCase()) {
+      case 'primary': return 0;
+      case 'light': return 1;
+      case 'medium': return 2;
+      case 'dark': return 3;
+      default: return 0;
+    }
+  }
+
+  // NEW: Fallback method for full combination application
+  Future<void> _applyFullCombination(String base64Image) async {
+    final response = await http.post(
+      Uri.parse('https://glamouraika.com/models/generate-makeup-combinations'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'image': base64Image,
+        'skin_tone': widget.skinTone ?? 'Medium',
+        'undertone': widget.undertone,
+        'makeup_type': widget.selectedMakeupType,
+        'makeup_look': widget.selectedMakeupLook,
+        'eyeshadow_shade': currentShades['Eyeshadow'] ?? 'Primary',
+        'blush_shade': currentShades['Blush'] ?? 'Primary',
+        'lipstick_shade': currentShades['Lipstick'] ?? 'Primary',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final overlayImageBase64 = data['combinations']['EBL']['image'];
+      final imageBytes = base64Decode(overlayImageBase64);
+      
+      setState(() {
+        _processedImage = imageBytes;
+        _currentMakeupImage = _processedImage;
+      });
+    }
+  }
+
+  // UPDATED: Apply makeup using the new incremental update API
   Future<void> _applyVirtualMakeup() async {
+    if (!_userChoseToCustomize && !_hasSelectedShades()) return;
+
     final previousImage = _processedImage;
     
     setState(() => _isApplyingMakeup = true);
 
     try {
-      final response = await _makeupApiService.applyMakeup(
-        imageFile: widget.capturedImage,
-        selectedShades: selectedShades,
-        skinTone: widget.skinTone ?? 'medium',
-        undertone: widget.undertone,
-        makeupLook: widget.selectedMakeupLook ?? 'natural',
-        makeupType: widget.selectedMakeupType ?? 'everyday',
+      // Convert captured image to base64
+      final imageBytes = await widget.capturedImage.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
+
+      // Determine which overlays are currently active
+      final currentOverlays = _getCurrentOverlayCode();
+      final currentShadesMap = _getCurrentShadesMap();
+
+      // Determine what changed
+      final changeInfo = _getChangedOverlayInfo();
+      if (changeInfo == null) {
+        // No changes detected, use the full combination approach
+        await _applyFullCombination(base64Image);
+        return;
+      }
+
+      // Call the new incremental update API
+      final response = await http.post(
+        Uri.parse('https://glamouraika.com/models/update-single-overlay'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'image': base64Image,
+          'skin_tone': widget.skinTone ?? 'Medium',
+          'undertone': widget.undertone,
+          'makeup_type': widget.selectedMakeupType,
+          'makeup_look': widget.selectedMakeupLook,
+          'current_overlay': currentOverlays,
+          'shades': currentShadesMap,
+          'change_overlay': changeInfo['overlayType'],
+          'shade': changeInfo['shadeValue'],
+        }),
       );
 
-      setState(() {
-        _processedImage = base64Decode(response['result_image']);
-        _currentMakeupImage = _processedImage;
-        
-        if (response['status'] == 'success' && response['message']?.contains('Mock') == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'])),
-          );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          final result = data['result'];
+          final overlayImageBase64 = result['image'];
+          final imageBytes = base64Decode(overlayImageBase64);
+          
+          // Update current state with the new overlay combination
+          setState(() {
+            _processedImage = imageBytes;
+            _currentMakeupImage = _processedImage;
+            
+            // Update shades mapping with the new state
+            if (result.containsKey('updated_shades')) {
+              _updateCurrentShades(result['updated_shades']);
+            }
+          });
+        } else {
+          throw Exception(data['error'] ?? 'Unknown error from API');
         }
-      });
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
     } catch (e) {
       setState(() {
         _processedImage = previousImage;
@@ -669,38 +433,94 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     }
   }
 
+  // NEW: Method to remove a specific overlay
+  Future<void> removeOverlay(String productName) async {
+    setState(() {
+      _lastChangedProduct = productName;
+      selectedShades[productName] = null;
+      currentShades[productName] = 'Primary';
+    });
+
+    try {
+      final imageBytes = await widget.capturedImage.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
+
+      final response = await http.post(
+        Uri.parse('https://glamouraika.com/models/update-single-overlay'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'image': base64Image,
+          'skin_tone': widget.skinTone ?? 'Medium',
+          'undertone': widget.undertone,
+          'makeup_type': widget.selectedMakeupType,
+          'makeup_look': widget.selectedMakeupLook,
+          'current_overlay': _getCurrentOverlayCode(),
+          'shades': _getCurrentShadesMap(),
+          'change_overlay': _getOverlayType(productName),
+          'shade': 'none', // This removes the overlay
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          final result = data['result'];
+          final overlayImageBase64 = result['image'];
+          final imageBytes = base64Decode(overlayImageBase64);
+          
+          setState(() {
+            _processedImage = imageBytes;
+            _currentMakeupImage = _processedImage;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error removing overlay: $e')),
+      );
+    }
+  }
+
   Future<void> _applyVirtualMakeupAutomatically(Map<String, dynamic> recommendations) async {
     setState(() => _isApplyingMakeup = true);
 
     try {
-      // Apply all recommended shades at once
-      final Map<String, Color?> autoSelectedShades = {};
-      
-      recommendations.forEach((category, shadeMap) {
-        if (shadeMap is Map && shadeMap.containsKey('Primary')) {
-          final hexCode = shadeMap['Primary'] as String;
-          autoSelectedShades[category] = _parseHexColor(hexCode);
-        }
-      });
+      // Apply initial AI recommendations
+      final imageBytes = await widget.capturedImage.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
 
-      final response = await _makeupApiService.applyMakeup(
-        imageFile: widget.capturedImage,
-        selectedShades: autoSelectedShades,
-        skinTone: widget.skinTone ?? 'medium',
-        undertone: widget.undertone,
-        makeupLook: widget.selectedMakeupLook ?? 'natural',
-        makeupType: widget.selectedMakeupType ?? 'everyday',
+      final response = await http.post(
+        Uri.parse('https://glamouraika.com/models/generate-makeup-combinations'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'image': base64Image,
+          'skin_tone': widget.skinTone ?? 'Medium',
+          'undertone': widget.undertone,
+          'makeup_type': widget.selectedMakeupType,
+          'makeup_look': widget.selectedMakeupLook,
+          'eyeshadow_shade': 'Primary',
+          'blush_shade': 'Primary',
+          'lipstick_shade': 'Primary',
+        }),
       );
 
-      setState(() {
-        _processedImage = base64Decode(response['result_image']);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final overlayImageBase64 = data['combinations']['EBL']['image'];
+        final imageBytes = base64Decode(overlayImageBase64);
         
-        if (response['status'] == 'success' && response['message']?.contains('Mock') == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'])),
-          );
-        }
-      });
+        setState(() {
+          _processedImage = imageBytes;
+          _currentMakeupImage = _processedImage;
+        });
+      } else {
+        // Fallback to original image
+        final bytes = await widget.capturedImage.readAsBytes();
+        setState(() {
+          _processedImage = bytes;
+          _currentMakeupImage = _processedImage;
+        });
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error applying makeup automatically: $e')),
@@ -716,31 +536,20 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     });
 
     try {
-      // Clear manual selections
-      selectedShades.updateAll((key, value) => null);
-      
-      // Re-apply AI recommendations
-      final Map<String, Color?> aiShades = {};
-      shadeHexCodes.forEach((product, hexCodes) {
-        if (hexCodes.isNotEmpty) {
-          aiShades[product] = _parseHexColor(hexCodes[0]);
-        }
-      });
-
-      final response = await _makeupApiService.applyMakeup(
-        imageFile: widget.capturedImage,
-        selectedShades: aiShades,
-        skinTone: widget.skinTone ?? 'medium',
-        undertone: widget.undertone,
-        makeupLook: widget.selectedMakeupLook ?? 'natural',
-        makeupType: widget.selectedMakeupType ?? 'everyday',
-      );
-
+      // Reset to AI recommendations
       setState(() {
-        _processedImage = base64Decode(response['result_image']);
-        _currentMakeupImage = _processedImage;
+        currentShades = {
+          'Eyeshadow': 'Primary',
+          'Blush': 'Primary',
+          'Lipstick': 'Primary',
+        };
+        selectedShades.updateAll((key, value) => null);
         _userChoseToCustomize = false;
+        _lastChangedProduct = null;
       });
+
+      // Re-apply with primary shades
+      await _applyVirtualMakeupAutomatically({});
     } catch (e) {
       setState(() {
         _processedImage = null;
@@ -761,8 +570,14 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
         setState(() {
           makeupShades.clear();
           shadeHexCodes.clear();
+          allRecommendedShades.clear();
+          
           recommendations.forEach((category, shadeMap) {
             if (shadeMap is Map) {
+              // Store in allRecommendedShades for hybrid approach
+              allRecommendedShades[category] = Map<String, String>.from(shadeMap);
+              
+              // Keep original structure for compatibility
               shadeHexCodes[category] = [];
               makeupShades[category] = [];
               
@@ -834,8 +649,14 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
         setState(() {
           makeupShades.clear();
           shadeHexCodes.clear();
+          allRecommendedShades.clear();
+          
           recommendations.forEach((category, shadeMap) {
             if (shadeMap is Map) {
+              // Store in allRecommendedShades for hybrid approach
+              allRecommendedShades[category] = Map<String, String>.from(shadeMap);
+              
+              // Keep original structure
               if (shadeMap.containsKey('Primary')) {
                 final hexCode = shadeMap['Primary'] as String;
                 shadeHexCodes[category] = [hexCode];
@@ -891,9 +712,124 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     }
   }
 
+  // UPDATED: Handle shade selection with real-time overlay updates
+  Future<void> _handleShadeSelection(String productName, Color color, int index, bool isPrimary) async {
+    // Track the product that was changed
+    _lastChangedProduct = productName;
+    
+    final isOverlayProduct = ['Eyeshadow', 'Blush', 'Lipstick'].contains(productName);
+    final shadeTypes = ['Primary', 'Light', 'Medium', 'Dark'];
+    final shadeType = index < shadeTypes.length ? shadeTypes[index] : 'Primary';
+
+    if (!isPrimary) {
+      // For small circles (non-primary shades)
+      final wasSelected = selectedShades[productName] == color;
+      
+      setState(() {
+        // Toggle selection - if already selected, unselect it
+        if (wasSelected) {
+          selectedShades[productName] = null;
+          // For overlay products, reset to Primary when unselected
+          if (isOverlayProduct) {
+            currentShades[productName] = 'Primary';
+          }
+        } else {
+          selectedShades[productName] = color;
+          // For overlay products, update current shade
+          if (isOverlayProduct) {
+            currentShades[productName] = shadeType;
+          }
+        }
+      });
+      
+      // Apply or remove makeup based on selection changes for overlay products
+      if (isOverlayProduct) {
+        if (!wasSelected && selectedShades[productName] != null) {
+          // A shade was selected - apply makeup
+          await _applyVirtualMakeup();
+        } else if (wasSelected && selectedShades[productName] == null) {
+          // A shade was deselected - remove makeup for this product
+          await _applyVirtualMakeup(); // This will re-apply without the deselected shade
+        }
+      }
+    } else {
+      // For primary (big circle) shades - only expand/collapse, don't apply makeup
+      setState(() {
+        expandedProducts[productName] = !expandedProducts[productName]!;
+        
+        // If clicking primary shade while a custom shade is selected, reset to primary
+        if (isOverlayProduct && selectedShades[productName] != null) {
+          selectedShades[productName] = null;
+          currentShades[productName] = 'Primary';
+        }
+      });
+      
+      // Show customization dialog when primary is first clicked
+      if (_isFirstTimeSelection && !_hasShownProductDialog[productName]!) {
+        _hasShownProductDialog[productName] = true;
+        _isFirstTimeSelection = false;
+        await showCustomizationDialog();
+      }
+    }
+  }
+
+  Future<void> handleShadeDeselection(String productName) async {
+    // Check if any overlay products are still selected
+    final hasSelectedOverlay = ['Eyeshadow', 'Blush', 'Lipstick'].any(
+      (product) => selectedShades[product] != null
+    );
+    
+    if (hasSelectedOverlay) {
+      // If other overlay products are still selected, re-apply makeup
+      await _applyVirtualMakeup();
+    } else {
+      // If no overlay products are selected, reset to AI recommendations
+      await _resetToAIRecommendations();
+    }
+  }
+
+  Future<void> _resetToAIRecommendations() async {
+    setState(() {
+      _isResetting = true;
+    });
+
+    try {
+      // Reset all selections
+      setState(() {
+        currentShades = {
+          'Eyeshadow': 'Primary',
+          'Blush': 'Primary',
+          'Lipstick': 'Primary',
+        };
+        selectedShades.updateAll((key, value) => null);
+        _lastChangedProduct = null;
+      });
+
+      // Apply AI recommendations
+      await _applyVirtualMakeupAutomatically({});
+    } catch (e) {
+      setState(() {
+        _processedImage = null;
+        _currentMakeupImage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error resetting to AI recommendations: $e')),
+      );
+    } finally {
+      setState(() => _isResetting = false);
+    }
+  }
+
+  void resetVirtualMakeup() {
+    setState(() {
+      _processedImage = null;
+      _currentMakeupImage = null;
+      _lastChangedProduct = null;
+    });
+  }
+
   Future<String> compressAndEncodeImage(File imageFile) async {
     try {
-      // Use original image without compression for better quality
       final bytes = await imageFile.readAsBytes();
       return base64Encode(bytes);
     } catch (e) {
@@ -904,112 +840,106 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
   }
 
   Future<void> _saveLook() async {
-  if (widget.selectedMakeupLook == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No makeup look selected')),
-    );
-    return;
-  }
-
-  // Check if user chose to customize but didn't select any shades
-  if (_userChoseToCustomize && !_hasSelectedShades()) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select at least one shade to customize your look or click Reset to use AI recommendations')),
-    );
-    return;
-  }
-
-  setState(() {
-    isLoading = true;
-  });
-
-  try {
-    Map<String, List<String>> labeledShades = {};
-    
-    // Check if user selected any shades manually
-    bool hasManualSelections = selectedShades.values.any((color) => color != null);
-    
-    if (hasManualSelections) {
-      // Use manually selected shades
-      selectedShades.forEach((productType, color) {
-        if (color != null) {
-          String hexColor = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-          labeledShades[productType] = [hexColor];
-        }
-      });
-    } else {
-      // AUTOMATICALLY USE AI-RECOMMENDED SHADES (big circle ones)
-      shadeHexCodes.forEach((productType, hexCodes) {
-        if (hexCodes.isNotEmpty) {
-          // Use the primary (recommended) shade which is the first one (big circle)
-          labeledShades[productType] = [hexCodes[0]];
-          
-          // Also update selectedShades to reflect this for visual consistency
-          if (makeupShades.containsKey(productType) && makeupShades[productType]!.isNotEmpty) {
-            selectedShades[productType] = makeupShades[productType]![0];
-          }
-        }
-      });
+    if (widget.selectedMakeupLook == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No makeup look selected')),
+      );
+      return;
     }
 
-    final imageBytes = await (_processedImage != null 
-        ? Future.value(_processedImage!) 
-        : widget.capturedImage.readAsBytes());
-    final base64Image = base64Encode(imageBytes);
-
-    final url = Uri.parse('https://glamouraika.com/api/saved_looks');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'user_id': widget.userId,
-        'makeup_look': widget.selectedMakeupLook,
-        'shades': labeledShades,
-        'image_data': base64Image,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      setState(() {
-        isSaved = true;
-      });
-
-      await _cacheSavedLook(
-        responseData['saved_look_id'],
-        widget.selectedMakeupLook!,
-        base64Image,
-        labeledShades,
-      );
-
-      // Show success message
+    if (_userChoseToCustomize && !_hasSelectedShades()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Look saved ${hasManualSelections ? 'with custom shades' : 'with AI recommendations'}')),
+        const SnackBar(content: Text('Please select at least one shade to customize your look or click Reset to use AI recommendations')),
       );
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId)),
-        ),
-      );
-    } else {
-      final errorData = jsonDecode(response.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? 'Unknown error'}')),
-      );
+      return;
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error saving look: $e')),
-    );
-  } finally {
+
     setState(() {
-      isLoading = false;
+      isLoading = true;
     });
-  }
-}
 
-  // Helper method to check if any shades are selected
+    try {
+      Map<String, List<String>> labeledShades = {};
+      
+      bool hasManualSelections = selectedShades.values.any((color) => color != null);
+      
+      if (hasManualSelections) {
+        // Use manually selected shades
+        selectedShades.forEach((productType, color) {
+          if (color != null) {
+            String hexColor = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+            labeledShades[productType] = [hexColor];
+          }
+        });
+      } else {
+        // Use AI-recommended shades
+        shadeHexCodes.forEach((productType, hexCodes) {
+          if (hexCodes.isNotEmpty) {
+            labeledShades[productType] = [hexCodes[0]];
+            
+            if (makeupShades.containsKey(productType) && makeupShades[productType]!.isNotEmpty) {
+              selectedShades[productType] = makeupShades[productType]![0];
+            }
+          }
+        });
+      }
+
+      final imageBytes = await (_processedImage != null 
+          ? Future.value(_processedImage!) 
+          : widget.capturedImage.readAsBytes());
+      final base64Image = base64Encode(imageBytes);
+
+      final url = Uri.parse('https://glamouraika.com/api/saved_looks');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': widget.userId,
+          'makeup_look': widget.selectedMakeupLook,
+          'shades': labeledShades,
+          'image_data': base64Image,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        setState(() {
+          isSaved = true;
+        });
+
+        await _cacheSavedLook(
+          responseData['saved_look_id'],
+          widget.selectedMakeupLook!,
+          base64Image,
+          labeledShades,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Look saved ${hasManualSelections ? 'with custom shades' : 'with AI recommendations'}')),
+        );
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => GlamVaultScreen(userId: int.parse(widget.userId)),
+          ),
+        );
+      } else {
+        final errorData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save look: ${errorData['error'] ?? 'Unknown error'}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving look: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   bool _hasSelectedShades() {
     return selectedShades.values.any((color) => color != null);
   }
@@ -1046,26 +976,14 @@ class _CustomizationPageState extends State<CustomizationPage> with SingleTicker
     );
   }
 
-  Widget _buildProductIcon(String productName) {
-  final iconPath = productIcons[productName];
-  return iconPath != null
-      ? Image.asset(
-          iconPath,
-          width: 45,
-          height: 45,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
-          },
-        )
-      : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
-}
-
+ // UPDATED: Build nested shade selection without remove button and without shade name labels
 Widget _buildShadeItem(Color color, int index, String productName) {
   final isSelected = selectedShades[productName] == color;
   final isPrimary = index == 0;
-  final isMiddleShade = index == 2; // Middle shade at index 2
   final size = isPrimary ? 70.0 : 50.0;
+  
+  // Determine if this is the medium shade (index 2 in the small circles)
+  final isMediumShade = index == 2;
 
   return Column(
     mainAxisSize: MainAxisSize.min,
@@ -1091,136 +1009,76 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         ),
       GestureDetector(
         onTap: () async {
-          // Only apply makeup overlay for small circle shades (non-primary)
-          if (!isPrimary) {
-            // Store current selection state
-            final previousSelection = selectedShades[productName];
-            
-            setState(() {
-              // Toggle selection - if already selected, unselect it
-              if (isSelected) {
-                selectedShades[productName] = null;
-              } else {
-                selectedShades[productName] = color;
-              }
-            });
-            
-            // Apply or remove makeup based on selection changes
-            if (previousSelection != selectedShades[productName]) {
-              if (selectedShades[productName] != null) {
-                // A shade was selected - apply makeup
-                await _applyVirtualMakeup();
-              } else {
-                // A shade was deselected - check if we should remove makeup
-                await _handleShadeDeselection(productName);
-              }
-            }
-          } else {
-            // For primary (big circle) shades, only toggle expansion
-            setState(() {
-              expandedProducts[productName] = !expandedProducts[productName]!;
-            });
-            
-            // Show customization dialog when primary is first clicked
-            if (_isFirstTimeSelection && !_hasShownProductDialog[productName]!) {
-              _hasShownProductDialog[productName] = true;
-              _isFirstTimeSelection = false;
-              await showCustomizationDialog();
-            }
-          }
+          await _handleShadeSelection(productName, color, index, isPrimary);
         },
         child: Column(
           mainAxisSize: MainAxisSize.min,
-  children: [
-    Container(
-      width: size,
-      height: size,
-      margin: const EdgeInsets.only(bottom: 4),
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: isSelected ? const ui.Color.fromARGB(255, 239, 107, 157) : 
-                isPrimary ? Colors.green : 
-                isMiddleShade ? Colors.green : Colors.grey, // Green border for middle shade
-          width: isPrimary ? 3 : 
-                 isMiddleShade ? 3 : 2, // Thicker border for middle shade
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const ui.Color.fromARGB(255, 255, 255, 255).withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-          if (isSelected || isMiddleShade) 
-            BoxShadow(
-              color: Colors.white.withOpacity(0.8),
-              blurRadius: 10,
-              spreadRadius: 2,
+          children: [
+            Container(
+              width: size,
+              height: size,
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? const ui.Color.fromARGB(255, 239, 107, 157) : 
+                        isPrimary ? Colors.green : 
+                        isMediumShade ? Colors.green : Colors.grey, // Green border only for medium shade
+                  width: isPrimary ? 3 : 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const ui.Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                  if (isSelected) 
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
             ),
-        ],
-      ),
-    ),
-    // Add downward arrow indicator for the primary shade
-    if (isPrimary && !expandedProducts[productName]!)
-      Container(
-        margin: const EdgeInsets.only(top: 4),
-        child: Icon(
-          Icons.arrow_drop_down,
-          color: Colors.white,
-          size: 24,
-          shadows: [
-            Shadow(
-              color: Colors.black.withOpacity(0.5),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
+            if (isPrimary && !expandedProducts[productName]!)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                child: Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white,
+                  size: 24,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            if (isPrimary && expandedProducts[productName]!)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                child: Icon(
+                  Icons.arrow_drop_up,
+                  color: Colors.white,
+                  size: 24,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
-      ),
-    // Add upward arrow indicator when expanded
-    if (isPrimary && expandedProducts[productName]!)
-      Container(
-        margin: const EdgeInsets.only(top: 4),
-        child: Icon(
-          Icons.arrow_drop_up,
-          color: Colors.white,
-          size: 24,
-          shadows: [
-            Shadow(
-              color: Colors.black.withOpacity(0.5),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-      ),
-  ],
-),
       ),
     ],
   );
-}
-
-Future<void> _handleShadeDeselection(String productName) async {
-  // Check if any makeup products are still selected
-  final hasSelectedMakeup = selectedShades.values.any((color) => color != null);
-  
-  if (hasSelectedMakeup) {
-    // If other makeup products are still selected, re-apply makeup
-    await _applyVirtualMakeup();
-  } else {
-    // If no makeup products are selected, reset to original image
-    resetVirtualMakeup();
-  }
-}
-
-// Modify the reset function to clear properly
-void resetVirtualMakeup() {
-  setState(() {
-    _processedImage = null;
-    _currentMakeupImage = null;
-  });
 }
 
   Color getContrastColor(Color color) {
@@ -1228,380 +1086,620 @@ void resetVirtualMakeup() {
     return luminance > 0.5 ? Colors.black : Colors.white;
   }
 
-Future<void> showCustomizationDialog() async {
-  if (_hasShownCustomizationDialog) return;
-  
-  _hasShownCustomizationDialog = true;
-  
-  await showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 30,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
+  Future<void> showCustomizationDialog() async {
+    if (_hasShownCustomizationDialog) return;
+    
+    _hasShownCustomizationDialog = true;
+    
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              color: Colors.white, // Changed from withOpacity(0.95) to solid white
+              borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.pink.withOpacity(0.3),
-                  blurRadius: 20,
-                  spreadRadius: 2,
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  spreadRadius: 5,
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header with solid color background for better readability
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.pink.shade400,
-                        Colors.purple.shade400,
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.pink.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    spreadRadius: 2,
                   ),
-                  child: const Text(
-                    'Customize Your Look',
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.pink.shade400,
+                          Colors.purple.shade400,
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      'Customize Your Look',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  const Text(
+                    'Would you like to customize your makeup shades further?',
                     style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 16,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Content with improved contrast
-                const Text(
-                  'Would you like to customize your makeup shades further?',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
+                  
+                  const SizedBox(height: 24),
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            selectedShades.updateAll((key, value) => null);
+                            _userChoseToCustomize = false;
+                          });
+                          _showSatisfiedToast();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.pink.shade600,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(color: Colors.pink.shade400, width: 2),
+                          ),
+                          elevation: 4,
+                          shadowColor: Colors.pink.withValues(alpha: 0.3),
+                        ),
+                        child: const Text(
+                          'No',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          setState(() {
+                            showShades = true;
+                            _processedImage = null;
+                            _currentMakeupImage = null;
+                            _userChoseToCustomize = true;
+                          });
+                          _showCustomizationToast();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pink.shade500,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 6,
+                          shadowColor: Colors.pink.withValues(alpha: 0.5),
+                        ),
+                        child: const Text(
+                          'Yes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  textAlign: TextAlign.center,
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCustomizationToast() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.info,
+        style: ToastificationStyle.flatColored,
+        title: const Text('Customization Mode'),
+        description: const Text('You can now customize your makeup look!'),
+        alignment: Alignment.topCenter,
+        autoCloseDuration: const Duration(seconds: 4),
+        borderRadius: BorderRadius.circular(12),
+        showProgressBar: true,
+        icon: const Icon(Icons.face, color: ui.Color.fromARGB(255, 6, 6, 6)),
+        primaryColor: Colors.pink.shade200,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      );
+    });
+  }
+
+  void _showSatisfiedToast() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.success,
+        style: ToastificationStyle.flatColored,
+        title: const Text('Perfect!'),
+        description: const Text('AI recommendations applied. You can now save your look'),
+        alignment: Alignment.topCenter,
+        autoCloseDuration: const Duration(seconds: 4),
+        borderRadius: BorderRadius.circular(12),
+        showProgressBar: true,
+        icon: const Icon(Icons.check_circle, color: Colors.green),
+        primaryColor: Colors.green,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      );
+    });
+  }
+
+  Widget _buildProductIcon(String productName) {
+    final iconPath = productIcons[productName];
+    return iconPath != null
+        ? Image.asset(
+            iconPath,
+            width: 45,
+            height: 45,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
+            },
+          )
+        : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
+  }
+
+  // UPDATED: Clean loading indicator with completely transparent border
+  Widget _buildMakeupLoadingIndicator() {
+    return Stack(
+      children: [
+        // Semi-transparent overlay
+        Positioned.fill(
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.4),
+          ),
+        ),
+        
+        // Loading content
+        Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.7,
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Loading animation
+                LoadingAnimationWidget.flickr(
+                  leftDotColor: Colors.pinkAccent,
+                  rightDotColor: Colors.purpleAccent,
+                  size: 60,
                 ),
                 
                 const SizedBox(height: 24),
                 
-                // Buttons with improved visibility
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    // No button
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        // Keep the AI-applied makeup but clear any manual selections
-                        setState(() {
-                          // Clear manual selections but keep the AI-recommended makeup applied
-                          selectedShades.updateAll((key, value) => null);
-                          // The _processedImage already contains the AI-applied makeup
-                          _userChoseToCustomize = false; // User chose not to customize
-                        });
-                        _showSatisfiedToast();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.pink.shade600,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: Colors.pink.shade400, width: 2),
-                        ),
-                        elevation: 4,
-                        shadowColor: Colors.pink.withOpacity(0.3),
-                      ),
-                      child: const Text(
-                        'No',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    
-                    // Yes button
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        setState(() {
-                          showShades = true;
-                          _processedImage = null;
-                          _currentMakeupImage = null;
-                          _userChoseToCustomize = true; // User chose to customize
-                        });
-                        // Show toastification for customization
-                        _showCustomizationToast();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pink.shade500,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        elevation: 6,
-                        shadowColor: Colors.pink.withOpacity(0.5),
-                      ),
-                      child: const Text(
-                        'Yes',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
+                // Loading text
+                Text(
+                  'Applying your makeup recommendation',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const ui.Color.fromARGB(255, 249, 247, 248),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 8),
+                
+                Text(
+                  'Creating your perfect ${widget.selectedMakeupLook ?? 'makeup look'}...',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color:  const ui.Color.fromARGB(255, 249, 247, 248),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
         ),
-      );
-    },
-  );
-}
-
-// Add this new method to show customization toast
-void _showCustomizationToast() {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.info,
-      style: ToastificationStyle.flatColored,
-      title: const Text('Customization Mode'),
-      description: const Text('You can now customize your makeup look!'),
-      alignment: Alignment.topCenter,
-      autoCloseDuration: const Duration(seconds: 4),
-      borderRadius: BorderRadius.circular(12),
-      showProgressBar: true,
-      icon: const Icon(Icons.face, color: Colors.white),
-      primaryColor: Colors.pink.shade200,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black,
+      ],
     );
-  });
-}
-
-// Add this new method to show toastification with check icon
-void _showSatisfiedToast() {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.success,
-      style: ToastificationStyle.flatColored,
-      title: const Text('Perfect!'),
-      description: const Text('AI recommendations applied. You can now save your look'),
-      alignment: Alignment.topCenter,
-      autoCloseDuration: const Duration(seconds: 4),
-      borderRadius: BorderRadius.circular(12),
-      showProgressBar: true,
-      icon: const Icon(Icons.check_circle, color: Colors.green),
-      primaryColor: Colors.green,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black,
-    );
-  });
-}
+  }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    body: GestureDetector(
-      onTap: _handleTap,
-      onVerticalDragEnd: (details) {
-        if (details.primaryVelocity! < 0) {
-          // Swipe up detected
-          _handleSwipeUp();
-        }
-      },
-      child: Stack(
-        children: [
-          // Background image - use current makeup image if available
-          Positioned.fill(
-            child: _currentMakeupImage != null
-                ? Image.memory(_currentMakeupImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
-                : (_processedImage != null
-                    ? Image.memory(_processedImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
-                    : Image.file(widget.capturedImage, fit: BoxFit.cover, filterQuality: FilterQuality.high)),
-          ),
-          
-          if (_isApplyingMakeup)
-            Center(
-              child: LoadingAnimationWidget.flickr(
-                leftDotColor: Colors.pinkAccent,
-                rightDotColor: Colors.pinkAccent,
-                size: MediaQuery.of(context).size.width * 0.1,
-              ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: GestureDetector(
+        onTap: _handleTap,
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity! < 0) {
+            _handleSwipeUp();
+          }
+        },
+        child: Stack(
+          children: [
+            // Background image - use current makeup image if available
+            Positioned.fill(
+              child: _currentMakeupImage != null
+                  ? Image.memory(_currentMakeupImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
+                  : (_processedImage != null
+                      ? Image.memory(_processedImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
+                      : Image.file(widget.capturedImage, fit: BoxFit.cover, filterQuality: FilterQuality.high)),
             ),
-          
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade200.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  widget.selectedMakeupLook ?? 'No look selected',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ),
-
-          Positioned(
-            left: 10,
-            top: MediaQuery.of(context).padding.top + 40,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.7),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  showMakeupProducts ? Icons.visibility : Icons.visibility_off,
-                  size: 30,
-                  color: Colors.pinkAccent,
-                ),
-                onPressed: () {
-                  setState(() {
-                    showMakeupProducts = !showMakeupProducts;
-                    if (!showMakeupProducts) {
-                      showShades = false;
-                    }
-                  });
-                },
-              ),
-            ),
-          ),
-
-          if (showMakeupProducts)
+            
+            // UPDATED: Clean loading indicator with transparent border
+            if (_isApplyingMakeup)
+              _buildMakeupLoadingIndicator(),
+            
             Positioned(
+              top: MediaQuery.of(context).padding.top + 40,
               left: 0,
-              top: MediaQuery.of(context).padding.top + 100,
-              bottom: 0,
-              child: Container(
-                width: 80,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade200.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    widget.selectedMakeupLook ?? 'No look selected',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
+              ),
+            ),
+
+            Positioned(
+              left: 10,
+              top: MediaQuery.of(context).padding.top + 40,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    showMakeupProducts ? Icons.visibility : Icons.visibility_off,
+                    size: 30,
+                    color: Colors.pinkAccent,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      showMakeupProducts = !showMakeupProducts;
+                      if (!showMakeupProducts) {
+                        showShades = false;
+                      }
+                    });
+                  },
+                ),
+              ),
+            ),
+
+            if (showMakeupProducts)
+              Positioned(
+                left: 0,
+                top: MediaQuery.of(context).padding.top + 100,
+                bottom: 120, 
+                child: Container(
+                  width: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 10.0),
+                        child: Text(
+                          'Products',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: orderedProductNames.where((product) => makeupShades.containsKey(product)).map((product) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    setState(() {
+                                      selectedProduct = product;
+                                      showShades = true;
+                                    });
+                                    
+                                    if (_isFirstTimeSelection && !_hasShownProductDialog[product]!) {
+                                      _hasShownProductDialog[product] = true;
+                                      _isFirstTimeSelection = false;
+                                      await showCustomizationDialog();
+                                    }
+                                  },
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [Colors.pink.shade100, Colors.pink.shade300],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          border: Border.all(
+                                            color: selectedProduct == product 
+                                              ? Colors.red 
+                                              : Colors.transparent,
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.2),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: _buildProductIcon(product),
+                                        ),
+                                      ),
+                                      if (selectedShades[product] != null)
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.green,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.check,
+                                              color: Colors.white,
+                                              size: 12,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
+              Positioned(
+                right: 0,
+                top: MediaQuery.of(context).padding.top + 100,
+                bottom: 120, // Added bottom constraint to avoid overlapping with action buttons
+                child: SizedBox(
+                  width: 110,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10.0),
+                          child: Text(
+                            selectedProduct!,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                        ),
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Always show the primary shade (big circle)
+                        if (makeupShades[selectedProduct]!.isNotEmpty)
+                          _buildShadeItem(makeupShades[selectedProduct]![0], 0, selectedProduct!),
+                        
+                        // Show other shades when expanded (small circles)
+                        if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
+                          ...makeupShades[selectedProduct]!
+                              .asMap()
+                              .entries
+                              .where((entry) => entry.key > 0)
+                              .map((entry) => Padding(
+                                padding: const EdgeInsets.only(top: 12.0),
+                                child: _buildShadeItem(entry.value, entry.key, selectedProduct!),
+                              )),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            
+            // Action buttons at bottom - FIXED: Added proper spacing and constraints
+            Positioned(
+              bottom: 20,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.amber.shade300,
+                    width: 2,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 10.0),
-                      child: Text(
-                        'Products',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => MakeupHubPage(
+                                  skinTone: widget.skinTone,
+                                  capturedImage: widget.capturedImage,
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            elevation: 4,
+                          ),
+                          child: const Text(
+                            "Re-Glam",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     ),
                     Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: orderedProductNames.where((product) => makeupShades.containsKey(product)).map((product) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
-                              child: GestureDetector(
-                                onTap: () async {
-                                  setState(() {
-                                    selectedProduct = product;
-                                    showShades = true;
-                                  });
-                                  
-                                  // Show customization dialog when product is first selected
-                                  if (_isFirstTimeSelection && !_hasShownProductDialog[product]!) {
-                                    _hasShownProductDialog[product] = true;
-                                    _isFirstTimeSelection = false;
-                                    await showCustomizationDialog();
-                                  }
-                                },
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Container(
-                                      width: 60,
-                                      height: 60,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: LinearGradient(
-                                          colors: [Colors.pink.shade100, Colors.pink.shade300],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        border: Border.all(
-                                          color: selectedProduct == product 
-                                            ? Colors.red 
-                                            : Colors.transparent,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: _buildProductIcon(product),
-                                      ),
-                                    ),
-                                    if (selectedShades[product] != null)
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.green,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.check,
-                                            color: Colors.white,
-                                            size: 12,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: _isResetting ? null : _resetVirtualMakeup,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            elevation: 4,
+                          ),
+                          child: _isResetting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  "Reset",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ElevatedButton(
+                          onPressed: _saveLook,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            elevation: 4,
+                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  "Save",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
                         ),
                       ),
                     ),
@@ -1610,222 +1708,83 @@ Widget build(BuildContext context) {
               ),
             ),
 
-          if (showShades && selectedProduct != null && makeupShades.containsKey(selectedProduct))
-            Positioned(
-              right: 0,
-              top: 140,
-              bottom: 0,
-              child: Container(
-                width: 110,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10.0),
-                        child: Text(
-                          selectedProduct!,
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
+            // Feedback button
+            if (_showHeart)
+              Positioned(
+                right: 20,
+                top: MediaQuery.of(context).padding.top + 40,
+                child: GestureDetector(
+                  onTap: () async {
+                    setState(() => _showHeart = false);
+                    await showDialog(
+                      context: context,
+                      builder: (context) => FeedbackDialog(
+                        recommendationId: widget.recommendationData?['recommendation_id']?.toString() ?? '0',
+                        userId: widget.userId,
                       ),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Always show the primary shade
-                      if (makeupShades[selectedProduct]!.isNotEmpty)
-                        _buildShadeItem(makeupShades[selectedProduct]![0], 0, selectedProduct!),
-                      
-                      // Automatically show other shades when primary is clicked
-                      if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
-                        ...makeupShades[selectedProduct]!
-                            .asMap()
-                            .entries
-                            .where((entry) => entry.key > 0)
-                            .map((entry) => Padding(
-                              padding: const EdgeInsets.only(top: 12.0),
-                              child: _buildShadeItem(entry.value, entry.key, selectedProduct!),
-                            )),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          
-          // Action buttons at bottom
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade100.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => MakeupHubPage(
-                            skinTone: widget.skinTone,
-                            capturedImage: widget.capturedImage,
-                          ),
+                    );
+                    setState(() => _showHeart = true);
+                  },
+                  child: ScaleTransition(
+                    scale: _heartAnimation,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.pink.shade300,
+                            Colors.purple.shade300,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: const Text("Re-Glam"),
-                  ),
-                  ElevatedButton(
-                    onPressed: _isResetting ? null : _resetVirtualMakeup,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: _isResetting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text("Reset"),
-                  ),
-                  ElevatedButton(
-                    onPressed: _saveLook,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text("Save"),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Feedback button
-          if (_showHeart)
-            Positioned(
-              right: 20,
-              top: MediaQuery.of(context).padding.top + 40,
-              child: GestureDetector(
-                onTap: () async {
-                  setState(() => _showHeart = false);
-                  await showDialog(
-                    context: context,
-                    builder: (context) => FeedbackDialog(
-                      recommendationId: widget.recommendationData?['recommendation_id']?.toString() ?? '0',
-                      userId: widget.userId,
-                    ),
-                  );
-                  setState(() => _showHeart = true);
-                },
-                child: ScaleTransition(
-                  scale: _heartAnimation,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.pink.shade300,
-                          Colors.purple.shade300,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.pink.withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            spreadRadius: 1.5,
+                          ),
                         ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.pink.withOpacity(0.4),
-                          blurRadius: 8,
-                          spreadRadius: 1.5,
-                        ),
-                      ],
-                    ),
-                    child: const Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 25,
-                        ),
-                        Positioned(
-                          top: 3,
-                          right: 3,
-                          child: Icon(
-                            Icons.star,
+                      child: const Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.favorite,
                             color: Colors.white,
-                            size: 10,
+                            size: 25,
                           ),
-                        ),
-                        Positioned(
-                          bottom: 3,
-                          left: 3,
-                          child: Icon(
-                            Icons.star,
-                            color: Colors.white,
-                            size: 6,
+                          Positioned(
+                            top: 3,
+                            right: 3,
+                            child: Icon(
+                              Icons.star,
+                              color: Colors.white,
+                              size: 10,
+                            ),
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            bottom: 3,
+                            left: 3,
+                            child: Icon(
+                              Icons.star,
+                              color: Colors.white,
+                              size: 6,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
-}
-
 
 class FeedbackDialog extends StatefulWidget {
   final String recommendationId;
@@ -1963,7 +1922,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.pink.withOpacity(0.3),
+                          color: Colors.pink.withValues(alpha: 0.3),
                           blurRadius: 30,
                           spreadRadius: 5,
                         ),
@@ -1990,7 +1949,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.pink.withOpacity(0.4),
+                                  color: Colors.pink.withValues(alpha: 0.4),
                                   blurRadius: 15,
                                   spreadRadius: 2,
                                 ),
@@ -2046,7 +2005,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                         color: Colors.white,
                         size: 24,
                       ),
-                    ),
+                  ),
                   ),
                   Positioned(
                     bottom: 20,
@@ -2105,7 +2064,6 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -2132,7 +2090,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.pink.withOpacity(0.3),
+                color: Colors.pink.withValues(alpha: 0.3),
                 blurRadius: 30,
                 spreadRadius: 5,
               ),
@@ -2209,7 +2167,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.pink.withOpacity(0.1),
+                            color: Colors.pink.withValues(alpha: 0.1),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -2221,7 +2179,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                         decoration: InputDecoration(
                           hintText: 'Your thoughts...',
                           filled: true,
-                          fillColor: Colors.white.withOpacity(0.8),
+                          fillColor: Colors.white.withValues(alpha: 0.8),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(18),
                             borderSide: BorderSide.none,
@@ -2241,7 +2199,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                             shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             ),
-                            backgroundColor: Colors.white.withOpacity(0.7),
+                            backgroundColor: Colors.white.withValues(alpha: 0.7),
                           ),
                           child: Text(
                             'Maybe Later',
@@ -2273,7 +2231,7 @@ class FeedbackDialogState extends State<FeedbackDialog> with TickerProviderState
                                 )
                               : ShaderMask(
                                   shaderCallback: (bounds) => LinearGradient(
-                                    colors: [Colors.white, Colors.white.withOpacity(0.7)],
+                                    colors: [Colors.white, Colors.white.withValues(alpha: 0.7)],
                                   ).createShader(bounds),
                                   child: const Text(
                                     'Submit',

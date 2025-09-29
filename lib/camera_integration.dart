@@ -1,12 +1,10 @@
 import 'package:camera/camera.dart';
-// For face shape and skin tone detection
 
 class CameraIntegration {
   CameraController? _controller;
   late List<CameraDescription> cameras;
   bool _isInitialized = false;
 
-  // Initialize the camera
   Future<void> initializeCamera() async {
     cameras = await availableCameras();
     _controller = CameraController(cameras[0], ResolutionPreset.high);
@@ -31,8 +29,6 @@ class CameraIntegration {
   Future<String> _detectFaceShape(String imagePath) async {
     return 'Round'; 
   }
-
-  // Method to detect skin tone (using MediaPipe or any other method)
   Future<String> _detectSkinTone(String imagePath) async {
     return 'Warm'; 
   }

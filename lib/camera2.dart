@@ -69,6 +69,16 @@ class CameraPageState extends State<CameraPage> {
   double _dragOffset = 0.0;
   final double _swipeThreshold = 50.0;
 
+  // Warning message state
+  bool _showWarningMessage = true;
+  Timer? _warningTimer;
+
+  // Performance optimization properties
+  DateTime? _lastFrameProcessTime;
+  static const int _minFrameIntervalMs = 300;
+  bool _shouldSkipFrame = false;
+  Completer<void>? _currentFrameCompleter;
+
   @override
   void initState() {
     super.initState();
@@ -77,10 +87,8 @@ class CameraPageState extends State<CameraPage> {
     _loadUserEmail();
     _startFaceDetectionTimer();
     
-    // Hide navigation bar when camera page loads
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     
-    // Auto-hide navigation footer after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted && !_isFooterVisible) {
         setState(() {
@@ -88,36 +96,44 @@ class CameraPageState extends State<CameraPage> {
         });
       }
     });
+
+    _warningTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted && _showWarningMessage) {
+        setState(() {
+          _showWarningMessage = false;
+        });
+      }
+    });
   }
 
   void _initializeFaceDetector() {
     final options = FaceDetectorOptions(
-      performanceMode: FaceDetectorMode.accurate,
-      enableContours: true,
-      enableClassification: true,
+      performanceMode: FaceDetectorMode.fast,
+      enableContours: false,
+      enableClassification: false,
       enableLandmarks: true,
       enableTracking: true,
+      minFaceSize: 0.15,
     );
     _faceDetector = FaceDetector(options: options);
   }
 
   @override
   void dispose() {
-    // Restore navigation bar when leaving camera page
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     
     _faceCheckTimer?.cancel();
     _countdownTimer?.cancel();
+    _warningTimer?.cancel();
     _controller?.dispose();
     _faceDetector?.close();
-    _isTakingPicture = false; 
+    _isTakingPicture = false;
+    _currentFrameCompleter?.complete();
     super.dispose();
   }
 
-  // Handle swipe gestures to show/hide footer
   void _handleVerticalDrag(DragUpdateDetails details) {
     if (_isFooterAutoHidden && details.delta.dy < 0) {
-      // Swiping up to reveal footer
       setState(() {
         _dragOffset += details.delta.dy.abs();
       });
@@ -130,7 +146,6 @@ class CameraPageState extends State<CameraPage> {
         });
       }
     } else if (_isFooterVisible && details.delta.dy > 0) {
-      // Swiping down to hide footer
       setState(() {
         _dragOffset += details.delta.dy;
       });
@@ -153,15 +168,22 @@ class CameraPageState extends State<CameraPage> {
     }
   }
 
-  // Manual toggle function (in case you want to add a button later)
-  void _toggleNavigationFooter() {
+  void _handleTapToDismissWarning() {
+    if (_showWarningMessage) {
+      setState(() {
+        _showWarningMessage = false;
+      });
+      _warningTimer?.cancel();
+    }
+  }
+
+  void toggleNavigationFooter() {
     setState(() {
       _isFooterVisible = !_isFooterVisible;
       _isFooterAutoHidden = !_isFooterVisible;
     });
   }
 
-  // Countdown timer methods
   void _startCountdown() {
     if (_isCountingDown || _hasCaptured) return;
     
@@ -193,16 +215,14 @@ class CameraPageState extends State<CameraPage> {
 
   Future<void> _analyzeLightingAndConfidence(File imageFile) async {
     try {
-      // Convert image to analyze brightness
       final image = img.decodeImage(await imageFile.readAsBytes());
       if (image == null) return;
       
       double totalLuminance = 0;
       int pixelCount = 0;
       
-      // Simple brightness analysis
-      for (int x = 0; x < image.width; x += 10) {
-        for (int y = 0; y < image.height; y += 10) {
+      for (int x = 0; x < image.width; x += 20) {
+        for (int y = 0; y < image.height; y += 20) {
           final pixel = image.getPixel(x, y);
           totalLuminance += (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
           pixelCount++;
@@ -211,7 +231,6 @@ class CameraPageState extends State<CameraPage> {
       
       _lightLevel = (totalLuminance / pixelCount) / 255.0; 
       
-      // Calculate confidence based on face detection metrics
       final inputImage = InputImage.fromFilePath(imageFile.path);
       final faces = await _faceDetector!.processImage(inputImage);
       
@@ -223,7 +242,6 @@ class CameraPageState extends State<CameraPage> {
         _faceDetectionConfidence = (_faceDetectionConfidence / 3.0) * 100;
       }
       
-      // Save report
       _accuracyReports.add({
         'timestamp': DateTime.now(),
         'light_level': _lightLevel,
@@ -260,7 +278,7 @@ class CameraPageState extends State<CameraPage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pink.withOpacity(0.2),
+                      color: Colors.pink.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -391,7 +409,7 @@ class CameraPageState extends State<CameraPage> {
   }
 
   void _startFaceDetectionTimer() {
-    _faceCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    _faceCheckTimer = Timer.periodic(const Duration(milliseconds: _minFrameIntervalMs), (timer) {
       if (_controller != null && 
           _controller!.value.isInitialized && 
           !_isProcessing && 
@@ -410,21 +428,31 @@ class CameraPageState extends State<CameraPage> {
         _isProcessing || 
         _capturedImage != null ||
         _isTakingPicture ||
-        _hasCaptured) {
+        _hasCaptured ||
+        _shouldSkipFrame) {
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_lastFrameProcessTime != null && 
+        now.difference(_lastFrameProcessTime!).inMilliseconds < _minFrameIntervalMs) {
       return;
     }
 
     try {
       _isProcessingFrame = true;
+      _lastFrameProcessTime = now;
       
       final frame = await _controller!.takePicture();
       final inputImage = InputImage.fromFilePath(frame.path);
       final faces = await _faceDetector!.processImage(inputImage);
-      await File(frame.path).delete();
+      
+      unawaited(File(frame.path).delete());
+
+      if (!mounted) return;
 
       setState(() {
         if (faces.isEmpty) {
-          // No face detected - white color
           _isFaceDetected = false;
           _isFaceInFrame = false;
           _isFaceMoving = false;
@@ -433,7 +461,6 @@ class CameraPageState extends State<CameraPage> {
           if (_isCountingDown) {
             _cancelCountdown();
           }
-          print("No face detected - White");
         } else {
           final face = faces.first;
           final faceRect = face.boundingBox;
@@ -441,18 +468,13 @@ class CameraPageState extends State<CameraPage> {
           final isFaceCovered = _isFaceCovered(face);
           final isFaceInOval = _isFaceInOval(faceRect);
           
-          // Update face detection states
           _isFaceDetected = true;
           _isFaceInFrame = isFaceInOval && !isFaceCovered;
           
-          // Check if face is moving (using standard stability check)
           _checkFaceStability(faceRect);
           _isFaceMoving = !_isFaceStable;
           
-          // Check if face meets the "good enough" criteria
           final isGoodEnough = _isFaceGoodEnough(face, faceRect);
-          
-          // For UI display, still check exact centering
           final isExactlyCentered = isFaceCenteredInOval(faceRect) && 
                                   checkFaceAlignment(face) && 
                                   !isFaceCovered && 
@@ -460,74 +482,54 @@ class CameraPageState extends State<CameraPage> {
           
           _isFaceCentered = isExactlyCentered;
           
-          // Debug prints
-          print("Face detected: $_isFaceDetected");
-          print("Face in frame: $_isFaceInFrame");
-          print("Face moving: $_isFaceMoving");
-          print("Face good enough: $isGoodEnough");
-          print("Face exactly centered: $_isFaceCentered");
-          
-          // Determine oval color based on conditions
           if (!_isFaceInFrame) {
-            // Face detected but not in frame or too far - red
             _ovalColor = Colors.red;
             if (_isCountingDown) {
               _cancelCountdown();
             }
-            print("Face not in frame - Red");
           } else if (_isFaceMoving && !isGoodEnough) {
-            // Face is in frame but moving - orange
             _ovalColor = Colors.orange;
             if (_isCountingDown) {
               _cancelCountdown();
             }
-            print("Face moving - Orange");
           } else if (isGoodEnough) {
-            // Face is "good enough" for capture - green
             _ovalColor = Colors.green;
-            print("Face good enough - Green");
             
-            // Start countdown if not already counting and not captured yet
             if (!_isCountingDown && !_hasCaptured) {
               _startCountdown();
             }
           } else {
-            // Face is in frame but not properly positioned - red
             _ovalColor = Colors.red;
             if (_isCountingDown) {
               _cancelCountdown();
             }
-            print("Face in frame but not good enough - Red");
           }
         }
       });
     } catch (e) {
       print('Face detection error: $e');
-      setState(() {
-        _isFaceStable = false;
-        _ovalColor = Colors.white;
-        if (_isCountingDown) {
-          _cancelCountdown();
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _isFaceStable = false;
+          _ovalColor = Colors.white;
+          if (_isCountingDown) {
+            _cancelCountdown();
+          }
+        });
+      }
     } finally {
       _isProcessingFrame = false;
     }
   }
 
   bool _isFaceGoodEnough(Face face, Rect faceRect) {
-    // Basic checks - face should be detected and not covered
     if (_isFaceCovered(face)) {
       return false;
     }
 
-    // Check if face is roughly in the oval
     final isRoughlyInOval = _isFaceInOval(faceRect);
     final isRoughlyCentered = isFaceCenteredInOval(faceRect);
     final isRoughlyAligned = checkFaceAlignment(face);
-
-    // For "good enough" mode, we don't require perfect stability
-    // Just check if movement is below a higher threshold
     final isSomewhatStable = _checkQuickStability(faceRect);
 
     return isRoughlyInOval && isRoughlyCentered && isRoughlyAligned && isSomewhatStable;
@@ -544,8 +546,7 @@ class CameraPageState extends State<CameraPage> {
     final dy = (currentPosition.top - _lastFacePosition!.top).abs() / _lastFacePosition!.height;
     final movement = sqrt(dx * dx + dy * dy); 
 
-    // Higher movement threshold for "good enough" mode
-    return movement <= 0.08; // Increased from 0.02
+    return movement <= 0.08;
   }
 
   Rect _getAdjustedFaceRect(Rect faceRect) {
@@ -557,11 +558,9 @@ class CameraPageState extends State<CameraPage> {
     final previewSize = _controller!.value.previewSize!;
 
     if (_isUsingFrontCamera) {
-      // Front camera - mirror the coordinates for proper alignment
       final scaleX = screenSize.width / previewSize.height;
       final scaleY = screenSize.height / previewSize.width;
       
-      // Mirror the x-coordinate for front camera
       final mirroredLeft = previewSize.height - faceRect.right;
       
       return Rect.fromLTRB(
@@ -571,11 +570,9 @@ class CameraPageState extends State<CameraPage> {
         (faceRect.top + faceRect.height) * scaleY,
       );
     } else {
-      // Back camera - simpler approach
       final scaleX = screenSize.width / previewSize.height;
       final scaleY = screenSize.height / previewSize.width;
       
-      // For back camera, the coordinates need to be rotated and scaled
       final rotatedTop = faceRect.left;
       final rotatedLeft = previewSize.height - faceRect.bottom;
       final rotatedWidth = faceRect.height;
@@ -598,7 +595,6 @@ class CameraPageState extends State<CameraPage> {
 
     final adjustedFaceRect = _getAdjustedFaceRect(faceRect);
 
-    // More lenient size ratio check (from 0.3-0.7 to 0.25-0.8)
     final faceSizeRatio = adjustedFaceRect.width / ovalWidth;
     if (faceSizeRatio < 0.25 || faceSizeRatio > 0.8) {
       return false;
@@ -627,19 +623,11 @@ class CameraPageState extends State<CameraPage> {
       adjustedFaceRect.top + adjustedFaceRect.height / 2,
     );
 
-    // Calculate the distance from face center to oval center
     final dx = (faceCenter.dx - ovalCenter.dx).abs();
     final dy = (faceCenter.dy - ovalCenter.dy).abs();
     final xTolerance = ovalWidth * 0.15;
     final yTolerance = ovalHeight * 0.15;
     final isCentered = dx <= xTolerance && dy <= yTolerance;
-    
-    // Debug output
-    print('Face center: ($faceCenter.dx, $faceCenter.dy)');
-    print('Oval center: ($ovalCenter.dx, $ovalCenter.dy)');
-    print('Distance: (${dx.toStringAsFixed(1)}, ${dy.toStringAsFixed(1)})');
-    print('Tolerance: (${xTolerance.toStringAsFixed(1)}, ${yTolerance.toStringAsFixed(1)})');
-    print('Is centered: $isCentered');
     
     return isCentered;
   }
@@ -649,7 +637,6 @@ class CameraPageState extends State<CameraPage> {
     final rightEye = face.landmarks[FaceLandmarkType.rightEye];
     final noseBase = face.landmarks[FaceLandmarkType.noseBase];
 
-    // If key facial landmarks are missing, assume face is covered
     if (leftEye == null || rightEye == null || noseBase == null) {
       return true;
     }
@@ -666,7 +653,6 @@ class CameraPageState extends State<CameraPage> {
     final headEulerAngleY = face.headEulerAngleY ?? 0.0;
     final headEulerAngleX = face.headEulerAngleX ?? 0.0;
 
-    // More lenient threshold for head rotation (increased from 10 to 15 degrees)
     if (headEulerAngleY.abs() > 15.0 || headEulerAngleX.abs() > 15.0) {
       return false;
     }
@@ -691,8 +677,6 @@ class CameraPageState extends State<CameraPage> {
     final dx = (currentPosition.left - _lastFacePosition!.left).abs() / _lastFacePosition!.width;
     final dy = (currentPosition.top - _lastFacePosition!.top).abs() / _lastFacePosition!.height;
     final movement = sqrt(dx * dx + dy * dy); 
-
-    print('Face movement: ${movement.toStringAsFixed(4)}'); 
 
     if (movement > _stabilityThreshold) {
       _lastFacePosition = currentPosition;
@@ -734,9 +718,11 @@ class CameraPageState extends State<CameraPage> {
         orElse: () => cameras.first,
       );
 
+      final ResolutionPreset preset = _getBestResolutionPreset(selectedCamera);
+      
       _controller = CameraController(
         selectedCamera,
-        ResolutionPreset.medium,
+        preset,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
       
@@ -753,6 +739,10 @@ class CameraPageState extends State<CameraPage> {
         );
       }
     }
+  }
+
+  ResolutionPreset _getBestResolutionPreset(CameraDescription camera) {
+    return ResolutionPreset.high;
   }
 
   InputImageRotation _getRotation(int sensorOrientation) {
@@ -774,7 +764,6 @@ class CameraPageState extends State<CameraPage> {
     final screenAspectRatio = screenSize.width / screenSize.height;
 
     if (_isUsingFrontCamera) {
-      // For front camera - apply horizontal mirroring (flip)
       if (cameraAspectRatio > screenAspectRatio) {
         final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
         return Matrix4.diagonal3Values(-1.0, scale, 1.0); 
@@ -783,7 +772,6 @@ class CameraPageState extends State<CameraPage> {
         return Matrix4.diagonal3Values(-scale, 1.0, 1.0); 
       }
     } else {
-      // For back camera, handle different aspect ratios normally
       if (cameraAspectRatio > screenAspectRatio) {
         final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
         return Matrix4.diagonal3Values(1.0, scale, 1.0);
@@ -813,7 +801,7 @@ class CameraPageState extends State<CameraPage> {
   Future<void> _autoCapturePicture() async {
     _cancelCountdown();
 
-    if (_isTakingPicture || _hasCaptured) return;
+    if (_isTakingPicture || _hasCaptured || _isProcessingFrame) return;
 
     try {
       if (_userEmail == null || _userEmail!.isEmpty) {
@@ -831,21 +819,20 @@ class CameraPageState extends State<CameraPage> {
       await _initializeControllerFuture;
       if (_controller == null || !_controller!.value.isInitialized) return;
 
+      _shouldSkipFrame = true;
+      
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       final XFile file = await _controller!.takePicture();
       final File imageFile = File(file.path);
 
-      if (_isUsingFrontCamera) {
-        final processedImage = await _processFrontCameraImage(imageFile);
-        setState(() {
-          _capturedImage = processedImage;
-        });
-        await _analyzeImage(processedImage);
-      } else {
-        setState(() {
-          _capturedImage = imageFile;
-        });
-        await _analyzeImage(imageFile);
-      }
+      final processedImage = await _processImageForAI(imageFile);
+      
+      setState(() {
+        _capturedImage = processedImage;
+      });
+      
+      await _analyzeImage(processedImage);
       
     } catch (e) {
       print("Auto capture error: $e");
@@ -855,6 +842,7 @@ class CameraPageState extends State<CameraPage> {
         );
       }
     } finally {
+      _shouldSkipFrame = false;
       if (mounted) {
         setState(() {
           _isTakingPicture = false; 
@@ -864,7 +852,7 @@ class CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<File> _processFrontCameraImage(File originalImage) async {
+  Future<File> _processImageForAI(File originalImage) async {
     try {
       final originalBytes = await originalImage.readAsBytes();
       img.Image? image = img.decodeImage(originalBytes);
@@ -873,19 +861,30 @@ class CameraPageState extends State<CameraPage> {
         return originalImage;
       }
       
-      img.Image flippedImage = img.flipHorizontal(image);
+      if (_isUsingFrontCamera) {
+        image = img.flipHorizontal(image);
+      }
       
-      // Encode the processed image
-      final processedBytes = img.encodeJpg(flippedImage);
+      const targetWidth = 1152;
+      const targetHeight = 2048;
       
-      // Create a new file with the processed image
+      final resizedImage = img.copyResize(
+        image, 
+        width: targetWidth, 
+        height: targetHeight,
+        interpolation: img.Interpolation.linear
+      );
+      
+      final processedBytes = img.encodeJpg(resizedImage, quality: 85);
+      
       final processedFile = File(originalImage.path.replaceFirst('.jpg', '_processed.jpg'));
       await processedFile.writeAsBytes(processedBytes);
+      
       await originalImage.delete();
       
       return processedFile;
     } catch (e) {
-      print('Error processing front camera image: $e');
+      print('Error processing image for AI: $e');
       return originalImage;
     }
   }
@@ -897,7 +896,6 @@ class CameraPageState extends State<CameraPage> {
         _showResults = false;
       });
 
-      // Analyze lighting and confidence before sending to server
       await _analyzeLightingAndConfidence(imageFile);
 
       var request = http.MultipartRequest(
@@ -1073,6 +1071,7 @@ class CameraPageState extends State<CameraPage> {
         child: GestureDetector(
           onVerticalDragUpdate: _handleVerticalDrag,
           onVerticalDragEnd: _handleVerticalDragEnd,
+          onTap: _handleTapToDismissWarning,
           child: Stack(
             children: [
               if (_capturedImage == null)
@@ -1147,8 +1146,172 @@ class CameraPageState extends State<CameraPage> {
                   ],
                 ),
 
-              // Combined title and switch button in a row
-              if (_capturedImage == null)
+              if (_showWarningMessage && _capturedImage == null)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.85),
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeInOut,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.pink.shade300,
+                                    Colors.purple.shade300,
+                                  ],
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.pink.withValues(alpha: 0.4),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.face_retouching_natural,
+                                size: 60,
+                                color: Colors.white,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 30),
+                            
+                            Text(
+                              "For Best Results",
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.08,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            
+                            const SizedBox(height: 10),
+                            
+                            Text(
+                              "Please ensure the following:",
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.045,
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 30),
+                            
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  _buildRequirementItem(
+                                    Icons.face,
+                                    "No Face Mask",
+                                    "Ensure your face is completely visible",
+                                    screenWidth,
+                                  ),
+                                  const SizedBox(height: 15),
+                                  _buildRequirementItem(
+                                     Icons.block,
+                                    "No Eyeglasses",
+                                    "Remove glasses for accurate detection",
+                                    screenWidth,
+                                  ),
+                                  const SizedBox(height: 15),
+                                  _buildRequirementItem(
+                                    Icons.face_2,
+                                    "Hair Tied Back",
+                                    "Keep hair away from your face",
+                                    screenWidth,
+                                  ),
+                                  const SizedBox(height: 15),
+                                  _buildRequirementItem(
+                                    Icons.lightbulb,
+                                    "Well-Lit Environment",
+                                    "Good lighting ensures better accuracy",
+                                    screenWidth,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 30),
+                            
+                            AnimatedOpacity(
+                              opacity: 1.0,
+                              duration: const Duration(seconds: 2),
+                              child: Text(
+                                "Tap anywhere or wait 5 seconds to continue",
+                                style: TextStyle(
+                                  fontSize: screenWidth * 0.035,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 20),
+                            
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 1000),
+                              curve: Curves.easeInOut,
+                              height: 4,
+                              width: screenWidth * 0.6,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: Stack(
+                                children: [
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return AnimatedContainer(
+                                        duration: const Duration(milliseconds: 100),
+                                        curve: Curves.linear,
+                                        width: constraints.maxWidth * (_showWarningMessage ? 1.0 : 0.0),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.pink.shade400,
+                                              Colors.purple.shade400,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(2),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              if (_capturedImage == null && !_showWarningMessage)
                 Column(
                   children: [
                     Container(
@@ -1164,7 +1327,6 @@ class CameraPageState extends State<CameraPage> {
                         onPressed: _isProcessing ? null : _switchCamera,
                       ),
                     ),
-                    // Text positioned slightly lower
                     Container(
                       margin: EdgeInsets.only(top: screenHeight * 0.01),
                       child: Text(
@@ -1180,7 +1342,7 @@ class CameraPageState extends State<CameraPage> {
                     ),
                   ],
                 )
-              else
+              else if (_capturedImage != null)
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 20,
                   left: 0,
@@ -1197,7 +1359,7 @@ class CameraPageState extends State<CameraPage> {
                   ),
                 ),
 
-              if (_capturedImage == null)
+              if (_capturedImage == null && !_showWarningMessage)
                 Positioned(
                   bottom: screenHeight * 0.08,
                   left: screenWidth * 0.05,
@@ -1269,11 +1431,55 @@ class CameraPageState extends State<CameraPage> {
       ),
     );
   }
-  // Helper method to extract complex ternary logic
+
+  Widget _buildRequirementItem(IconData icon, String title, String description, double screenWidth) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: screenWidth * 0.06,
+          ),
+        ),
+        const SizedBox(width: 15),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.045,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.035,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _getStatusText(double screenWidth) {
     if (_ovalColor == Colors.white) {
       return Text(
-        'No face detected (White)',
+        'No Face Detected (White)',
         key: const ValueKey('status_white'),
         style: TextStyle(
           color: Colors.white,
@@ -1284,7 +1490,7 @@ class CameraPageState extends State<CameraPage> {
       );
     } else if (_ovalColor == Colors.red) {
       return Text(
-        'Face detected but not aligned (Red)',
+        'Adjust Face Distance (Red)',
         key: const ValueKey('status_red'),
         style: TextStyle(
           color: Colors.white,
@@ -1295,7 +1501,7 @@ class CameraPageState extends State<CameraPage> {
       );
     } else if (_ovalColor == Colors.orange) {
       return Text(
-        'Face detected but moving (Orange)',
+        'Hold Still (Orange)',
         key: const ValueKey('status_orange'),
         style: TextStyle(
           color: Colors.white,
@@ -1306,7 +1512,7 @@ class CameraPageState extends State<CameraPage> {
       );
     } else {
       return Text(
-        'Face aligned and stable (Green)',
+        'Perfect Position (Green)',
         key: const ValueKey('status_green'),
         style: TextStyle(
           color: Colors.white,
@@ -1318,16 +1524,15 @@ class CameraPageState extends State<CameraPage> {
     }
   }
 
-  // Helper method for status message
   String _getStatusMessage() {
     if (_ovalColor == Colors.white) {
-      return 'Please position your face in the oval';
+      return 'Move closer until your face fills the oval';
     } else if (_ovalColor == Colors.red) {
-      return 'Move your face closer to the center';
+      return 'Move back slightly - face is too close or not centered';
     } else if (_ovalColor == Colors.orange) {
-      return 'Hold still for a moment';
+      return 'Stay still for better detection';
     } else {
-      return 'Perfect! Get ready for your photo';
+      return 'Perfect! Photo will be taken automatically';
     }
   }
 
@@ -1406,7 +1611,6 @@ class CameraPageState extends State<CameraPage> {
                 ),
               ),
             ),
-            // Add extra space at the bottom to ensure button is not covered
             SizedBox(height: MediaQuery.of(_scaffoldContext).padding.bottom),
           ],
         ),
@@ -1433,8 +1637,6 @@ class DashedOvalPainter extends CustomPainter {
     final double width = size.width * 0.75;
     final double height = size.height * 0.45;
     
-    // Move the oval upward by using a lower vertical position multiplier
-    // Original was 0.4, now using 0.35 to move it upward
     final double verticalPosition = 0.43;
     final Offset center = Offset(size.width / 2, size.height * verticalPosition);
     
@@ -1457,7 +1659,6 @@ class DashedOvalPainter extends CustomPainter {
     final path = Path()..addOval(ovalRect);
     _drawDashedPath(canvas, path, paint, 10.0, 6.0);
     
-    // Add countdown text if counting down
     if (isCountingDown && countdownSeconds != null && countdownSeconds! > 0) {
       final textPainter = TextPainter(
         text: TextSpan(

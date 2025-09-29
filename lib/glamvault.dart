@@ -94,7 +94,6 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
       }
     }
     
-    // Load recently added looks
     final recentLooksJson = prefs.getString('recently_added_looks');
     if (recentLooksJson != null) {
       try {
@@ -156,7 +155,6 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
   void _groupLooksByTag() {
     final grouped = <String, List<SavedLook>>{};
     
-    // Create separate categories
     grouped['All Looks'] = []; 
     grouped['Tagged Looks'] = []; 
     
@@ -164,21 +162,17 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
       final String? tag = _lookTags[look.savedLookId] ?? look.tag;
       
       if (tag != null && tag.isNotEmpty) {
-        // Add to specific tag category
         if (!grouped.containsKey(tag)) {
           grouped[tag] = [];
         }
         grouped[tag]!.add(look);
         
-        // Also add to "Tagged Looks" category
         grouped['Tagged Looks']!.add(look);
       } else {
-        // Add to "All Looks" category (only untagged)
         grouped['All Looks']!.add(look);
       }
     }
     
-    // Sort looks within each tag group - recently added first
     grouped.forEach((tag, looks) {
       looks.sort((a, b) {
         final bool aIsRecent = _isLookRecentlyAdded(a.savedLookId);
@@ -453,8 +447,8 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
                   )
                 else
                   Wrap(
-                    spacing: 8, // Horizontal space between tags
-                    runSpacing: 8, // Vertical space between rows
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _availableTags
                         .where((tag) => tag != 'All')
                         .map((tag) {
@@ -624,6 +618,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
   
   Widget _buildLookCard(SavedLook look, double screenWidth, bool isSmallScreen) {
     final isRecentlyAdded = _isLookRecentlyAdded(look.savedLookId);
+    final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
     
     return Stack(
       children: [
@@ -640,7 +635,31 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(screenWidth * 0.04),
                   ),
-                  child: _buildLookImage(lookImages[look.savedLookId], screenWidth),
+                  child: Stack(
+                    children: [
+                      _buildLookImage(lookImages[look.savedLookId], screenWidth),
+                      if (lookTag != null && lookTag.isNotEmpty)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.pinkAccent.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              lookTag,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: isSmallScreen ? screenWidth * 0.025 : 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               Padding(
@@ -758,7 +777,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
             icon: Icon(
               Icons.sort,
               color: Colors.black,
-              size: isSmallScreen ? screenWidth * 0.06 : 24,
+            size: isSmallScreen ? screenWidth * 0.06 : 24,
             ),
             onPressed: _toggleTagDropdown,
           ),
@@ -890,10 +909,8 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
   List<Widget> _buildGroupedLooks(double screenWidth, bool isSmallScreen) {
     final List<Widget> slivers = [];
     
-    // Define the order of sections
     final List<String> sectionOrder = ['All Looks', 'Tagged Looks'];
     
-    // Add custom tags after the main sections
     final customTags = _groupedLooks.keys
         .where((tag) => tag != 'All Looks' && tag != 'Tagged Looks')
         .toList()..sort();
@@ -984,26 +1001,27 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
   List<SavedLook> filteredLooks;
   
   if (_selectedTag == 'All') {
-    // Show everything (for backward compatibility)
-    filteredLooks = savedLooks;
+    filteredLooks = savedLooks.where((look) {
+      final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
+      return lookTag == null || lookTag.isEmpty;
+    }).toList();
   } else if (_selectedTag == 'All Looks') {
-    // MODIFIED: Show ALL looks (both tagged and untagged)
-    filteredLooks = savedLooks;
+    filteredLooks = savedLooks.where((look) {
+      final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
+      return lookTag == null || lookTag.isEmpty;
+    }).toList();
   } else if (_selectedTag == 'Tagged Looks') {
-    // Show ALL tagged looks
     filteredLooks = savedLooks.where((look) {
       final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
       return lookTag != null && lookTag.isNotEmpty;
     }).toList();
   } else {
-    // Show looks with specific tag
     filteredLooks = savedLooks.where((look) {
       final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
       return lookTag == _selectedTag;
     }).toList();
   }
 
-  // Sort filtered looks
   filteredLooks.sort((a, b) {
     final bool aIsRecent = _isLookRecentlyAdded(a.savedLookId);
     final bool bIsRecent = _isLookRecentlyAdded(b.savedLookId);
@@ -1022,7 +1040,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
   if (filteredLooks.isEmpty) {
     String emptyMessage;
     if (_selectedTag == 'All Looks') {
-      emptyMessage = 'No looks yet!';
+      emptyMessage = 'No untagged looks!';
     } else if (_selectedTag == 'Tagged Looks') {
       emptyMessage = 'No tagged looks';
     } else {
@@ -1441,36 +1459,208 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
               0xFF000000
           : 0xFFCCCCCC;
 
-      return Container(
-        width: screenWidth * 0.08,
-        height: screenWidth * 0.08,
-        margin: EdgeInsets.only(right: screenWidth * 0.015),
-        decoration: BoxDecoration(
-          color: Color(colorValue),
-          borderRadius: BorderRadius.circular(screenWidth * 0.04),
-          border: Border.all(
-            color: isSelected ? Colors.green : Colors.black12,
-            width: isSelected ? 3 : 1,
+      return GestureDetector(
+        onTap: () => _showShadeVisualization(shade),
+        child: Container(
+          width: screenWidth * 0.08,
+          height: screenWidth * 0.08,
+          margin: EdgeInsets.only(right: screenWidth * 0.015),
+          decoration: BoxDecoration(
+            color: Color(colorValue),
+            borderRadius: BorderRadius.circular(screenWidth * 0.04),
+            border: Border.all(
+              color: isSelected ? Colors.green : Colors.black12,
+              width: isSelected ? 3 : 1,
+            ),
           ),
-        ),
-        child: Stack(
-          children: [
-            if (isSelected)
-              Positioned(
-                top: 2,
-                right: 2,
-                child: Icon(
-                  Icons.check_circle,
-                  color: Colors.green[800],
-                  size: screenWidth * 0.04,
+          child: Stack(
+            children: [
+              if (isSelected)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Colors.green[800],
+                    size: screenWidth * 0.04,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       );
     } catch (e) {
       debugPrint('Error rendering shade: $e');
       return Container();
+    }
+  }
+
+  void _showShadeVisualization(dynamic shade) {
+    final hexCode = shade['hex_code']?.toString() ?? '';
+    final shadeName = shade['shade_name']?.toString() ?? '';
+    final shadeType = shade['shade_type']?.toString() ?? '';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Main content container - centered properly
+              Container(
+                constraints: BoxConstraints(
+                  minWidth: MediaQuery.of(context).size.width * 0.8,
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 25,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(30), 
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Larger color visualization - properly centered
+                    Container(
+                      width: 200, 
+                      height: 200, 
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.8),
+                            Colors.white.withValues(alpha: 0.2),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 180, 
+                          height: 180, 
+                          decoration: BoxDecoration(
+                            color: _parseHexColor(hexCode),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 18,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 25), 
+                    
+                    // Only show shade name if it's not empty
+                    if (shadeName.isNotEmpty) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          shadeName.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 18, 
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF7E4A71),
+                            letterSpacing: 1.0,
+                            fontFamily: 'PlayfairDisplay',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 8), 
+                    ],
+                    
+                    // Only show shade type if it's not empty
+                    if (shadeType.isNotEmpty) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          shadeType,
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w300,
+                            letterSpacing: 0.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              
+              // X button positioned properly
+              Positioned(
+                top: 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF7E4A71).withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF7E4A71),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Color _parseHexColor(String hexCode) {
+    try {
+      return Color(int.parse(hexCode.replaceFirst('#', ''), radix: 16) + 0xFF000000);
+    } catch (e) {
+      return const Color(0xFFE5D0DA);
     }
   }
 
@@ -1518,7 +1708,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     );
   }
 
-  // Build a row of products (3 per row)
   List<Widget> _buildProductRows() {
     final productEntries = widget.shades.entries.toList();
     final List<Widget> rows = [];
@@ -1545,7 +1734,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     return rows;
   }
 
-  // Build individual product card
 Widget _buildProductCard(String productName, List<dynamic> shades) {
   final selectedShade = shades.firstWhere(
     (shade) => shade['is_selected'] == true,
@@ -1573,7 +1761,6 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product name only (light bulb icon removed)
           Text(
             productName,
             style: TextStyle(
@@ -1585,7 +1772,6 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
             overflow: TextOverflow.ellipsis,
           ),
           
-          // Selected shade info
           if (selectedShade != null)
             Padding(
               padding: EdgeInsets.only(bottom: screenHeight * 0.008, top: screenHeight * 0.005),
@@ -1599,9 +1785,8 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
               ),
             ),
           
-          // Shades arranged horizontally with scrolling
           SizedBox(
-            height: screenWidth * 0.09, // Fixed height for the shade row
+            height: screenWidth * 0.09,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: shades.map((shade) => _buildShadeChip(shade)).toList(),
@@ -1650,6 +1835,80 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
           ],
         ),
       ),
+    );
+  }
+
+  void _showFullScreenImage() {
+    if (widget.imageBytes == null || widget.imageBytes!.isEmpty) return;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.5,
+                  maxScale: 3.0,
+                  child: Image.memory(
+                    widget.imageBytes!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 40,
+                              ),
+                              Text(
+                                'Failed to load image',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1715,18 +1974,21 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
                   ),
                 ),
                 SizedBox(height: safeScreenHeight * 0.015),
-                SizedBox(
-                  height: safeScreenHeight * 0.4,
-                  width: double.infinity,
-                  child: widget.imageBytes != null
-                      ? Image.memory(
-                          widget.imageBytes!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildErrorPlaceholder();
-                          },
-                        )
-                      : _buildPlaceholder(),
+                GestureDetector(
+                  onTap: _showFullScreenImage,
+                  child: SizedBox(
+                    height: safeScreenHeight * 0.4,
+                    width: double.infinity,
+                    child: widget.imageBytes != null
+                        ? Image.memory(
+                            widget.imageBytes!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildErrorPlaceholder();
+                            },
+                          )
+                        : _buildPlaceholder(),
+                  ),
                 ),
                 SizedBox(height: safeScreenHeight * 0.025),
                 Center(
@@ -1762,7 +2024,6 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
                     ),
                   ),
                   SizedBox(height: safeScreenHeight * 0.02),
-                  // Use the new product rows layout
                   ..._buildProductRows(),
                 ],
               ],

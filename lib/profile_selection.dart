@@ -16,7 +16,7 @@ import 'apicall_recommendation.dart';
 import 'help_desk.dart';
 import 'terms_and_conditions.dart'; 
 
-// Add these classes at the top of the file
+
 class MakeupShade {
   final String shadeId;
   final String hexCode;
@@ -176,10 +176,10 @@ class ProfileSelection extends StatefulWidget {
   const ProfileSelection({super.key, required this.userId});
 
   @override
-  _ProfileSelectionState createState() => _ProfileSelectionState();
+  ProfileSelectionState createState() => ProfileSelectionState();
 }
 
-class _ProfileSelectionState extends State<ProfileSelection> {
+class ProfileSelectionState extends State<ProfileSelection> {
   int selectedIndex = 0;
   bool showBubble = true;
   final PageController _pageController = PageController(viewportFraction: 0.8);
@@ -782,7 +782,7 @@ Widget _buildProfileCards(BuildContext context) {
   try {
     parsedUserId = int.parse(widget.userId);
   } catch (e) {
-    parsedUserId = 0; // Or handle the error appropriately
+    parsedUserId = 0; 
   }
 
   return SizedBox(
@@ -1420,10 +1420,13 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
           ),
           const SizedBox(height: 24),
           
-          // Display all shades from this specific makeup look
+          // Display all shades from this specific makeup look - LIMIT TO 3 SHADES PER PRODUCT
           ...makeupLook.shadesByType.entries.map((entry) {
             final productType = entry.key;
             final shades = entry.value;
+            
+            // Take only top 3 shades for this product type
+            final top3Shades = shades.take(3).toList();
             
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1441,7 +1444,7 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: shades
+                  children: top3Shades
                       .map((shade) => _buildShadeChip(shade))
                       .toList(),
                 ),
@@ -1681,6 +1684,7 @@ Widget _buildMostUsedShadesSection() {
       final sortedShades = shadeFrequency.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
       
+      // LIMIT TO TOP 10 SHADES ONLY
       final top10Shades = sortedShades
           .take(10) 
           .map((entry) => entry.key)
@@ -1997,12 +2001,13 @@ Widget _buildMostUsedShadesSection() {
         final category = entry.key;
         final shadeFrequency = entry.value;
 
-        // Sort by frequency and get top shades
+        // Sort by frequency and get top 10 shades
         final sortedShades = shadeFrequency.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
         
-        final topShades = sortedShades
-            .take(3) // Limit to 3 shades
+        // LIMIT TO TOP 10 SHADES ONLY
+        final top10Shades = sortedShades
+            .take(10) 
             .map((entry) => entry.key)
             .toList();
 
@@ -2023,7 +2028,7 @@ Widget _buildMostUsedShadesSection() {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: topShades.map((shade) => _buildShadeChip(shade)).toList(),
+              children: top10Shades.map((shade) => _buildShadeChip(shade)).toList(),
             ),
             const SizedBox(height: 16),
           ],

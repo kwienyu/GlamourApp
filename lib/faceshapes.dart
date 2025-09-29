@@ -162,7 +162,7 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                 ),
 
                 // Face Shape Icons - Horizontal Scrollable if needed
-                Container(
+                SizedBox(
                   height: isLandscape ? screenHeight * 0.28 : screenHeight * 0.22,
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -225,7 +225,7 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                                   SizedBox(height: basePadding),
                                   
                                   // Shape Name
-                                  Container(
+                                  SizedBox(
                                     width: iconSize * 1.5,
                                     child: Text(
                                       shape['name']!.replaceAll(' Face Shape', ''),
@@ -279,7 +279,7 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               // Image
-                              Container(
+                              SizedBox(
                                 width: displayImageSize,
                                 height: displayImageSize,
                                 child: ClipRRect(
