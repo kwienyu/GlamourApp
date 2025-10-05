@@ -113,7 +113,7 @@ class CameraPageState extends State<CameraPage> {
       enableClassification: false,
       enableLandmarks: true,
       enableTracking: true,
-      minFaceSize: 0.15,
+      minFaceSize: 0.3,
     );
     _faceDetector = FaceDetector(options: options);
   }
@@ -216,31 +216,217 @@ class CameraPageState extends State<CameraPage> {
   Future<void> _analyzeLightingAndConfidence(File imageFile) async {
     try {
       final image = img.decodeImage(await imageFile.readAsBytes());
-      if (image == null) return;
+      if (image == null) {
+        _faceDetectionConfidence = 0.0;
+        return;
+      }
       
+      // Analyze lighting quality more accurately
       double totalLuminance = 0;
       int pixelCount = 0;
+      List<double> regionLuminances = [];
       
-      for (int x = 0; x < image.width; x += 20) {
-        for (int y = 0; y < image.height; y += 20) {
-          final pixel = image.getPixel(x, y);
-          totalLuminance += (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
-          pixelCount++;
+      // Divide image into 9 regions for more detailed analysis
+      final regionWidth = image.width ~/ 3;
+      final regionHeight = image.height ~/ 3;
+      
+      for (int regionX = 0; regionX < 3; regionX++) {
+        for (int regionY = 0; regionY < 3; regionY++) {
+          double regionLuminance = 0;
+          int regionPixelCount = 0;
+          
+          for (int x = regionX * regionWidth; x < (regionX + 1) * regionWidth && x < image.width; x += 10) {
+            for (int y = regionY * regionHeight; y < (regionY + 1) * regionHeight && y < image.height; y += 10) {
+              final pixel = image.getPixel(x, y);
+              final luminance = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b) / 255.0;
+              regionLuminance += luminance;
+              totalLuminance += luminance;
+              regionPixelCount++;
+              pixelCount++;
+            }
+          }
+          
+          if (regionPixelCount > 0) {
+            regionLuminances.add(regionLuminance / regionPixelCount);
+          }
         }
       }
       
-      _lightLevel = (totalLuminance / pixelCount) / 255.0; 
+      _lightLevel = totalLuminance / pixelCount;
+      
+      // Calculate lighting quality score (0-100%)
+      double lightingScore = 0.0;
+      
+      // Ideal lighting range: 0.3 to 0.7 (not too dark, not overexposed)
+      if (_lightLevel >= 0.3 && _lightLevel <= 0.7) {
+        lightingScore = 40.0; // Base score for good lighting
+        
+        // Bonus for even lighting (low standard deviation between regions)
+        if (regionLuminances.length > 1) {
+          final meanLuminance = regionLuminances.reduce((a, b) => a + b) / regionLuminances.length;
+          final variance = regionLuminances.map((l) => pow(l - meanLuminance, 2)).reduce((a, b) => a + b) / regionLuminances.length;
+          final stdDev = sqrt(variance);
+          
+          // Lower standard deviation = more even lighting = higher score
+          if (stdDev < 0.1) {
+            lightingScore += 20.0; // Excellent even lighting
+          } else if (stdDev < 0.2) {
+            lightingScore += 10.0; // Good even lighting
+          }
+        }
+      } else if (_lightLevel >= 0.2 && _lightLevel < 0.3) {
+        lightingScore = 20.0; // Slightly dark
+      } else if (_lightLevel > 0.7 && _lightLevel <= 0.8) {
+        lightingScore = 25.0; // Slightly bright
+      } else {
+        lightingScore = 5.0; // Poor lighting
+      }
       
       final inputImage = InputImage.fromFilePath(imageFile.path);
       final faces = await _faceDetector!.processImage(inputImage);
       
+      double faceQualityScore = 0.0;
+      
       if (faces.isNotEmpty) {
         final face = faces.first;
-        _faceDetectionConfidence = (face.leftEyeOpenProbability ?? 0) + 
-                                  (face.rightEyeOpenProbability ?? 0) +
-                                  (face.smilingProbability ?? 0);
-        _faceDetectionConfidence = (_faceDetectionConfidence / 3.0) * 100;
+        
+        // Face quality analysis with weighted scores
+        double totalFaceScore = 0.0;
+        int faceFactors = 0;
+        
+        // Factor 1: Face size and proportion (30% weight)
+        final boundingBox = face.boundingBox;
+        final faceArea = boundingBox.width * boundingBox.height;
+        final imageArea = image.width * image.height;
+        final faceAreaRatio = faceArea / imageArea;
+        
+        // Ideal face area: 15-30% of image
+        double sizeScore = 0.0;
+        if (faceAreaRatio >= 0.15 && faceAreaRatio <= 0.30) {
+          sizeScore = 30.0; // Perfect size
+        } else if (faceAreaRatio >= 0.10 && faceAreaRatio < 0.15) {
+          sizeScore = 20.0; // Acceptable but small
+        } else if (faceAreaRatio > 0.30 && faceAreaRatio <= 0.40) {
+          sizeScore = 15.0; // Acceptable but large
+        } else {
+          sizeScore = 5.0; // Poor size
+        }
+        totalFaceScore += sizeScore;
+        faceFactors++;
+        
+        // Factor 2: Face landmarks completeness (25% weight)
+        final landmarks = face.landmarks;
+        final requiredLandmarks = [
+          FaceLandmarkType.leftEye,
+          FaceLandmarkType.rightEye,
+          FaceLandmarkType.noseBase,
+          FaceLandmarkType.leftMouth,
+          FaceLandmarkType.rightMouth,
+        ];
+        
+        int detectedLandmarks = 0;
+        for (final landmarkType in requiredLandmarks) {
+          if (landmarks[landmarkType] != null) {
+            detectedLandmarks++;
+          }
+        }
+        
+        final landmarkScore = (detectedLandmarks / requiredLandmarks.length) * 25.0;
+        totalFaceScore += landmarkScore;
+        faceFactors++;
+        
+        // Factor 3: Face alignment and rotation (25% weight)
+        final headEulerAngleY = face.headEulerAngleY ?? 0.0;
+        final headEulerAngleX = face.headEulerAngleX ?? 0.0;
+        final headEulerAngleZ = face.headEulerAngleZ ?? 0.0;
+        
+        double alignmentScore = 25.0; // Start with perfect score
+        
+        // Deduct points for rotation
+        final totalRotation = headEulerAngleY.abs() + headEulerAngleX.abs() + headEulerAngleZ.abs();
+        if (totalRotation <= 5.0) {
+          alignmentScore = 25.0; // Perfect alignment
+        } else if (totalRotation <= 15.0) {
+          alignmentScore = 20.0; // Good alignment
+        } else if (totalRotation <= 25.0) {
+          alignmentScore = 12.0; // Acceptable alignment
+        } else {
+          alignmentScore = 5.0; // Poor alignment
+        }
+        totalFaceScore += alignmentScore;
+        faceFactors++;
+        
+        // Factor 4: Face position in frame (20% weight)
+        final faceCenterX = boundingBox.left + boundingBox.width / 2;
+        final faceCenterY = boundingBox.top + boundingBox.height / 2;
+        final imageCenterX = image.width / 2;
+        final imageCenterY = image.height / 2;
+        
+        final horizontalOffset = (faceCenterX - imageCenterX).abs() / imageCenterX;
+        final verticalOffset = (faceCenterY - imageCenterY).abs() / imageCenterY;
+        
+        double positionScore = 20.0;
+        if (horizontalOffset <= 0.1 && verticalOffset <= 0.1) {
+          positionScore = 20.0; // Perfectly centered
+        } else if (horizontalOffset <= 0.2 && verticalOffset <= 0.2) {
+          positionScore = 15.0; // Well centered
+        } else if (horizontalOffset <= 0.3 && verticalOffset <= 0.3) {
+          positionScore = 10.0; // Acceptable position
+        } else {
+          positionScore = 5.0; // Poor position
+        }
+        totalFaceScore += positionScore;
+        faceFactors++;
+        
+        // Calculate final face quality score
+        faceQualityScore = totalFaceScore;
+        
+        // Additional bonus for tracking ID (indicates stable detection)
+        if (face.trackingId != null) {
+          faceQualityScore += 5.0;
+        }
+        
+      } else {
+        faceQualityScore = 0.0;
       }
+      
+      // Final confidence calculation with weighted components
+      double finalConfidence = 0.0;
+      
+      if (faceQualityScore > 0) {
+        // Lighting contributes 40%, Face quality contributes 60%
+        finalConfidence = (lightingScore * 0.4) + (faceQualityScore * 0.6);
+        
+        // Ensure confidence is within bounds and realistic
+        finalConfidence = finalConfidence.clamp(0.0, 100.0);
+        
+        // Apply quality thresholds for realistic scoring
+        if (finalConfidence >= 85.0) {
+          // Excellent capture - adjust to 90-95% range
+          finalConfidence = 90.0 + (finalConfidence - 85.0) * 0.5;
+        } else if (finalConfidence >= 70.0) {
+          // Good capture - adjust to 75-89% range
+          finalConfidence = 75.0 + (finalConfidence - 70.0) * 0.7;
+        } else if (finalConfidence >= 50.0) {
+          // Acceptable capture - adjust to 50-74% range
+          finalConfidence = 50.0 + (finalConfidence - 50.0) * 0.6;
+        } else {
+          // Poor capture - keep as is or slightly adjust
+          finalConfidence = finalConfidence * 0.9;
+        }
+      } else {
+        finalConfidence = 0.0;
+      }
+      
+      // Final bounds check
+      _faceDetectionConfidence = finalConfidence.clamp(0.0, 95.0); // Never show 100% - always room for improvement
+      
+      // Debug logging
+      print('DEBUG CONFIDENCE ANALYSIS:');
+      print('  Lighting Level: ${(_lightLevel * 100).toStringAsFixed(1)}%');
+      print('  Lighting Score: ${lightingScore.toStringAsFixed(1)}%');
+      print('  Face Quality Score: ${faceQualityScore.toStringAsFixed(1)}%');
+      print('  Final Confidence: ${_faceDetectionConfidence.toStringAsFixed(1)}%');
       
       _accuracyReports.add({
         'timestamp': DateTime.now(),
@@ -248,10 +434,14 @@ class CameraPageState extends State<CameraPage> {
         'confidence': _faceDetectionConfidence,
         'face_shape': _faceShape,
         'skin_tone': _skinTone,
+        'lighting_score': lightingScore,
+        'face_quality_score': faceQualityScore,
       });
       
     } catch (e) {
       print('Lighting analysis error: $e');
+      _faceDetectionConfidence = 0.0;
+      _lightLevel = 0.0;
     }
   }
 
@@ -453,6 +643,7 @@ class CameraPageState extends State<CameraPage> {
 
       setState(() {
         if (faces.isEmpty) {
+          print("DEBUG: No face detected - WHITE");
           _isFaceDetected = false;
           _isFaceInFrame = false;
           _isFaceMoving = false;
@@ -467,6 +658,8 @@ class CameraPageState extends State<CameraPage> {
           
           final isFaceCovered = _isFaceCovered(face);
           final isFaceInOval = _isFaceInOval(faceRect);
+          final isCentered = isFaceCenteredInOval(faceRect);
+          final isAligned = checkFaceAlignment(face);
           
           _isFaceDetected = true;
           _isFaceInFrame = isFaceInOval && !isFaceCovered;
@@ -474,32 +667,41 @@ class CameraPageState extends State<CameraPage> {
           _checkFaceStability(faceRect);
           _isFaceMoving = !_isFaceStable;
           
-          final isGoodEnough = _isFaceGoodEnough(face, faceRect);
-          final isExactlyCentered = isFaceCenteredInOval(faceRect) && 
-                                  checkFaceAlignment(face) && 
-                                  !isFaceCovered && 
-                                  _isFaceStable;
+          _isFaceCentered = isCentered && isAligned && !isFaceCovered && _isFaceStable;
           
-          _isFaceCentered = isExactlyCentered;
+          print("DEBUG: FaceInOval: $isFaceInOval, Centered: $isCentered, Aligned: $isAligned, Stable: $_isFaceStable, Moving: $_isFaceMoving");
           
-          if (!_isFaceInFrame) {
+          if (!_isFaceDetected || !isFaceInOval) {
+            print("DEBUG: Setting WHITE - Face not in oval");
+            _ovalColor = Colors.white;
+            if (_isCountingDown) {
+              _cancelCountdown();
+            }
+          } 
+          else if (isFaceInOval && (!isCentered || !isAligned)) {
+            print("DEBUG: Setting RED - Face not centered/aligned");
             _ovalColor = Colors.red;
             if (_isCountingDown) {
               _cancelCountdown();
             }
-          } else if (_isFaceMoving && !isGoodEnough) {
+          }
+          else if (_isFaceMoving) {
+            print("DEBUG: Setting ORANGE - Face moving");
             _ovalColor = Colors.orange;
             if (_isCountingDown) {
               _cancelCountdown();
             }
-          } else if (isGoodEnough) {
+          }
+          else if (isCentered && isAligned && _isFaceStable && !isFaceCovered) {
+            print("DEBUG: Setting GREEN - Perfect position");
             _ovalColor = Colors.green;
-            
             if (!_isCountingDown && !_hasCaptured) {
               _startCountdown();
             }
-          } else {
-            _ovalColor = Colors.red;
+          }
+          else {
+            print("DEBUG: Setting WHITE - Fallback");
+            _ovalColor = Colors.white;
             if (_isCountingDown) {
               _cancelCountdown();
             }
@@ -532,7 +734,7 @@ class CameraPageState extends State<CameraPage> {
     final isRoughlyAligned = checkFaceAlignment(face);
     final isSomewhatStable = _checkQuickStability(faceRect);
 
-    return isRoughlyInOval && isRoughlyCentered && isRoughlyAligned && isSomewhatStable;
+    return isRoughlyInOval && isRoughlyAligned;
   }
 
   bool _checkQuickStability(Rect currentPosition) {
@@ -547,6 +749,37 @@ class CameraPageState extends State<CameraPage> {
     final movement = sqrt(dx * dx + dy * dy); 
 
     return movement <= 0.08;
+  }
+
+  void _checkFaceStability(Rect currentPosition) {
+    final now = DateTime.now();
+
+    if (_lastFacePosition == null) {
+      _lastFacePosition = currentPosition;
+      _lastFaceMovementTime = now;
+      _isFaceStable = false;
+      return;
+    }
+
+    final dx = (currentPosition.left - _lastFacePosition!.left).abs() / _lastFacePosition!.width;
+    final dy = (currentPosition.top - _lastFacePosition!.top).abs() / _lastFacePosition!.height;
+    final dw = (currentPosition.width - _lastFacePosition!.width).abs() / _lastFacePosition!.width;
+    final dh = (currentPosition.height - _lastFacePosition!.height).abs() / _lastFacePosition!.height;
+    
+    final movement = sqrt(dx * dx + dy * dy + dw * dw + dh * dh);
+
+    if (movement > _stabilityThreshold * 0.7) {
+      _lastFacePosition = currentPosition;
+      _lastFaceMovementTime = now;
+      _isFaceStable = false;
+      print("DEBUG: Movement detected: $movement");
+    } else if (_lastFaceMovementTime != null && 
+              now.difference(_lastFaceMovementTime!).inMilliseconds > _stabilityDurationMs) {
+      _isFaceStable = true;
+      print("DEBUG: Face is now stable");
+    }
+
+    _lastFacePosition = currentPosition;
   }
 
   Rect _getAdjustedFaceRect(Rect faceRect) {
@@ -596,7 +829,7 @@ class CameraPageState extends State<CameraPage> {
     final adjustedFaceRect = _getAdjustedFaceRect(faceRect);
 
     final faceSizeRatio = adjustedFaceRect.width / ovalWidth;
-    if (faceSizeRatio < 0.25 || faceSizeRatio > 0.8) {
+    if (faceSizeRatio < 0.4 || faceSizeRatio > 0.9) {
       return false;
     }
 
@@ -608,7 +841,7 @@ class CameraPageState extends State<CameraPage> {
     final normalizedX = pow((faceCenter.dx - ovalCenter.dx) / (ovalWidth / 2), 2);
     final normalizedY = pow((faceCenter.dy - ovalCenter.dy) / (ovalHeight / 2), 2);
 
-    return (normalizedX + normalizedY) <= 1.2; 
+    return (normalizedX + normalizedY) <= 1.3; 
   }
 
   bool isFaceCenteredInOval(Rect faceRect) {
@@ -625,8 +858,8 @@ class CameraPageState extends State<CameraPage> {
 
     final dx = (faceCenter.dx - ovalCenter.dx).abs();
     final dy = (faceCenter.dy - ovalCenter.dy).abs();
-    final xTolerance = ovalWidth * 0.15;
-    final yTolerance = ovalHeight * 0.15;
+    final xTolerance = ovalWidth * 0.2;
+    final yTolerance = ovalHeight * 0.2;
     final isCentered = dx <= xTolerance && dy <= yTolerance;
     
     return isCentered;
@@ -653,7 +886,7 @@ class CameraPageState extends State<CameraPage> {
     final headEulerAngleY = face.headEulerAngleY ?? 0.0;
     final headEulerAngleX = face.headEulerAngleX ?? 0.0;
 
-    if (headEulerAngleY.abs() > 15.0 || headEulerAngleX.abs() > 15.0) {
+    if (headEulerAngleY.abs() > 20.0 || headEulerAngleX.abs() > 20.0) {
       return false;
     }
 
@@ -662,32 +895,6 @@ class CameraPageState extends State<CameraPage> {
     final noseBase = face.landmarks[FaceLandmarkType.noseBase];
 
     return leftEye != null && rightEye != null && noseBase != null;
-  }
-
-  void _checkFaceStability(Rect currentPosition) {
-    final now = DateTime.now();
-
-    if (_lastFacePosition == null) {
-      _lastFacePosition = currentPosition;
-      _lastFaceMovementTime = now;
-      _isFaceStable = false;
-      return;
-    }
-
-    final dx = (currentPosition.left - _lastFacePosition!.left).abs() / _lastFacePosition!.width;
-    final dy = (currentPosition.top - _lastFacePosition!.top).abs() / _lastFacePosition!.height;
-    final movement = sqrt(dx * dx + dy * dy); 
-
-    if (movement > _stabilityThreshold) {
-      _lastFacePosition = currentPosition;
-      _lastFaceMovementTime = now;
-      _isFaceStable = false;
-    } else if (_lastFaceMovementTime != null && 
-              now.difference(_lastFaceMovementTime!).inMilliseconds > _stabilityDurationMs) {
-      _isFaceStable = true;
-    }
-
-    _lastFacePosition = currentPosition;
   }
 
   Future<void> _loadUserEmail() async {
@@ -828,6 +1035,9 @@ class CameraPageState extends State<CameraPage> {
 
       final processedImage = await _processImageForAI(imageFile);
       
+      // ✅ ADDED: Save the captured image path to SharedPreferences
+      await _saveCapturedImagePath(processedImage.path);
+      
       setState(() {
         _capturedImage = processedImage;
       });
@@ -852,6 +1062,16 @@ class CameraPageState extends State<CameraPage> {
     }
   }
 
+  // ✅ ADDED: New method to save captured image path to SharedPreferences
+  Future<void> _saveCapturedImagePath(String imagePath) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_captured_image_path', imagePath);
+      print('DEBUG: Saved captured image path to SharedPreferences: $imagePath');
+    } catch (e) {
+      print('Error saving captured image path: $e');
+    }
+  }
   Future<File> _processImageForAI(File originalImage) async {
     try {
       final originalBytes = await originalImage.readAsBytes();
@@ -865,8 +1085,8 @@ class CameraPageState extends State<CameraPage> {
         image = img.flipHorizontal(image);
       }
       
-      const targetWidth = 1152;
-      const targetHeight = 2048;
+      const targetWidth = 1440;
+      const targetHeight = 2560;
       
       final resizedImage = img.copyResize(
         image, 
@@ -875,7 +1095,7 @@ class CameraPageState extends State<CameraPage> {
         interpolation: img.Interpolation.linear
       );
       
-      final processedBytes = img.encodeJpg(resizedImage, quality: 85);
+      final processedBytes = img.encodeJpg(resizedImage, quality: 90);
       
       final processedFile = File(originalImage.path.replaceFirst('.jpg', '_processed.jpg'));
       await processedFile.writeAsBytes(processedBytes);
@@ -889,7 +1109,7 @@ class CameraPageState extends State<CameraPage> {
     }
   }
 
-  Future<void> _analyzeImage(File imageFile) async {
+ Future<void> _analyzeImage(File imageFile) async {
     try {
       setState(() {
         _isLoading = true;
@@ -1054,6 +1274,66 @@ class CameraPageState extends State<CameraPage> {
           SnackBar(content: Text(e.toString())),
         );
       }
+    }
+  }
+
+  Widget _getStatusText(double screenWidth) {
+    if (_ovalColor == Colors.white) {
+      return Text(
+        'No Face Detected',
+        key: const ValueKey('status_white'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    } else if (_ovalColor == Colors.red) {
+      return Text(
+        'Center Your Face',
+        key: const ValueKey('status_red'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    } else if (_ovalColor == Colors.orange) {
+      return Text(
+        'Hold Still',
+        key: const ValueKey('status_orange'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    } else {
+      return Text(
+        'Perfect! Get ready to capture your face',
+        key: const ValueKey('status_green'),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: screenWidth * 0.035,
+          fontWeight: FontWeight.bold,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      );
+    }
+  }
+
+  String _getStatusMessage() {
+    if (_ovalColor == Colors.white) {
+      return 'Position your face in the oval';
+    } else if (_ovalColor == Colors.red) {
+      return 'Center and align your face properly in the oval';
+    } else if (_ovalColor == Colors.orange) {
+      return 'Stay still for automatic capture';
+    } else {
+      return 'Perfect position! Photo will be taken automatically';
     }
   }
 
@@ -1225,8 +1505,8 @@ class CameraPageState extends State<CameraPage> {
                                 children: [
                                   _buildRequirementItem(
                                     Icons.face,
-                                    "No Face Mask",
-                                    "Ensure your face is completely visible",
+                                    "Position Face in Oval",
+                                    "Simply position your face in the oval - it will capture automatically",
                                     screenWidth,
                                   ),
                                   const SizedBox(height: 15),
@@ -1330,7 +1610,7 @@ class CameraPageState extends State<CameraPage> {
                     Container(
                       margin: EdgeInsets.only(top: screenHeight * 0.01),
                       child: Text(
-                        "Position your face in the oval",
+                        "Position your face in the oval - it will capture automatically",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: screenWidth * 0.045,
@@ -1476,67 +1756,7 @@ class CameraPageState extends State<CameraPage> {
     );
   }
 
-  Widget _getStatusText(double screenWidth) {
-    if (_ovalColor == Colors.white) {
-      return Text(
-        'No Face Detected (White)',
-        key: const ValueKey('status_white'),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: screenWidth * 0.035,
-          fontWeight: FontWeight.bold,
-          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-        ),
-      );
-    } else if (_ovalColor == Colors.red) {
-      return Text(
-        'Adjust Face Distance (Red)',
-        key: const ValueKey('status_red'),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: screenWidth * 0.035,
-          fontWeight: FontWeight.bold,
-          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-        ),
-      );
-    } else if (_ovalColor == Colors.orange) {
-      return Text(
-        'Hold Still (Orange)',
-        key: const ValueKey('status_orange'),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: screenWidth * 0.035,
-          fontWeight: FontWeight.bold,
-          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-        ),
-      );
-    } else {
-      return Text(
-        'Perfect Position (Green)',
-        key: const ValueKey('status_green'),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: screenWidth * 0.035,
-          fontWeight: FontWeight.bold,
-          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-        ),
-      );
-    }
-  }
-
-  String _getStatusMessage() {
-    if (_ovalColor == Colors.white) {
-      return 'Move closer until your face fills the oval';
-    } else if (_ovalColor == Colors.red) {
-      return 'Move back slightly - face is too close or not centered';
-    } else if (_ovalColor == Colors.orange) {
-      return 'Stay still for better detection';
-    } else {
-      return 'Perfect! Photo will be taken automatically';
-    }
-  }
-
-  Widget _buildResultsPanel() {
+ Widget _buildResultsPanel() {
     return Center(
       child: Container(
         width: MediaQuery.of(_scaffoldContext).size.width * 0.7,
@@ -1584,6 +1804,7 @@ class CameraPageState extends State<CameraPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
+                  // ✅ This will now work because the image path is saved in SharedPreferences
                   Navigator.push(
                     _scaffoldContext,
                     MaterialPageRoute(

@@ -11,11 +11,13 @@ class MakeupHubPage extends StatefulWidget {
   const MakeupHubPage({
     super.key, 
     this.skinTone, 
-    required this.capturedImage,
+    this.capturedImage,
+    this.userId,
   });
 
   final String? skinTone; 
-  final File capturedImage;
+  final File? capturedImage;
+  final String? userId;
   
   @override
   MakeupHubPageState createState() => MakeupHubPageState();
@@ -26,7 +28,9 @@ class MakeupHubPageState extends State<MakeupHubPage> {
   String? selectedMakeupType;
   String? selectedMakeupLook;
   String? userSkinTone;
+  File? _capturedImage;
   bool isLoadingSkinTone = false;
+  bool isLoadingImage = false;
   bool isProcessingMakeupLook = false;
   String? currentlyProcessingLook; 
 
@@ -41,8 +45,45 @@ class MakeupHubPageState extends State<MakeupHubPage> {
   void initState() {
     super.initState();
     userSkinTone = widget.skinTone;
+    _capturedImage = widget.capturedImage;
+    
+    // Load data if not provided via props
     if (userSkinTone == null) {
       _fetchUserSkinTone();
+    }
+    if (_capturedImage == null) {
+      _loadCapturedImage();
+    }
+  }
+
+  Future<void> _loadCapturedImage() async {
+    setState(() {
+      isLoadingImage = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final imagePath = prefs.getString('last_captured_image_path');
+      
+      if (imagePath != null && imagePath.isNotEmpty) {
+        final imageFile = File(imagePath);
+        final fileExists = await imageFile.exists();
+        
+        if (fileExists) {
+          setState(() {
+            _capturedImage = imageFile;
+          });
+        } else {
+          // Remove invalid path from shared preferences
+          await prefs.remove('last_captured_image_path');
+        }
+      }
+    } catch (e) {
+      print("Error loading captured image: $e");
+    } finally {
+      setState(() {
+        isLoadingImage = false;
+      });
     }
   }
 
@@ -95,6 +136,76 @@ class MakeupHubPageState extends State<MakeupHubPage> {
               padding: const EdgeInsets.only(top: 20.0, left: 10.0),
               child: Column(
                 children: [
+                  // Show loading for image
+                  if (isLoadingImage)
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.pink.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          LoadingAnimationWidget.staggeredDotsWave(
+                            color: Colors.pink.shade100,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "Loading your captured image...",
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 6, 6, 6),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  // Show warning if no image found - ONLY SHOW PROBLEMS
+                  if (!isLoadingImage && _capturedImage == null)
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange[800]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "No captured image found.",
+                                  style: TextStyle(
+                                    color: Colors.orange[800],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  "Makeup application will use a default face model.",
+                                  style: TextStyle(
+                                    color: Colors.orange[800],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  // REMOVED: The success message for captured image
+                  
                   Align(
                     alignment: Alignment.topLeft,
                     child: const Text(
@@ -107,7 +218,8 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 20),
+                  
                   if (isLoadingSkinTone)
                     Center(
                       child: LoadingAnimationWidget.staggeredDotsWave(
@@ -115,6 +227,7 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                         size: 50,
                       ),
                     ),
+                  
                   if (userSkinTone != null && !isLoadingSkinTone)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20),
@@ -127,6 +240,7 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                         ),
                       ),
                     ),
+                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -147,11 +261,15 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                       ),
                     ],
                   ),
+                  
                   const SizedBox(height: 10),
+                  
                   _buildSegmentedControl(undertones, selectedUndertone, (value) {
                     setState(() => selectedUndertone = value);
                   }),
+                  
                   const SizedBox(height: 20),
+                  
                   if (selectedUndertone != null)
                     Text(
                       "You selected: $selectedUndertone undertone",
@@ -161,8 +279,11 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                         color: Color.fromARGB(255, 12, 12, 12),
                       ),
                     ),
+                  
                   const SizedBox(height: 30),
+                  
                   _buildSectionTitle("Select Makeup Type"),
+                  
                   _buildSegmentedControl(makeupLooks.keys.toList(), selectedMakeupType, (value) {
                     if (selectedUndertone == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -178,7 +299,9 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                       });
                     }
                   }),
+                  
                   const SizedBox(height: 20),
+                  
                   if (selectedUndertone != null && selectedMakeupType != null && makeupLooks.containsKey(selectedMakeupType)) ...[
                     _buildSectionTitle("Choose Your Makeup Look"),
                     Column(
@@ -191,6 +314,7 @@ class MakeupHubPageState extends State<MakeupHubPage> {
               ),
             ),
           ),
+          
           if (isProcessingMakeupLook)
             Container(
               color: Colors.black54,
@@ -290,55 +414,36 @@ class MakeupHubPageState extends State<MakeupHubPage> {
           print("- Makeup Type: $selectedMakeupType");
           print("- Makeup Look: $look");
           print("- Skin Tone: $userSkinTone");
+          print("- Captured Image: ${_capturedImage?.path}");
 
           try {
-            final userId = await getUserId();
+            final userId = widget.userId ?? await getUserId();
             if (userId != null) {
-              final requestBody = {
+              // Create user data object with real user data
+              final userData = {
+                'success': true,
                 'user_id': userId,
                 'undertone': selectedUndertone,
+                'skin_tone': userSkinTone,
                 'makeup_type': selectedMakeupType,
                 'makeup_look': look,
-                'skin_tone': userSkinTone,
               };
-              print("Request Payload: ${jsonEncode(requestBody)}");
 
-              final response = await http.post(
-                Uri.parse('https://glamouraika.com/api/recommendation'),   
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode(requestBody),
+              // Navigate directly to customization with the captured image
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CustomizationPage(
+                    capturedImage: _capturedImage,
+                    selectedMakeupType: selectedMakeupType!,
+                    selectedMakeupLook: selectedMakeupLook!,
+                    userId: userId,
+                    undertone: selectedUndertone!,
+                    skinTone: userSkinTone,
+                    recommendationData: userData,
+                  ),
+                ),
               );
-
-              print("API Response:");
-              print("- Status Code: ${response.statusCode}");
-              print("- Body: ${response.body}");
-              print("- Headers: ${response.headers}");
-
-              if (response.statusCode == 200) {
-                final responseData = json.decode(response.body);
-                if (responseData['success'] == true) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CustomizationPage(
-                        capturedImage: widget.capturedImage,
-                        selectedMakeupType: selectedMakeupType!,
-                        selectedMakeupLook: selectedMakeupLook!,
-                        userId: userId,
-                        undertone: selectedUndertone!,
-                        skinTone: userSkinTone,
-                        recommendationData: responseData,
-                      ),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(responseData['message'] ?? 'Request failed')),
-                  );
-                }
-              } else {
-                _handleApiError(response);
-              }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('User ID not found')),
@@ -373,23 +478,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
         ),
       ),
     );
-  }
-
-  void _handleApiError(http.Response response) {
-    if (response.statusCode == 400) {
-      final errorData = json.decode(response.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorData['message'] ?? 'Invalid request')),
-      );
-    } else if (response.statusCode == 404) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not found')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error')),
-      );
-    }
   }
 
   Future<String?> getUserId() async {

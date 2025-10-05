@@ -15,7 +15,7 @@ import 'package:intl/intl.dart';
 import 'apicall_recommendation.dart';
 import 'help_desk.dart';
 import 'terms_and_conditions.dart'; 
-
+import 'makeuphub.dart';
 
 class MakeupShade {
   final String shadeId;
@@ -184,7 +184,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
   bool showBubble = true;
   final PageController _pageController = PageController(viewportFraction: 0.8);
   
-  // Profile data variables
   String? name;
   String? lastName;
   String? suffix;
@@ -198,7 +197,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
   int? age;
   File? _selectedProfileImage;
 
-  // Recommendation variables
   final MakeupRecommendationService _recommendationService = MakeupRecommendationService(
     apiBaseUrl: 'https://glamouraika.com/api',
   );
@@ -206,7 +204,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
   bool _isLoadingRecommendations = false;
   String _recommendationError = '';
 
-  // API Service instance
   final recommendationServiceOld = ApiCallRecommendation();
 
   @override
@@ -636,7 +633,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-
   Widget _buildBody(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
@@ -661,8 +657,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
       ),
     );
   }
-  
-
   
   Widget _buildCurvedBackground(double screenHeight) {
     return Stack(
@@ -794,21 +788,29 @@ Widget _buildProfileCards(BuildContext context) {
             .animate()
             .fadeIn(delay: 300.ms)
             .scaleXY(begin: 0.8, end: 1),
-        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) 
+            _buildProfileCard(context, Icons.auto_awesome, "Recommendation For You", MakeupHubPage(
+              skinTone: skinTone,
+              userId: widget.userId,
+            )) 
             .animate()
             .fadeIn(delay: 400.ms)
+            .scaleXY(begin: 0.8, end: 1),
+        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) 
+            .animate()
+            .fadeIn(delay: 500.ms)
             .scaleXY(begin: 0.8, end: 1),
       ],
     ),
   );
 }
-  
 
   Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
     final size = MediaQuery.of(context).size;
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => route)),
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => route));
+      },
       child: Container(
         margin: EdgeInsets.symmetric(horizontal: size.width * 0.07),
         decoration: BoxDecoration(
@@ -1043,7 +1045,6 @@ Widget _buildProfileCards(BuildContext context) {
     return _buildRecommendationContent();
   }
 
-
   Widget _buildAnalysisRequiredSection() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -1224,135 +1225,169 @@ Widget _buildProfileCards(BuildContext context) {
       ),
     );
   }
- Widget _buildRecommendationContent() {
-    final hasValidAnalysis = _recommendation!.userSkinTone != "Unknown" &&
-        _recommendation!.userFaceShape != "Unknown";
+Widget _buildRecommendationContent() {
+  final hasValidAnalysis = _recommendation!.userSkinTone != "Unknown" &&
+      _recommendation!.userFaceShape != "Unknown";
 
-    final hasSavedData = _recommendation!.mostUsedSavedLooks.isNotEmpty ||
-        _recommendation!.topMakeupLooksByType.isNotEmpty ||
-        _recommendation!.overallMostPopularLook != null;
+  final hasSavedData = _recommendation!.mostUsedSavedLooks.isNotEmpty ||
+      _recommendation!.topMakeupLooksByType.isNotEmpty ||
+      _recommendation!.overallMostPopularLook != null;
 
-    // Get all makeup types with looks
-    final makeupTypes = _recommendation!.topMakeupLooksByType
-        .where((look) => look.shadesByType.isNotEmpty)
-        .take(3)
-        .toList();
+  return Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Personalized Recommendations',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF7E4A71),
+          ),
+        ),
+        const SizedBox(height: 16),
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        // 1. Your Beauty Profile
+        _buildBeautyProfileBox(),
+        const SizedBox(height: 24),
+
+        // 2. Most Popular Look (if available)
+        if (_recommendation!.overallMostPopularLook != null) ...[
           const Text(
-            'Personalized Recommendations',
+            '🌟 Most Popular Look',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF7E4A71),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Your Beauty Profile Box
-          _buildBeautyProfileBox(),
+          const SizedBox(height: 12),
+          _buildFeaturedLookCard(_recommendation!.overallMostPopularLook!),
           const SizedBox(height: 24),
-
-           // Most Popular Look
-            if (_recommendation!.overallMostPopularLook != null) ...[
-              const Text(
-                '🌟 Most Popular Look',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF7E4A71),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildFeaturedLookCard(_recommendation!.overallMostPopularLook!),
-              const SizedBox(height: 24),
-            ],
-
-          if (hasValidAnalysis && hasSavedData) ...[
-            if (makeupTypes.isNotEmpty) ...[
-              const Text(
-                'Top Looks by Type',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF7E4A71),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 600,
-                child: PageView.builder(
-                  itemCount: makeupTypes.length,
-                  itemBuilder: (context, index) {
-                    final makeupLook = makeupTypes[index];
-                    return _buildMakeupTypeCard(makeupLook);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Dot indicators for page view
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(makeupTypes.length, (index) {
-                  return Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: index == 0 
-                          ? const Color(0xFF7E4A71)
-                          : const Color(0xFFD4A5BD).withValues(alpha: 0.5),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 24),
-            ],
-            
-            // Most Used Looks
-            if (_recommendation!.mostUsedSavedLooks.isNotEmpty) ...[
-              const Text(
-                'Most Used Looks',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF7E4A71),
-                ), 
-              ),
-              const SizedBox(height: 12),
-              ..._recommendation!.mostUsedSavedLooks
-                  .take(3)
-                  .map(_buildLookCard)
-                  ,
-              const SizedBox(height: 24),
-            ],
-            
-            // Most Used Makeup Shades
-            if (_hasSavedShades()) ...[
-              const Text(
-                'Most Used Makeup Shades',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF7E4A71),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildMostUsedShadesSection(),
-            ],
-          ] else if (hasValidAnalysis && !hasSavedData) ...[
-            _buildNoSavedDataSection(),
-          ],
         ],
+
+        if (hasValidAnalysis && hasSavedData) ...[
+          // 3. Top Looks by Type
+          if (_recommendation!.topMakeupLooksByType.isNotEmpty) ...[
+            const Text(
+              'Top Looks by Type',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7E4A71),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildTopLooksByTypeSection(),
+            const SizedBox(height: 24),
+          ],
+          
+          // 4. Most Used Looks
+          if (_recommendation!.mostUsedSavedLooks.isNotEmpty) ...[
+            const Text(
+              'Most Used Looks',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7E4A71),
+              ), 
+            ),
+            const SizedBox(height: 12),
+            ..._recommendation!.mostUsedSavedLooks
+                .take(3)
+                .map(_buildLookCard)
+                .toList(),
+            const SizedBox(height: 24),
+          ],
+          
+          // 5. Most Used Makeup Shades
+          if (_hasSavedShades()) ...[
+            const Text(
+              'Most Used Makeup Shades',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7E4A71),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildMostUsedShadesSection(),
+          ],
+        ] else if (hasValidAnalysis && !hasSavedData) ...[
+          _buildNoSavedDataSection(),
+        ],
+      ],
+    ),
+  );
+}
+
+// Updated method to build Top Looks by Type section - simplified UI
+Widget _buildTopLooksByTypeSection() {
+  // Group by makeup type and get the top look (highest usage) for each type
+  final Map<String, MakeupLook> topLooksByType = {};
+  
+  for (var look in _recommendation!.topMakeupLooksByType) {
+    final currentType = look.makeupType;
+    
+    // If this type doesn't exist yet, or if current look has higher usage count
+    if (!topLooksByType.containsKey(currentType) || 
+        look.usageCount > topLooksByType[currentType]!.usageCount) {
+      topLooksByType[currentType] = look;
+    }
+  }
+  
+  // Convert to list and sort by usage count (descending)
+  final topLooks = topLooksByType.values.toList()
+    ..sort((a, b) => b.usageCount.compareTo(a.usageCount));
+  
+  if (topLooks.isEmpty) {
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Text(
+        'No top looks available by type',
+        style: TextStyle(
+          color: Color(0xFF9E8296),
+          fontSize: 14,
+        ),
       ),
     );
   }
+  
+  return Column(
+    children: [
+      SizedBox(
+        height: 500,
+        child: PageView.builder(
+          itemCount: topLooks.length,
+          itemBuilder: (context, index) {
+            final makeupLook = topLooks[index];
+            return _buildMakeupTypeCard(makeupLook);
+          },
+        ),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(topLooks.length, (index) {
+          return Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: index == 0 
+                  ? const Color(0xFF7E4A71)
+                  : const Color(0xFFD4A5BD).withValues(alpha: 0.5),
+            ),
+          );
+        }),
+      ),
+    ],
+  );
+}
 
+// Simplified _buildMakeupTypeCard using old UI style
 Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
   return Container(
     margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -1373,102 +1408,104 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Makeup Type Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFD1DC),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.auto_awesome,
-                    size: 20, color: Color(0xFF7E4A71)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  makeupLook.makeupType.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF7E4A71),
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            makeupLook.lookName,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF7E4A71),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.visibility, size: 16, color: Color(0xFF9E8296)),
-              const SizedBox(width: 6),
-              Text('${makeupLook.usageCount} uses',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF9E8296))),
-            ],
-          ),
-          const SizedBox(height: 24),
-          
-          // Display all shades from this specific makeup look - LIMIT TO 3 SHADES PER PRODUCT
-          ...makeupLook.shadesByType.entries.map((entry) {
-            final productType = entry.key;
-            final shades = entry.value;
-            
-            // Take only top 3 shades for this product type
-            final top3Shades = shades.take(3).toList();
-            
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Simple header with icon only
+            Row(
               children: [
-                const SizedBox(height: 12),
-                Text(
-                  productType.toLowerCase(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF7E4A71),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD1DC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.auto_awesome,
+                      size: 20, color: Color(0xFF7E4A71)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    makeupLook.makeupType.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7E4A71),
+                      letterSpacing: 1.2,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: top3Shades
-                      .map((shade) => _buildShadeChip(shade))
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
               ],
-            );
-          }),
-        ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Look name with "Look" text added
+            Text(
+              '${makeupLook.lookName} Look', // Added "Look" here
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7E4A71),
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Rest of the code remains the same...
+            if (makeupLook.shadesByType.isNotEmpty) ...[
+              ...makeupLook.shadesByType.entries.map((entry) {
+                final productType = entry.key;
+                final shades = entry.value;
+                
+                // Take top 3 shades for this product type
+                final top3Shades = shades.take(3).toList();
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    Text(
+                      _capitalizeFirstLetter(productType),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF7E4A71),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: top3Shades
+                          .map((shade) => _buildShadeChip(shade))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              }),
+            ] else ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20.0),
+                child: Text(
+                  'No shade data available for this look',
+                  style: TextStyle(
+                    color: Color(0xFF9E8296),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     ),
-  ),
   );
 }
-
 List<Widget> buildAllProductShadesFromUserData() {
   final List<Widget> shadeSections = [];
   
-  // Define all makeup product categories we want to show
   final productTypes = [
     'blush', 'concealer', 'contour', 'eyeshadow', 
     'foundation', 'highlighter', 'eyebrow'
   ];
 
-  // Get top shades for each category from ALL user data
   for (final productType in productTypes) {
     final topShades = _getTopShadesForCategory(productType);
     
@@ -1476,7 +1513,7 @@ List<Widget> buildAllProductShadesFromUserData() {
       shadeSections.addAll([
         const SizedBox(height: 12),
         Text(
-          productType.toUpperCase(),
+          _capitalizeFirstLetter(productType),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -1488,7 +1525,7 @@ List<Widget> buildAllProductShadesFromUserData() {
           spacing: 8,
           runSpacing: 8,
           children: topShades
-              .take(3) // Top 3 shades for this category
+              .take(3)
               .map((shade) => _buildShadeChip(shade))
               .toList(),
         ),
@@ -1500,17 +1537,14 @@ List<Widget> buildAllProductShadesFromUserData() {
   return shadeSections;
 }
 List<MakeupLook> getTopLooksByType() {
-  // Group looks by makeupType
   final Map<String, MakeupLook> grouped = {};
 
   for (var look in _recommendation!.topMakeupLooksByType) {
-    // Keep only the first look for each type
     if (!grouped.containsKey(look.makeupType)) {
       grouped[look.makeupType] = look;
     }
   }
 
-  // Return in fixed order: Casual → Light → Heavy
   final order = ["Casual", "Light", "Heavy"];
   return order
       .map((type) => grouped[type])
@@ -1519,15 +1553,12 @@ List<MakeupLook> getTopLooksByType() {
       .toList();
 }
 
-
 List<MakeupShade> _getTopShadesForCategory(String category) {
   final Map<MakeupShade, int> shadeFrequency = {};
   
-  // Count shades from all top looks
   for (var look in _recommendation!.topMakeupLooksByType) {
     final shades = look.shadesByType[category] ?? [];
     for (var shade in shades) {
-      // Find if this shade already exists by comparing shadeId
       bool shadeExists = false;
       MakeupShade? existingShade;
       
@@ -1547,7 +1578,6 @@ List<MakeupShade> _getTopShadesForCategory(String category) {
     }
   }
   
-  // Count shades from most used saved looks
   for (var look in _recommendation!.mostUsedSavedLooks) {
     final shades = look.shadesByType[category] ?? [];
     for (var shade in shades) {
@@ -1570,7 +1600,6 @@ List<MakeupShade> _getTopShadesForCategory(String category) {
     }
   }
   
-  // Count shades from overall most popular look
   if (_recommendation!.overallMostPopularLook != null) {
     final shades = _recommendation!.overallMostPopularLook!.shadesByType[category] ?? [];
     for (var shade in shades) {
@@ -1593,19 +1622,15 @@ List<MakeupShade> _getTopShadesForCategory(String category) {
     }
   }
   
-  // Sort by frequency and return the shades
   final sortedEntries = shadeFrequency.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   
   return sortedEntries.map((entry) => entry.key).toList();
 }
 
-// KEEP ALL THE ORIGINAL FUNCTIONS FROM YOUR CODE:
-
 bool _hasSavedShades() {
   bool hasShades = false;
 
-  // Check top looks
   for (var look in _recommendation!.topMakeupLooksByType) {
     if (look.shadesByType.isNotEmpty) {
       hasShades = true;
@@ -1613,7 +1638,6 @@ bool _hasSavedShades() {
     }
   }
 
-  // Check most used looks
   if (!hasShades) {
     for (var look in _recommendation!.mostUsedSavedLooks) {
       if (look.shadesByType.isNotEmpty) {
@@ -1623,7 +1647,6 @@ bool _hasSavedShades() {
     }
   }
 
-  // Check most popular look
   if (!hasShades && _recommendation!.overallMostPopularLook != null) {
     if (_recommendation!.overallMostPopularLook!.shadesByType.isNotEmpty) {
       hasShades = true;
@@ -1643,7 +1666,6 @@ Widget _buildMostUsedShadesSection() {
       }
       
       for (var shade in shades) {
-        // Find if this shade already exists in the category by comparing shadeId
         bool shadeExists = false;
         MakeupShade? existingShade;
         
@@ -1656,18 +1678,15 @@ Widget _buildMostUsedShadesSection() {
         }
         
         if (shadeExists && existingShade != null) {
-          // Increment count for existing shade
           shadeFrequencyByCategory[category]![existingShade] = 
               (shadeFrequencyByCategory[category]![existingShade] ?? 0) + 1;
         } else {
-          // Add new shade with count 1
           shadeFrequencyByCategory[category]![shade] = 1;
         }
       }
     });
   }
 
-  // Count shades from all looks
   _recommendation!.topMakeupLooksByType.forEach(countShadesFromLook);
   _recommendation!.mostUsedSavedLooks.forEach(countShadesFromLook);
   if (_recommendation!.overallMostPopularLook != null) {
@@ -1680,11 +1699,9 @@ Widget _buildMostUsedShadesSection() {
       final category = entry.key;
       final shadeFrequency = entry.value;
 
-      // Sort by frequency and get top 10 shades for this category
       final sortedShades = shadeFrequency.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
       
-      // LIMIT TO TOP 10 SHADES ONLY
       final top10Shades = sortedShades
           .take(10) 
           .map((entry) => entry.key)
@@ -1696,7 +1713,7 @@ Widget _buildMostUsedShadesSection() {
           Padding(
             padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
             child: Text(
-              category.toLowerCase(),
+              _capitalizeFirstLetter(category),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -1715,36 +1732,6 @@ Widget _buildMostUsedShadesSection() {
     }).toList(),
   );
 }
-  bool hasSavedShades() {
-    bool hasShades = false;
-    
-    // Check top looks
-    for (var look in _recommendation!.topMakeupLooksByType) {
-      if (look.shadesByType.isNotEmpty) {
-        hasShades = true;
-        break;
-      }
-    }
-    
-    // Check most used looks
-    if (!hasShades) {
-      for (var look in _recommendation!.mostUsedSavedLooks) {
-        if (look.shadesByType.isNotEmpty) {
-          hasShades = true;
-          break;
-        }
-      }
-    }
-    
-    // Check most popular look
-    if (!hasShades && _recommendation!.overallMostPopularLook != null) {
-      if (_recommendation!.overallMostPopularLook!.shadesByType.isNotEmpty) {
-        hasShades = true;
-      }
-    }
-    
-    return hasShades;
-  }
 
   Widget _buildNoSavedDataSection() {
     return Container(
@@ -1780,262 +1767,188 @@ Widget _buildMostUsedShadesSection() {
     );
   }
 
-  Widget _buildFeaturedLookCard(MakeupLook look) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFE5B8D2).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFD1DC),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.star,
-                                size: 18, color: Color(0xFF7E4A71)),
+Widget _buildFeaturedLookCard(MakeupLook look) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFFE5B8D2).withValues(alpha: 0.3),
+          blurRadius: 15,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD1DC),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(width: 10),
-                          Text(look.lookName,
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF7E4A71))),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(look.makeupType,
+                          child: const Icon(Icons.star,
+                              size: 18, color: Color(0xFF7E4A71)),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${look.lookName} Look', // Added "Look" here
                           style: const TextStyle(
-                              fontSize: 15,
-                              color: Color(0xFF9E8296),
-                              fontStyle: FontStyle.italic)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.visibility, size: 16, color: Color(0xFF9E8296)),
-                const SizedBox(width: 6),
-                Text('${look.usageCount} uses',
-                    style:
-                        const TextStyle(fontSize: 13, color: Color(0xFF9E8296))),
-              ],
-            ),
-            if (look.shadesByType.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              ...look.shadesByType.entries.map((entry) {
-                final category = entry.key;
-                final shades = entry.value.take(3).toList();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 12),
-                    Text(
-                      category,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF7E4A71),
-                      ),
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF7E4A71)
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children:
-                          shades.map((shade) => _buildShadeChip(shade)).toList(),
-                    ),
+                    Text(look.makeupType,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF9E8296),
+                            fontStyle: FontStyle.italic)),
                   ],
-                );
-              }),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLookCard(MakeupLook look) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(look.lookName,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF7E4A71))),
-            const SizedBox(height: 8),
-            Text(look.makeupType,
-                style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF9E8296))),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.visibility, size: 12, color: Color(0xFF9E8296)),
-                const SizedBox(width: 4),
-                Text('${look.usageCount} uses',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF9E8296))),
-              ],
-            ),
-            if (look.shadesByType.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ...look.shadesByType.entries.map((entry) {
-                final category = entry.key;
-                final shades = entry.value.take(3).toList();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF7E4A71),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children:
-                          shades.map((shade) => _buildShadeChip(shade)).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              }),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget buildMostUsedShadesSection() {
-    Map<String, Map<MakeupShade, int>> shadeFrequencyByCategory = {};
-
-    void countShadesFromLook(MakeupLook look) {
-      look.shadesByType.forEach((category, shades) {
-        if (!shadeFrequencyByCategory.containsKey(category)) {
-          shadeFrequencyByCategory[category] = {};
-        }
-        
-        for (var shade in shades) {
-          // Find if this shade already exists in the category by comparing shadeId
-          bool shadeExists = false;
-          MakeupShade? existingShade;
-          
-          for (var existing in shadeFrequencyByCategory[category]!.keys) {
-            if (existing.shadeId == shade.shadeId) {
-              shadeExists = true;
-              existingShade = existing;
-              break;
-            }
-          }
-          
-          if (shadeExists && existingShade != null) {
-            // Increment count for existing shade
-            shadeFrequencyByCategory[category]![existingShade] = 
-                (shadeFrequencyByCategory[category]![existingShade] ?? 0) + 1;
-          } else {
-            // Add new shade with count 1
-            shadeFrequencyByCategory[category]![shade] = 1;
-          }
-        }
-      });
-    }
-
-    // Count shades from all looks
-    _recommendation!.topMakeupLooksByType.forEach(countShadesFromLook);
-    _recommendation!.mostUsedSavedLooks.forEach(countShadesFromLook);
-    if (_recommendation!.overallMostPopularLook != null) {
-      countShadesFromLook(_recommendation!.overallMostPopularLook!);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: shadeFrequencyByCategory.entries.map((entry) {
-        final category = entry.key;
-        final shadeFrequency = entry.value;
-
-        // Sort by frequency and get top 10 shades
-        final sortedShades = shadeFrequency.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        
-        // LIMIT TO TOP 10 SHADES ONLY
-        final top10Shades = sortedShades
-            .take(10) 
-            .map((entry) => entry.key)
-            .toList();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
-              child: Text(
-                category,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF7E4A71),
                 ),
               ),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: top10Shades.map((shade) => _buildShadeChip(shade)).toList(),
-            ),
-            const SizedBox(height: 16),
+            ],
+          ),
+          // Rest of the code remains the same...
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.visibility, size: 16, color: Color(0xFF9E8296)),
+              const SizedBox(width: 6),
+              Text('${look.usageCount} uses',
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF9E8296))),
+            ],
+          ),
+          if (look.shadesByType.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            // Show top three shades for each product type in the most popular look
+            ...look.shadesByType.entries.map((entry) {
+              final category = entry.key;
+              final shades = entry.value.take(3).toList(); // Top 3 shades
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    _capitalizeFirstLetter(category),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF7E4A71),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children:
+                        shades.map((shade) => _buildShadeChip(shade)).toList(),
+                  ),
+                ],
+              );
+            }),
           ],
-        );
-      }).toList(),
-    );
-  }
+        ],
+      ),
+    ),
+  );
+}
+
+ Widget _buildLookCard(MakeupLook look) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${look.lookName} Look', // Added "Look" here
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF7E4A71)
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(look.makeupType,
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF9E8296))),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.visibility, size: 12, color: Color(0xFF9E8296)),
+              const SizedBox(width: 4),
+              Text('${look.usageCount} uses',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF9E8296))),
+            ],
+          ),
+          if (look.shadesByType.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...look.shadesByType.entries.map((entry) {
+              final category = entry.key;
+              final shades = entry.value.take(3).toList();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _capitalizeFirstLetter(category),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF7E4A71),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children:
+                        shades.map((shade) => _buildShadeChip(shade)).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              );
+            }),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
 
 Widget _buildShadeChip(MakeupShade shade) {
   return GestureDetector(
@@ -2066,7 +1979,7 @@ Widget _buildShadeChip(MakeupShade shade) {
           ),
           const SizedBox(width: 8),
           Text(
-            shade.shadeName,
+            _capitalizeFirstLetter(shade.shadeName),
             style: const TextStyle(
               fontSize: 12,
               color: Color(0xFF7E4A71),
@@ -2088,7 +2001,6 @@ void _showShadeVisualization(MakeupShade shade) {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Main content container - centered properly
             Container(
               constraints: BoxConstraints(
                 minWidth: MediaQuery.of(context).size.width * 0.8,
@@ -2112,7 +2024,6 @@ void _showShadeVisualization(MakeupShade shade) {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Larger color visualization - properly centered
                   Container(
                     width: 200, 
                     height: 200, 
@@ -2156,11 +2067,10 @@ void _showShadeVisualization(MakeupShade shade) {
                   
                   const SizedBox(height: 25), 
                   
-                  // Shade name with elegant typography - properly centered
                   SizedBox(
                     width: double.infinity,
                     child: Text(
-                      shade.shadeName.toUpperCase(),
+                      _capitalizeFirstLetter(shade.shadeName),
                       style: const TextStyle(
                         fontSize: 18, 
                         fontWeight: FontWeight.w600,
@@ -2174,11 +2084,10 @@ void _showShadeVisualization(MakeupShade shade) {
                   
                   const SizedBox(height: 8), 
                   
-                  // Shade type with subtle styling - properly centered
                   SizedBox(
                     width: double.infinity,
                     child: Text(
-                      shade.shadeType,
+                      _capitalizeFirstLetter(shade.shadeType),
                       style: TextStyle(
                         fontSize: 14, 
                         color: Colors.grey[600],
@@ -2193,7 +2102,6 @@ void _showShadeVisualization(MakeupShade shade) {
               ),
             ),
             
-            // X button positioned properly
             Positioned(
               top: 10,
               right: 10,
@@ -2231,6 +2139,7 @@ void _showShadeVisualization(MakeupShade shade) {
     },
   );
 }
+
   Widget _buildCategoryItem(BuildContext context, String imagePath, String label, Widget route) {
     final size = MediaQuery.of(context).size;
 
@@ -2297,6 +2206,11 @@ void _showShadeVisualization(MakeupShade shade) {
     final brightness = color.computeLuminance();
     return brightness > 0.5 ? Colors.black : Colors.white;
   }
+
+  String _capitalizeFirstLetter(String text) {
+    if (text.isEmpty) return text;
+    return text[0].toUpperCase() + text.substring(1).toLowerCase();
+  }
 }
 
 class ElegantTopCurveClipper extends CustomClipper<Path> {
@@ -2305,7 +2219,6 @@ class ElegantTopCurveClipper extends CustomClipper<Path> {
     final path = Path();
     path.lineTo(0, size.height - 60);
     
-    // First curve - more elegant and smooth
     path.quadraticBezierTo(
       size.width * 0.25,
       size.height - 10,
@@ -2313,7 +2226,6 @@ class ElegantTopCurveClipper extends CustomClipper<Path> {
       size.height - 40,
     );
     
-    // Second curve - more elegant and smooth
     path.quadraticBezierTo(
       size.width * 0.75,
       size.height - 70,

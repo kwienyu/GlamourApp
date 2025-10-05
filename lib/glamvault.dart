@@ -1849,7 +1849,7 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
           insetPadding: EdgeInsets.zero,
           child: Stack(
             children: [
-              Container(
+              SizedBox(
                 width: double.infinity,
                 height: double.infinity,
                 child: InteractiveViewer(

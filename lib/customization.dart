@@ -24,7 +24,7 @@ class HexColor extends Color {
 
 // Customization Page
 class CustomizationPage extends StatefulWidget {
-  final File capturedImage;
+  final File? capturedImage;
   final String? selectedMakeupType;
   final String? selectedMakeupLook;
   final String userId;
@@ -34,7 +34,7 @@ class CustomizationPage extends StatefulWidget {
 
   const CustomizationPage({
     super.key,
-    required this.capturedImage,
+    this.capturedImage,
     required this.selectedMakeupType,
     required this.selectedMakeupLook,
     required this.userId,
@@ -65,24 +65,18 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
   bool _isResetting = false;
   bool _userChoseToCustomize = false;
 
-  // Navigation bar control variables
   bool _isNavigationBarVisible = false;
   DateTime? _lastTapTime;
-
-  // Track last changed product for incremental updates
   String? _lastChangedProduct;
 
-  // Store all recommended shades from API
   Map<String, Map<String, String>> allRecommendedShades = {};
   
-  // Current selected shades for overlay products (Eyeshadow, Blush, Lipstick)
   Map<String, String> currentShades = {
     'Eyeshadow': 'Primary',
     'Blush': 'Primary',
     'Lipstick': 'Primary',
   };
 
-  // For non-overlay products (just display)
   Map<String, Color?> selectedShades = {
     'Foundation': null,
     'Concealer': null,
@@ -133,7 +127,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
       _hasShownProductDialog[product] = false;
     }
 
-    // Initialize heart animation controller
     _heartController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -211,7 +204,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // NEW: Helper method to get current overlay code (e.g., "E+L", "E+B", etc.)
   String _getCurrentOverlayCode() {
     final List<String> activeOverlays = [];
     
@@ -222,7 +214,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     return activeOverlays.isNotEmpty ? activeOverlays.join('+') : 'none';
   }
 
-  // NEW: Helper method to get current shades in the format expected by API
   Map<String, String> _getCurrentShadesMap() {
     final Map<String, String> shadesMap = {};
     
@@ -239,16 +230,13 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     return shadesMap;
   }
 
-  // NEW: Helper method to convert color to shade type (Primary, Light, Medium, Dark)
   String _getShadeType(String productName, Color color) {
     final shades = makeupShades[productName];
     if (shades == null || shades.isEmpty) return 'Primary';
     
-    // Find the index of the selected color
     final index = shades.indexOf(color);
     if (index == -1) return 'Primary';
     
-    // Map index to shade type
     switch (index) {
       case 0: return 'Primary';
       case 1: return 'Light';
@@ -258,7 +246,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // NEW: Helper method to detect what changed
   Map<String, String>? _getChangedOverlayInfo() {
     if (_lastChangedProduct != null && selectedShades[_lastChangedProduct!] != null) {
       final overlayType = _getOverlayType(_lastChangedProduct!);
@@ -273,7 +260,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     return null;
   }
 
-  // NEW: Convert product name to overlay code
   String _getOverlayType(String productName) {
     switch (productName) {
       case 'Eyeshadow': return 'E';
@@ -283,7 +269,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // NEW: Helper to update current shades from API response
   void _updateCurrentShades(Map<String, dynamic> updatedShades) {
     updatedShades.forEach((overlayCode, shadeType) {
       final productName = _getProductName(overlayCode);
@@ -297,7 +282,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     });
   }
 
-  // NEW: Convert overlay code to product name
   String? _getProductName(String overlayCode) {
     switch (overlayCode) {
       case 'E': return 'Eyeshadow';
@@ -307,7 +291,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // NEW: Get color for shade type
   Color? _getColorForShadeType(String productName, String shadeType) {
     final shades = makeupShades[productName];
     if (shades == null) return null;
@@ -316,7 +299,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     return index < shades.length ? shades[index] : null;
   }
 
-  // NEW: Get shade index from type
   int _getShadeIndex(String shadeType) {
     switch (shadeType.toLowerCase()) {
       case 'primary': return 0;
@@ -327,7 +309,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // NEW: Fallback method for full combination application
   Future<void> _applyFullCombination(String base64Image) async {
     final response = await http.post(
       Uri.parse('https://glamouraika.com/models/generate-makeup-combinations'),
@@ -356,7 +337,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // UPDATED: Apply makeup using the new incremental update API
   Future<void> _applyVirtualMakeup() async {
     if (!_userChoseToCustomize && !_hasSelectedShades()) return;
 
@@ -365,23 +345,22 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     setState(() => _isApplyingMakeup = true);
 
     try {
-      // Convert captured image to base64
-      final imageBytes = await widget.capturedImage.readAsBytes();
+      if (widget.capturedImage == null) {
+        throw Exception('No captured image available');
+      }
+
+      final imageBytes = await widget.capturedImage!.readAsBytes();
       final base64Image = base64Encode(imageBytes);
 
-      // Determine which overlays are currently active
       final currentOverlays = _getCurrentOverlayCode();
       final currentShadesMap = _getCurrentShadesMap();
 
-      // Determine what changed
       final changeInfo = _getChangedOverlayInfo();
       if (changeInfo == null) {
-        // No changes detected, use the full combination approach
         await _applyFullCombination(base64Image);
         return;
       }
 
-      // Call the new incremental update API
       final response = await http.post(
         Uri.parse('https://glamouraika.com/models/update-single-overlay'),
         headers: {'Content-Type': 'application/json'},
@@ -405,12 +384,10 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
           final overlayImageBase64 = result['image'];
           final imageBytes = base64Decode(overlayImageBase64);
           
-          // Update current state with the new overlay combination
           setState(() {
             _processedImage = imageBytes;
             _currentMakeupImage = _processedImage;
             
-            // Update shades mapping with the new state
             if (result.containsKey('updated_shades')) {
               _updateCurrentShades(result['updated_shades']);
             }
@@ -433,7 +410,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // NEW: Method to remove a specific overlay
   Future<void> removeOverlay(String productName) async {
     setState(() {
       _lastChangedProduct = productName;
@@ -442,7 +418,11 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     });
 
     try {
-      final imageBytes = await widget.capturedImage.readAsBytes();
+      if (widget.capturedImage == null) {
+        throw Exception('No captured image available');
+      }
+
+      final imageBytes = await widget.capturedImage!.readAsBytes();
       final base64Image = base64Encode(imageBytes);
 
       final response = await http.post(
@@ -457,7 +437,7 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
           'current_overlay': _getCurrentOverlayCode(),
           'shades': _getCurrentShadesMap(),
           'change_overlay': _getOverlayType(productName),
-          'shade': 'none', // This removes the overlay
+          'shade': 'none',
         }),
       );
 
@@ -485,8 +465,11 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     setState(() => _isApplyingMakeup = true);
 
     try {
-      // Apply initial AI recommendations
-      final imageBytes = await widget.capturedImage.readAsBytes();
+      if (widget.capturedImage == null) {
+        throw Exception('No captured image available');
+      }
+
+      final imageBytes = await widget.capturedImage!.readAsBytes();
       final base64Image = base64Encode(imageBytes);
 
       final response = await http.post(
@@ -514,8 +497,7 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
           _currentMakeupImage = _processedImage;
         });
       } else {
-        // Fallback to original image
-        final bytes = await widget.capturedImage.readAsBytes();
+        final bytes = await widget.capturedImage!.readAsBytes();
         setState(() {
           _processedImage = bytes;
           _currentMakeupImage = _processedImage;
@@ -536,7 +518,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     });
 
     try {
-      // Reset to AI recommendations
       setState(() {
         currentShades = {
           'Eyeshadow': 'Primary',
@@ -548,7 +529,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
         _lastChangedProduct = null;
       });
 
-      // Re-apply with primary shades
       await _applyVirtualMakeupAutomatically({});
     } catch (e) {
       setState(() {
@@ -574,10 +554,8 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
           
           recommendations.forEach((category, shadeMap) {
             if (shadeMap is Map) {
-              // Store in allRecommendedShades for hybrid approach
               allRecommendedShades[category] = Map<String, String>.from(shadeMap);
               
-              // Keep original structure for compatibility
               shadeHexCodes[category] = [];
               makeupShades[category] = [];
               
@@ -653,10 +631,8 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
           
           recommendations.forEach((category, shadeMap) {
             if (shadeMap is Map) {
-              // Store in allRecommendedShades for hybrid approach
               allRecommendedShades[category] = Map<String, String>.from(shadeMap);
               
-              // Keep original structure
               if (shadeMap.containsKey('Primary')) {
                 final hexCode = shadeMap['Primary'] as String;
                 shadeHexCodes[category] = [hexCode];
@@ -712,9 +688,7 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     }
   }
 
-  // UPDATED: Handle shade selection with real-time overlay updates
   Future<void> _handleShadeSelection(String productName, Color color, int index, bool isPrimary) async {
-    // Track the product that was changed
     _lastChangedProduct = productName;
     
     final isOverlayProduct = ['Eyeshadow', 'Blush', 'Lipstick'].contains(productName);
@@ -722,49 +696,39 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     final shadeType = index < shadeTypes.length ? shadeTypes[index] : 'Primary';
 
     if (!isPrimary) {
-      // For small circles (non-primary shades)
       final wasSelected = selectedShades[productName] == color;
       
       setState(() {
-        // Toggle selection - if already selected, unselect it
         if (wasSelected) {
           selectedShades[productName] = null;
-          // For overlay products, reset to Primary when unselected
           if (isOverlayProduct) {
             currentShades[productName] = 'Primary';
           }
         } else {
           selectedShades[productName] = color;
-          // For overlay products, update current shade
           if (isOverlayProduct) {
             currentShades[productName] = shadeType;
           }
         }
       });
       
-      // Apply or remove makeup based on selection changes for overlay products
       if (isOverlayProduct) {
         if (!wasSelected && selectedShades[productName] != null) {
-          // A shade was selected - apply makeup
           await _applyVirtualMakeup();
         } else if (wasSelected && selectedShades[productName] == null) {
-          // A shade was deselected - remove makeup for this product
-          await _applyVirtualMakeup(); // This will re-apply without the deselected shade
+          await _applyVirtualMakeup();
         }
       }
     } else {
-      // For primary (big circle) shades - only expand/collapse, don't apply makeup
       setState(() {
         expandedProducts[productName] = !expandedProducts[productName]!;
         
-        // If clicking primary shade while a custom shade is selected, reset to primary
         if (isOverlayProduct && selectedShades[productName] != null) {
           selectedShades[productName] = null;
           currentShades[productName] = 'Primary';
         }
       });
       
-      // Show customization dialog when primary is first clicked
       if (_isFirstTimeSelection && !_hasShownProductDialog[productName]!) {
         _hasShownProductDialog[productName] = true;
         _isFirstTimeSelection = false;
@@ -774,16 +738,13 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
   }
 
   Future<void> handleShadeDeselection(String productName) async {
-    // Check if any overlay products are still selected
     final hasSelectedOverlay = ['Eyeshadow', 'Blush', 'Lipstick'].any(
       (product) => selectedShades[product] != null
     );
     
     if (hasSelectedOverlay) {
-      // If other overlay products are still selected, re-apply makeup
       await _applyVirtualMakeup();
     } else {
-      // If no overlay products are selected, reset to AI recommendations
       await _resetToAIRecommendations();
     }
   }
@@ -794,7 +755,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     });
 
     try {
-      // Reset all selections
       setState(() {
         currentShades = {
           'Eyeshadow': 'Primary',
@@ -805,7 +765,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
         _lastChangedProduct = null;
       });
 
-      // Apply AI recommendations
       await _applyVirtualMakeupAutomatically({});
     } catch (e) {
       setState(() {
@@ -864,7 +823,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
       bool hasManualSelections = selectedShades.values.any((color) => color != null);
       
       if (hasManualSelections) {
-        // Use manually selected shades
         selectedShades.forEach((productType, color) {
           if (color != null) {
             String hexColor = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
@@ -872,7 +830,6 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
           }
         });
       } else {
-        // Use AI-recommended shades
         shadeHexCodes.forEach((productType, hexCodes) {
           if (hexCodes.isNotEmpty) {
             labeledShades[productType] = [hexCodes[0]];
@@ -884,9 +841,15 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
         });
       }
 
-      final imageBytes = await (_processedImage != null 
-          ? Future.value(_processedImage!) 
-          : widget.capturedImage.readAsBytes());
+      Uint8List? imageBytes;
+      if (_processedImage != null) {
+        imageBytes = _processedImage!;
+      } else if (widget.capturedImage != null) {
+        imageBytes = await widget.capturedImage!.readAsBytes();
+      } else {
+        throw Exception('No image available to save');
+      }
+
       final base64Image = base64Encode(imageBytes);
 
       final url = Uri.parse('https://glamouraika.com/api/saved_looks');
@@ -976,13 +939,10 @@ class CustomizationPageState extends State<CustomizationPage> with SingleTickerP
     );
   }
 
- // UPDATED: Build nested shade selection without remove button and without shade name labels
 Widget _buildShadeItem(Color color, int index, String productName) {
   final isSelected = selectedShades[productName] == color;
   final isPrimary = index == 0;
   final size = isPrimary ? 70.0 : 50.0;
-  
-  // Determine if this is the medium shade (index 2 in the small circles)
   final isMediumShade = index == 2;
 
   return Column(
@@ -1024,7 +984,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 border: Border.all(
                   color: isSelected ? const ui.Color.fromARGB(255, 239, 107, 157) : 
                         isPrimary ? Colors.green : 
-                        isMediumShade ? Colors.green : Colors.grey, // Green border only for medium shade
+                        isMediumShade ? Colors.green : Colors.grey,
                   width: isPrimary ? 3 : 2,
                 ),
                 boxShadow: [
@@ -1291,18 +1251,15 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         : Icon(Icons.help_outline, size: 45, color: Colors.pink[300]);
   }
 
-  // UPDATED: Clean loading indicator with completely transparent border
   Widget _buildMakeupLoadingIndicator() {
     return Stack(
       children: [
-        // Semi-transparent overlay
         Positioned.fill(
           child: Container(
             color: Colors.black.withValues(alpha: 0.4),
           ),
         ),
         
-        // Loading content
         Center(
           child: Container(
             width: MediaQuery.of(context).size.width * 0.7,
@@ -1311,7 +1268,6 @@ Widget _buildShadeItem(Color color, int index, String productName) {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Loading animation
                 LoadingAnimationWidget.flickr(
                   leftDotColor: Colors.pinkAccent,
                   rightDotColor: Colors.purpleAccent,
@@ -1320,7 +1276,6 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 
                 const SizedBox(height: 24),
                 
-                // Loading text
                 Text(
                   'Applying your makeup recommendation',
                   style: TextStyle(
@@ -1362,16 +1317,43 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         },
         child: Stack(
           children: [
-            // Background image - use current makeup image if available
             Positioned.fill(
               child: _currentMakeupImage != null
                   ? Image.memory(_currentMakeupImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
                   : (_processedImage != null
                       ? Image.memory(_processedImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
-                      : Image.file(widget.capturedImage, fit: BoxFit.cover, filterQuality: FilterQuality.high)),
+                      : (widget.capturedImage != null
+                          ? Image.file(widget.capturedImage!, fit: BoxFit.cover, filterQuality: FilterQuality.high)
+                          : Container(
+                              color: Colors.grey[300],
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.photo_camera, size: 80, color: Colors.grey[600]),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No Image Available',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Please capture an image first',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ))),
             ),
             
-            // UPDATED: Clean loading indicator with transparent border
             if (_isApplyingMakeup)
               _buildMakeupLoadingIndicator(),
             
@@ -1537,7 +1519,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
               Positioned(
                 right: 0,
                 top: MediaQuery.of(context).padding.top + 100,
-                bottom: 120, // Added bottom constraint to avoid overlapping with action buttons
+                bottom: 120,
                 child: SizedBox(
                   width: 110,
                   child: SingleChildScrollView(
@@ -1559,11 +1541,9 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                         ),
                         const SizedBox(height: 8),
                         
-                        // Always show the primary shade (big circle)
                         if (makeupShades[selectedProduct]!.isNotEmpty)
                           _buildShadeItem(makeupShades[selectedProduct]![0], 0, selectedProduct!),
                         
-                        // Show other shades when expanded (small circles)
                         if (expandedProducts[selectedProduct]! && makeupShades[selectedProduct]!.length > 1)
                           ...makeupShades[selectedProduct]!
                               .asMap()
@@ -1579,7 +1559,6 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 ),
               ),
             
-            // Action buttons at bottom - FIXED: Added proper spacing and constraints
             Positioned(
               bottom: 20,
               left: 20,
@@ -1708,7 +1687,6 @@ Widget _buildShadeItem(Color color, int index, String productName) {
               ),
             ),
 
-            // Feedback button
             if (_showHeart)
               Positioned(
                 right: 20,
