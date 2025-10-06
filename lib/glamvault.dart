@@ -8,6 +8,7 @@ import 'makeup_tips_generator.dart';
 import 'profile_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'dart:developer';
 
 void main() {
   runApp(const MyApp());
@@ -230,6 +231,8 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
+        log('Full Response Body: ${response.body}');
+
         return {
           'success': true,
           'message': responseData['message'] ?? 'Look saved successfully',
@@ -241,6 +244,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
           'message': 'Failed to save look: ${response.statusCode}',
         };
       }
+
     } catch (e) {
       return {
         'success': false,
@@ -307,251 +311,161 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
     );
   }
 
- void _showEditLookTagDialog(SavedLook look) {
-  final screenWidth = MediaQuery.of(context).size.width;
-  final isSmallScreen = screenWidth < 600;
-  final TextEditingController tagController = TextEditingController(
-    text: _lookTags[look.savedLookId] ?? look.tag ?? ''
-  );
-  final FocusNode tagFocusNode = FocusNode();
+  void _showTagOptionsDialog(SavedLook look) {
+    final String? currentTag = _lookTags[look.savedLookId] ?? look.tag;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 10,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-          ),
-          padding: EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.white, Colors.pink[50]!],
+    if (currentTag == null || currentTag.isEmpty) {
+      _showEditLookTagDialog(look);
+    } else {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Text(
-                    'Tag Your Look',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? screenWidth * 0.055 : 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.pinkAccent[700],
-                      fontFamily: 'PlayfairDisplay',
-                    ),
-                  ),
+            elevation: 10,
+            child: Container(
+              padding: EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.white, Colors.pink[50]!],
                 ),
-                SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    '"${look.makeupLookName}"',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(height: 24),
-
-                Text(
-                  'Enter Tag Name',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.pinkAccent[700],
-                  ),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.pinkAccent.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                    child: TextField(
-                    controller: tagController,
-                    focusNode: tagFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'e.g., Evening, Party, Natural...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.pinkAccent[100]!, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.pinkAccent, width: 2),
-                      ),
-                    ),
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? screenWidth * 0.045 : 18,
-                      color: Colors.black87,
-                    ),
-                    onSubmitted: (value) {
-                      if (value.trim().isNotEmpty) {
-                        _addNewTag(value.trim());
-                      }
-                    },
-                  ),
-                ),
-                SizedBox(height: 20),
-
-                Text(
-                  'Your Tags',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.pinkAccent[700],
-                  ),
-                ),
-                SizedBox(height: 8),
-                if (_availableTags.where((tag) => tag != 'All').isEmpty)
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
                     child: Text(
-                      'No tags yet. Create your first one!',
+                      'Tag Options',
                       style: TextStyle(
-                        fontSize: isSmallScreen ? screenWidth * 0.035 : 16,
-                        color: Colors.grey[500],
+                        fontSize: isSmallScreen ? screenWidth * 0.055 : 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.pinkAccent[700],
+                        fontFamily: 'PlayfairDisplay',
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      '"${look.makeupLookName}"',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
+                        color: Colors.grey[600],
                         fontStyle: FontStyle.italic,
                       ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  )
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _availableTags
-                        .where((tag) => tag != 'All')
-                        .map((tag) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.pinkAccent[100]!,
-                              Colors.pink[50]!,
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.pinkAccent.withValues(alpha: 0.2),
-                              blurRadius: 3,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min, 
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                tagController.text = tag;
-                                tagFocusNode.requestFocus();
-                              },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: Text(
-                                  tag,
-                                  style: TextStyle(
-                                    fontSize: isSmallScreen ? screenWidth * 0.035 : 13,
-                                    color: Colors.pinkAccent[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.pinkAccent[200],
-                                borderRadius: BorderRadius.only(
-                                  topRight: Radius.circular(16),
-                                  bottomRight: Radius.circular(16),
-                                ),
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.close, size: 14, color: Colors.white),
-                                padding: EdgeInsets.all(4),
-                                constraints: BoxConstraints(),
-                                onPressed: () {
-                                  final String tagToDelete = tag;
-                                  setState(() {
-                                    _availableTags.remove(tagToDelete);
-                                    _saveTags();
-                                    _lookTags.forEach((lookId, currentTag) {
-                                      if (currentTag == tagToDelete) {
-                                        _lookTags[lookId] = null;
-                                        try {
-                                          final look = savedLooks.firstWhere((l) => l.savedLookId == lookId);
-                                          look.tag = null;
-                                        } catch (e) {
-                                          debugPrint('Look with id $lookId not found in savedLooks');
-                                        }
-                                      }
-                                    });
-                                    _saveLookTags();
-                                    _groupLooksByTag();
-                                  });
-                                  if (_selectedTag == tagToDelete) {
-                                    setState(() {
-                                      _selectedTag = 'All Looks';
-                                    });
-                                  }
-                                  Navigator.pop(context);
-                                  Future.delayed(Duration(milliseconds: 100), () {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Tag "$tagToDelete" removed'),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
                   ),
-                SizedBox(height: 20),
+                  SizedBox(height: 24),
+                  
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.pink[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.pinkAccent[100]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.local_offer, color: Colors.pinkAccent, size: 20),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Current Tag: $currentTag',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? screenWidth * 0.038 : 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.pinkAccent[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 20),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showEditLookTagDialog(look);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pinkAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.edit, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'EDIT TAG',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: isSmallScreen ? screenWidth * 0.038 : 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _removeLookTag(look);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[50],
+                        foregroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.red),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete_outline, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'REMOVE TAG',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: isSmallScreen ? screenWidth * 0.038 : 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       child: Text(
                         'CANCEL',
@@ -562,46 +476,372 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
                         ),
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        final newTag = tagController.text.trim();
-                        _updateLookTag(look, newTag.isEmpty ? null : newTag);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pinkAccent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                      child: Text(
-                        'SAVE TAG',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: isSmallScreen ? screenWidth * 0.038 : 16,
-                        ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  void _removeLookTag(SavedLook look) {
+    final String? currentTag = _lookTags[look.savedLookId] ?? look.tag;
+    
+    setState(() {
+      // Remove tag from lookTags map and look object
+      _lookTags.remove(look.savedLookId);
+      look.tag = null;
+      
+      // Check if the tag is still being used by other looks
+      bool isTagStillUsed = false;
+      _lookTags.forEach((lookId, tag) {
+        if (tag == currentTag) {
+          isTagStillUsed = true;
+        }
+      });
+      
+      // If tag is not used by any other look, remove it from available tags
+      if (!isTagStillUsed && currentTag != null && currentTag.isNotEmpty) {
+        _availableTags.remove(currentTag);
+        _saveTags();
+      }
+      
+      _saveLookTags();
+      _groupLooksByTag();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Tag removed from "${look.makeupLookName}"'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _showEditLookTagDialog(SavedLook look) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final String? currentTag = _lookTags[look.savedLookId] ?? look.tag;
+    final TextEditingController tagController = TextEditingController(
+      text: currentTag ?? ''
+    );
+    final FocusNode tagFocusNode = FocusNode();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 10,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.white, Colors.pink[50]!],
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Text(
+                      currentTag == null ? 'Tag Your Look' : 'Edit Tag',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? screenWidth * 0.055 : 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.pinkAccent[700],
+                        fontFamily: 'PlayfairDisplay',
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      '"${look.makeupLookName}"',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(height: 24),
+
+                  Text(
+                    'Enter Tag Name',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.pinkAccent[700],
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.pinkAccent.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: tagController,
+                      focusNode: tagFocusNode,
+                      decoration: InputDecoration(
+                        hintText: 'e.g., Evening, Party, Natural...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.pinkAccent[100]!, width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.pinkAccent, width: 2),
+                        ),
+                      ),
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? screenWidth * 0.045 : 18,
+                        color: Colors.black87,
+                      ),
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          _addNewTag(value.trim());
+                        }
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  Text(
+                    'Your Tags',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? screenWidth * 0.04 : 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.pinkAccent[700],
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  if (_availableTags.where((tag) => tag != 'All').isEmpty)
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        'No tags yet. Create your first one!',
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? screenWidth * 0.035 : 16,
+                          color: Colors.grey[500],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _availableTags
+                          .where((tag) => tag != 'All')
+                          .map((tag) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.pinkAccent[100]!,
+                                Colors.pink[50]!,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.pinkAccent.withValues(alpha: 0.2),
+                                blurRadius: 3,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min, 
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  tagController.text = tag;
+                                  tagFocusNode.requestFocus();
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  child: Text(
+                                    tag,
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? screenWidth * 0.035 : 13,
+                                      color: Colors.pinkAccent[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.pinkAccent[200],
+                                  borderRadius: BorderRadius.only(
+                                    topRight: Radius.circular(16),
+                                    bottomRight: Radius.circular(16),
+                                  ),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.close, size: 14, color: Colors.white),
+                                  padding: EdgeInsets.all(4),
+                                  constraints: BoxConstraints(),
+                                  onPressed: () {
+                                    final String tagToDelete = tag;
+                                    _removeTagFromAllLooks(tagToDelete);
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'CANCEL',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? screenWidth * 0.038 : 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          final newTag = tagController.text.trim();
+                          _updateLookTag(look, newTag.isEmpty ? null : newTag, currentTag);
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pinkAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: Text(
+                          currentTag == null ? 'SAVE TAG' : 'UPDATE TAG',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isSmallScreen ? screenWidth * 0.038 : 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
-  void _updateLookTag(SavedLook look, String? newTag) {
+  void _removeTagFromAllLooks(String tagToDelete) {
     setState(() {
+      // Remove tag from available tags
+      _availableTags.remove(tagToDelete);
+      _saveTags();
+      
+      // Remove this tag from all looks
+      _lookTags.forEach((lookId, currentTag) {
+        if (currentTag == tagToDelete) {
+          _lookTags[lookId] = null;
+          try {
+            final look = savedLooks.firstWhere((l) => l.savedLookId == lookId);
+            look.tag = null;
+          } catch (e) {
+            debugPrint('Look with id $lookId not found in savedLooks');
+          }
+        }
+      });
+      
+      _saveLookTags();
+      _groupLooksByTag();
+    });
+    
+    if (_selectedTag == tagToDelete) {
+      setState(() {
+        _selectedTag = 'All Looks';
+      });
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Tag "$tagToDelete" removed from all looks'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _updateLookTag(SavedLook look, String? newTag, String? oldTag) {
+    setState(() {
+      // If changing from one tag to another, handle the old tag cleanup
+      if (oldTag != null && oldTag.isNotEmpty && newTag != null && newTag.isNotEmpty && oldTag != newTag) {
+        // Check if old tag is still being used by other looks
+        bool isOldTagStillUsed = false;
+        _lookTags.forEach((lookId, currentTag) {
+          if (currentTag == oldTag && lookId != look.savedLookId) {
+            isOldTagStillUsed = true;
+          }
+        });
+        
+        // If old tag is not used by any other look, remove it from available tags
+        if (!isOldTagStillUsed) {
+          _availableTags.remove(oldTag);
+          _saveTags();
+        }
+      }
+      
+      // Update the tag
       if (newTag == null) {
         _lookTags.remove(look.savedLookId);
       } else {
         _lookTags[look.savedLookId] = newTag;
         
+        // Add new tag to available tags if it doesn't exist
         if (!_availableTags.contains(newTag)) {
           _availableTags.add(newTag);
           _saveTags();
@@ -613,9 +853,19 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
       _saveLookTags();
       _groupLooksByTag();
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(newTag == null 
+          ? 'Tag removed from "${look.makeupLookName}"'
+          : 'Tag updated to "$newTag" for "${look.makeupLookName}"'
+        ),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
-  
   Widget _buildLookCard(SavedLook look, double screenWidth, bool isSmallScreen) {
     final isRecentlyAdded = _isLookRecentlyAdded(look.savedLookId);
     final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
@@ -637,7 +887,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
                   ),
                   child: Stack(
                     children: [
-                      _buildLookImage(lookImages[look.savedLookId], screenWidth),
+                      _buildLookImage(look.savedLookId, screenWidth),
                       if (lookTag != null && lookTag.isNotEmpty)
                         Positioned(
                           top: 8,
@@ -722,7 +972,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
             ),
             child: IconButton(
               icon: Icon(Icons.edit, size: isSmallScreen ? screenWidth * 0.04 : 16),
-              onPressed: () => _showEditLookTagDialog(look),
+              onPressed: () => _showTagOptionsDialog(look),
               padding: EdgeInsets.zero,
               constraints: BoxConstraints(
                 minWidth: isSmallScreen ? screenWidth * 0.06 : 24,
@@ -816,9 +1066,23 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
                     Expanded(
                       child: isLoading
                           ? Center(
-                              child: LoadingAnimationWidget.staggeredDotsWave(
-                                color: Colors.pinkAccent,
-                                size: isSmallScreen ? 50 : 60,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  LoadingAnimationWidget.staggeredDotsWave(
+                                    color: Colors.pinkAccent,
+                                    size: isSmallScreen ? 50 : 60,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Please wait a moment...',
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? screenWidth * 0.04 : 16,
+                                      color: Colors.pinkAccent[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             )
                           : Column(
@@ -997,91 +1261,92 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
     return slivers;
   }
 
- List<Widget> _buildFilteredLooks(double screenWidth, bool isSmallScreen) {
-  List<SavedLook> filteredLooks;
-  
-  if (_selectedTag == 'All') {
-    filteredLooks = savedLooks.where((look) {
-      final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
-      return lookTag == null || lookTag.isEmpty;
-    }).toList();
-  } else if (_selectedTag == 'All Looks') {
-    filteredLooks = savedLooks.where((look) {
-      final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
-      return lookTag == null || lookTag.isEmpty;
-    }).toList();
-  } else if (_selectedTag == 'Tagged Looks') {
-    filteredLooks = savedLooks.where((look) {
-      final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
-      return lookTag != null && lookTag.isNotEmpty;
-    }).toList();
-  } else {
-    filteredLooks = savedLooks.where((look) {
-      final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
-      return lookTag == _selectedTag;
-    }).toList();
-  }
-
-  filteredLooks.sort((a, b) {
-    final bool aIsRecent = _isLookRecentlyAdded(a.savedLookId);
-    final bool bIsRecent = _isLookRecentlyAdded(b.savedLookId);
+  List<Widget> _buildFilteredLooks(double screenWidth, bool isSmallScreen) {
+    List<SavedLook> filteredLooks;
     
-    if (aIsRecent && !bIsRecent) {
-      return -1;
-    } else if (!aIsRecent && bIsRecent) {
-      return 1;
-    } else if (aIsRecent && bIsRecent) {
-      return _recentlyAddedLooks[b.savedLookId]!.compareTo(_recentlyAddedLooks[a.savedLookId]!);
-    } else {
-      return b.capturedDate.compareTo(a.capturedDate);
-    }
-  });
-
-  if (filteredLooks.isEmpty) {
-    String emptyMessage;
-    if (_selectedTag == 'All Looks') {
-      emptyMessage = 'No untagged looks!';
+    if (_selectedTag == 'All') {
+      filteredLooks = savedLooks.where((look) {
+        final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
+        return lookTag == null || lookTag.isEmpty;
+      }).toList();
+    } else if (_selectedTag == 'All Looks') {
+      filteredLooks = savedLooks.where((look) {
+        final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
+        return lookTag == null || lookTag.isEmpty;
+      }).toList();
     } else if (_selectedTag == 'Tagged Looks') {
-      emptyMessage = 'No tagged looks';
+      filteredLooks = savedLooks.where((look) {
+        final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
+        return lookTag != null && lookTag.isNotEmpty;
+      }).toList();
     } else {
-      emptyMessage = 'No looks with tag "$_selectedTag"';
+      filteredLooks = savedLooks.where((look) {
+        final String? lookTag = _lookTags[look.savedLookId] ?? look.tag;
+        return lookTag == _selectedTag;
+      }).toList();
     }
-    
-    return [
-      SliverFillRemaining(
-        child: Center(
-          child: Text(
-            emptyMessage,
-            style: TextStyle(
-              fontSize: isSmallScreen ? screenWidth * 0.045 : 18,
+
+    filteredLooks.sort((a, b) {
+      final bool aIsRecent = _isLookRecentlyAdded(a.savedLookId);
+      final bool bIsRecent = _isLookRecentlyAdded(b.savedLookId);
+      
+      if (aIsRecent && !bIsRecent) {
+        return -1;
+      } else if (!aIsRecent && bIsRecent) {
+        return 1;
+      } else if (aIsRecent && bIsRecent) {
+        return _recentlyAddedLooks[b.savedLookId]!.compareTo(_recentlyAddedLooks[a.savedLookId]!);
+      } else {
+        return b.capturedDate.compareTo(a.capturedDate);
+      }
+    });
+
+    if (filteredLooks.isEmpty) {
+      String emptyMessage;
+      if (_selectedTag == 'All Looks') {
+        emptyMessage = 'No untagged looks!';
+      } else if (_selectedTag == 'Tagged Looks') {
+        emptyMessage = 'No tagged looks';
+      } else {
+        emptyMessage = 'No looks with tag "$_selectedTag"';
+      }
+      
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Text(
+              emptyMessage,
+              style: TextStyle(
+                fontSize: isSmallScreen ? screenWidth * 0.045 : 18,
+              ),
             ),
           ),
+        ),
+      ];
+    }
+
+    return [
+      SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: (screenWidth > 600) ? 3 : 2,
+          crossAxisSpacing: screenWidth * 0.02,
+          mainAxisSpacing: screenWidth * 0.02,
+          childAspectRatio: isSmallScreen ? 0.7 : 0.75,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final look = filteredLooks[index];
+            return GestureDetector(
+              onTap: () => _navigateToLookDetails(look),
+              child: _buildLookCard(look, screenWidth, isSmallScreen),
+            );
+          },
+          childCount: filteredLooks.length,
         ),
       ),
     ];
   }
 
-  return [
-    SliverGrid(
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: (screenWidth > 600) ? 3 : 2,
-        crossAxisSpacing: screenWidth * 0.02,
-        mainAxisSpacing: screenWidth * 0.02,
-        childAspectRatio: isSmallScreen ? 0.7 : 0.75,
-      ),
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final look = filteredLooks[index];
-          return GestureDetector(
-            onTap: () => _navigateToLookDetails(look),
-            child: _buildLookCard(look, screenWidth, isSmallScreen),
-          );
-        },
-        childCount: filteredLooks.length,
-      ),
-    ),
-  ];
-}
   Future<void> _fetchSavedLooks() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1098,20 +1363,14 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
             final look = SavedLook.fromJson(lookData);
             loadedLooks.add(look);
 
-            if (look.imageData != null) {
-              final processedImage = await _processAndCacheImage(
-                look.savedLookId, 
-                look.imageData!,
-                prefs
-              );
-              lookImages[look.savedLookId] = processedImage;
-            }
-
+            await _loadLocalImageForLook(look.savedLookId, prefs);
             await _fetchShadesForLook(look.savedLookId);
           } catch (e) {
             debugPrint('Error processing look ${lookData['saved_look_id']}: $e');
           }
         }
+
+        loadedLooks.sort((a, b) => b.capturedDate.compareTo(a.capturedDate));
 
         setState(() {
           savedLooks = loadedLooks;
@@ -1128,6 +1387,24 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading saved looks: $e')),
       );
+    }
+  }
+
+  Future<void> _loadLocalImageForLook(int lookId, SharedPreferences prefs) async {
+    try {
+      final imageKey = 'look_image_$lookId';
+      final cachedImage = prefs.getString(imageKey);
+      
+      if (cachedImage != null) {
+        final imageBytes = base64Decode(cachedImage);
+        setState(() {
+          lookImages[lookId] = imageBytes;
+        });
+      } else {
+        debugPrint('No local image found for look $lookId');
+      }
+    } catch (e) {
+      debugPrint('Error loading local image for look $lookId: $e');
     }
   }
 
@@ -1153,10 +1430,33 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
 
       if (response['success']) {
         if (response['look_id'] != null) {
-          _markLookAsRecentlyAdded(int.parse(response['look_id'].toString()));
+          final lookId = int.parse(response['look_id'].toString());
+          _markLookAsRecentlyAdded(lookId);
+          
+          if (imageBytes != null) {
+            await _saveImageToLocalStorage(lookId, imageBytes);
+          }
+          
+          final newLook = SavedLook(
+            savedLookId: lookId,
+            makeupLookName: lookName,
+            capturedDate: DateTime.now(),
+            tag: tag,
+          );
+          
+          setState(() {
+            savedLooks.insert(0, newLook);
+            _groupLooksByTag();
+          });
+
+          if (imageBytes != null) {
+            setState(() {
+              lookImages[lookId] = imageBytes;
+            });
+          }
+          
+          await _fetchShadesForLook(lookId);
         }
-        
-        await _fetchSavedLooks();
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response['message'] ?? 'Look saved successfully')),
@@ -1173,36 +1473,18 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
     }
   }
 
-  Future<Uint8List?> _processAndCacheImage(
-    int lookId, 
-    String imageData, 
-    SharedPreferences prefs
-  ) async {
+  Future<void> _saveImageToLocalStorage(int lookId, Uint8List imageBytes) async {
     try {
-      final cachedKey = 'look_image_$lookId';
-      final cachedImage = prefs.getString(cachedKey);
+      final prefs = await SharedPreferences.getInstance();
+      final imageKey = 'look_image_$lookId';
+      final base64Image = base64Encode(imageBytes);
+      await prefs.setString(imageKey, base64Image);
       
-      if (cachedImage != null) {
-        try {
-          return base64Decode(cachedImage);
-        } catch (e) {
-          debugPrint('Failed to decode cached image for look $lookId: $e');
-          await prefs.remove(cachedKey);
-        }
-      }
-
-      Uint8List? imageBytes;
-      if (imageData.startsWith('data:image')) {
-        final base64String = imageData.split(',').last;
-        imageBytes = base64Decode(base64String);
-      } else {
-        imageBytes = base64Decode(imageData);
-      }
-
-      return imageBytes;
+      setState(() {
+        lookImages[lookId] = imageBytes;
+      });
     } catch (e) {
-      debugPrint('Error processing image for look $lookId: $e');
-      return null;
+      debugPrint('Error saving image to local storage: $e');
     }
   }
 
@@ -1217,21 +1499,6 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
         setState(() {
           lookShades[savedLookId] = Map<String, dynamic>.from(data['shades']);
         });
-
-        if (data['image_data'] != null) {
-          final prefs = await SharedPreferences.getInstance();
-          final imageBytes = await _processAndCacheImage(
-            savedLookId,
-            data['image_data'],
-            prefs
-          );
-          
-          if (imageBytes != null) {
-            setState(() {
-              lookImages[savedLookId] = imageBytes;
-            });
-          }
-        }
       }
     } catch (e) {
       debugPrint('Error loading shades for look $savedLookId: $e');
@@ -1257,7 +1524,9 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
     );
   }
 
-  Widget _buildLookImage(Uint8List? imageBytes, double screenWidth) {
+  Widget _buildLookImage(int lookId, double screenWidth) {
+    final imageBytes = lookImages[lookId];
+    
     if (imageBytes == null || imageBytes.isEmpty) {
       return _buildPlaceholder(screenWidth);
     }
@@ -1298,10 +1567,22 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
     return Container(
       color: Colors.grey[200],
       child: Center(
-        child: Icon(
-          Icons.photo_library,
-          size: screenWidth * 0.1,
-          color: Colors.grey,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            LoadingAnimationWidget.staggeredDotsWave(
+              color: Colors.pinkAccent,
+              size: screenWidth * 0.1,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Please wait a moment...',
+              style: TextStyle(
+                fontSize: screenWidth * 0.035,
+                color: Colors.pinkAccent[700],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1336,14 +1617,12 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
 class SavedLook {
   final int savedLookId;
   final String makeupLookName;
-  final String? imageData;
   final DateTime capturedDate;
   String? tag;
 
   SavedLook({
     required this.savedLookId,
     required this.makeupLookName,
-    this.imageData,
     required this.capturedDate,
     this.tag,
   });
@@ -1355,11 +1634,18 @@ class SavedLook {
       try {
         if (date is String) {
           try {
-            return DateFormat("MMMM dd, yyyy").parse(date);
+            return DateTime.parse(date).toLocal();
           } catch (e) {
             try {
-              return DateTime.parse(date).toLocal();
-            } catch (e) {
+              final dateParts = date.split(' ');
+              if (dateParts.length >= 5) {
+                final parseableDate = '${dateParts[1]} ${dateParts[2]} ${dateParts[3]} ${dateParts[4]}';
+                return DateFormat('dd MMM yyyy HH:mm:ss').parse(parseableDate).toLocal();
+              } else {
+                debugPrint('Unexpected date format: $date');
+                return DateTime.now().toLocal();
+              }
+            } catch (e2) {
               debugPrint('Failed to parse date string: $date');
               return DateTime.now().toLocal();
             }
@@ -1376,8 +1662,7 @@ class SavedLook {
     return SavedLook(
       savedLookId: json['saved_look_id'],
       makeupLookName: json['makeup_look_name'],
-      imageData: json['image_data'],
-      capturedDate: parseCapturedDate(json['created_at'] ?? json['saved_date']),
+      capturedDate: parseCapturedDate(json['created_at'] ?? json['saved_date'] ?? json['captured_date']),
       tag: json['tag'],
     );
   }
@@ -1386,6 +1671,7 @@ class SavedLook {
     return DateFormat('MMMM dd, yyyy').format(capturedDate);
   }
 }
+
 class LookDetailsScreen extends StatefulWidget {
   final SavedLook look;
   final Map<String, dynamic> shades;
@@ -1411,11 +1697,24 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
   bool _showTipsBox = false;
   String? _currentProductName;
   String? _currentTip;
+  bool _isImageLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadFaceShape();
+    // Simulate image loading delay
+    if (widget.imageBytes != null) {
+      Future.delayed(Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _isImageLoading = false;
+          });
+        }
+      });
+    } else {
+      _isImageLoading = false;
+    }
   }
 
   @override
@@ -1508,7 +1807,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Main content container - centered properly
               Container(
                 constraints: BoxConstraints(
                   minWidth: MediaQuery.of(context).size.width * 0.8,
@@ -1532,7 +1830,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Larger color visualization - properly centered
                     Container(
                       width: 200, 
                       height: 200, 
@@ -1576,7 +1873,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                     
                     const SizedBox(height: 25), 
                     
-                    // Only show shade name if it's not empty
                     if (shadeName.isNotEmpty) ...[
                       SizedBox(
                         width: double.infinity,
@@ -1596,7 +1892,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                       const SizedBox(height: 8), 
                     ],
                     
-                    // Only show shade type if it's not empty
                     if (shadeType.isNotEmpty) ...[
                       SizedBox(
                         width: double.infinity,
@@ -1617,7 +1912,6 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                 ),
               ),
               
-              // X button positioned properly
               Positioned(
                 top: 10,
                 right: 10,
@@ -1734,79 +2028,91 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     return rows;
   }
 
-Widget _buildProductCard(String productName, List<dynamic> shades) {
-  final selectedShade = shades.firstWhere(
-    (shade) => shade['is_selected'] == true,
-    orElse: () => null,
-  );
-  final isSmallScreen = screenWidth < 600;
+  Widget _buildProductCard(String productName, List<dynamic> shades) {
+    final selectedShade = shades.firstWhere(
+      (shade) => shade['is_selected'] == true,
+      orElse: () => null,
+    );
+    final isSmallScreen = screenWidth < 600;
 
-  return GestureDetector(
-    onTap: () => toggleTipsBox(productName),
-    child: Container(
-      margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.015),
-      padding: EdgeInsets.all(screenWidth * 0.03),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            productName,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
-              fontFamily: 'PlayfairDisplay',
+    return GestureDetector(
+      onTap: () => toggleTipsBox(productName),
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.015),
+        padding: EdgeInsets.all(screenWidth * 0.03),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.2),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          
-          if (selectedShade != null)
-            Padding(
-              padding: EdgeInsets.only(bottom: screenHeight * 0.008, top: screenHeight * 0.005),
-              child: Text(
-                'Selected: ${selectedShade['shade_name']}',
-                style: TextStyle(
-                  fontSize: isSmallScreen ? screenWidth * 0.03 : 12,
-                  color: Colors.green[800],
-                  fontStyle: FontStyle.italic,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              productName,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
+                fontFamily: 'PlayfairDisplay',
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            
+            if (selectedShade != null)
+              Padding(
+                padding: EdgeInsets.only(bottom: screenHeight * 0.008, top: screenHeight * 0.005),
+                child: Text(
+                  'Selected: ${selectedShade['shade_name']}',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? screenWidth * 0.03 : 12,
+                    color: Colors.green[800],
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
+            
+            SizedBox(
+              height: screenWidth * 0.09,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: shades.map((shade) => _buildShadeChip(shade)).toList(),
+              ),
             ),
-          
-          SizedBox(
-            height: screenWidth * 0.09,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: shades.map((shade) => _buildShadeChip(shade)).toList(),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildPlaceholder() {
     final isSmallScreen = screenWidth < 600;
     return Container(
       color: Colors.grey[200],
       child: Center(
-        child: Icon(
-          Icons.photo_library,
-          size: isSmallScreen ? screenWidth * 0.1 : 40,
-          color: Colors.grey,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            LoadingAnimationWidget.staggeredDotsWave(
+              color: Colors.pinkAccent,
+              size: isSmallScreen ? 40 : 50,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Please wait a moment...',
+              style: TextStyle(
+                fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
+                color: Colors.pinkAccent[700],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1826,7 +2132,7 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
               size: isSmallScreen ? screenWidth * 0.1 : 40,
             ),
             Text(
-              'Invalid image',
+              'No local image',
               style: TextStyle(
                 color: Colors.red,
                 fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
@@ -1979,15 +2285,17 @@ Widget _buildProductCard(String productName, List<dynamic> shades) {
                   child: SizedBox(
                     height: safeScreenHeight * 0.4,
                     width: double.infinity,
-                    child: widget.imageBytes != null
-                        ? Image.memory(
-                            widget.imageBytes!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildErrorPlaceholder();
-                            },
-                          )
-                        : _buildPlaceholder(),
+                    child: _isImageLoading
+                        ? _buildPlaceholder()
+                        : (widget.imageBytes != null
+                            ? Image.memory(
+                                widget.imageBytes!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return _buildErrorPlaceholder();
+                                },
+                              )
+                            : _buildPlaceholder()),
                   ),
                 ),
                 SizedBox(height: safeScreenHeight * 0.025),

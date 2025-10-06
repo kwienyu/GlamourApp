@@ -49,7 +49,6 @@ class LoginScreenState extends State<LoginScreen> {
       } else if (response.statusCode == 401) {
         _showErrorMessage('Invalid credentials. Please try again.');
       } else if (response.statusCode == 403) {
-        // Handle unverified email case
         _showVerificationSentDialog(responseBody['message']);
       } else {
         _showErrorMessage(responseBody['message'] ?? 'Login failed. Please try again later.');

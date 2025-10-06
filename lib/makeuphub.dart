@@ -46,8 +46,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
     super.initState();
     userSkinTone = widget.skinTone;
     _capturedImage = widget.capturedImage;
-    
-    // Load data if not provided via props
     if (userSkinTone == null) {
       _fetchUserSkinTone();
     }
@@ -74,7 +72,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
             _capturedImage = imageFile;
           });
         } else {
-          // Remove invalid path from shared preferences
           await prefs.remove('last_captured_image_path');
         }
       }
@@ -164,7 +161,7 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                       ),
                     ),
                   
-                  // Show warning if no image found - ONLY SHOW PROBLEMS
+                  // Show warning if no image found 
                   if (!isLoadingImage && _capturedImage == null)
                     Container(
                       margin: const EdgeInsets.all(16),
@@ -204,8 +201,7 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                       ),
                     ),
                   
-                  // REMOVED: The success message for captured image
-                  
+                  // REMOVED: The success message for captured image           
                   Align(
                     alignment: Alignment.topLeft,
                     child: const Text(
@@ -419,7 +415,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
           try {
             final userId = widget.userId ?? await getUserId();
             if (userId != null) {
-              // Create user data object with real user data
               final userData = {
                 'success': true,
                 'user_id': userId,

@@ -50,7 +50,9 @@ class FaceShapesWidget extends StatefulWidget {
 }
 
 class FaceShapesWidgetState extends State<FaceShapesWidget> {
+  Map<String, String>? _selectedShape;
   int? _selectedIndex;
+  final PageController _pageController = PageController();
 
   final faceShapes = [
     {
@@ -85,10 +87,29 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
     },
   ];
 
-  void _onShapeTap(int index) {
+  void _onShapeTap(Map<String, String> shape, int index) {
     setState(() {
+      _selectedShape = shape;
       _selectedIndex = index;
     });
+    _pageController.animateToPage(
+      index,
+      duration: Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _selectedShape = faceShapes[index];
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -97,13 +118,9 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
         final screenHeight = constraints.maxHeight;
-        
-        // Dynamic sizing based on screen dimensions
         final bool isSmallScreen = screenWidth < 350;
         final bool isLargeScreen = screenWidth > 600;
         final bool isLandscape = screenWidth > screenHeight;
-        
-        // Responsive values - Increased icon size
         final double basePadding = isSmallScreen ? 8.0 : 12.0;
         final double iconSize = isLandscape 
             ? screenHeight * 0.14
@@ -131,7 +148,6 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
           body: SafeArea(
             child: Column(
               children: [
-                // Title Section
                 Padding(
                   padding: EdgeInsets.all(basePadding * 1.5),
                   child: FadeTransitionWidget(
@@ -146,9 +162,8 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: basePadding * 0.5),
-                        // Swipe Instruction Text
                         Text(
-                          'Click on a face shape icon to view details',
+                          'Swipe or tap the icon to explore different face shapes',
                           style: TextStyle(
                             fontSize: fontSizeDescription * 0.8,
                             color: Colors.grey[600],
@@ -160,8 +175,6 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                     ),
                   ),
                 ),
-
-                // Face Shape Icons - Horizontal Scrollable if needed
                 SizedBox(
                   height: isLandscape ? screenHeight * 0.28 : screenHeight * 0.22,
                   child: SingleChildScrollView(
@@ -178,7 +191,7 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                           return Container(
                             margin: EdgeInsets.symmetric(horizontal: basePadding),
                             child: GestureDetector(
-                              onTap: () => _onShapeTap(index),
+                              onTap: () => _onShapeTap(shape, index),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -248,11 +261,120 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                     ),
                   ),
                 ),
-
-                // Content Section - Flexible to use remaining space
                 Expanded(
-                  child: _selectedIndex == null
-                      ? Center(
+                  child: _selectedShape != null
+                      ? Column(
+                          children: [
+                            if (isLargeScreen || isLandscape) ...[
+                              Padding(
+                                padding: EdgeInsets.symmetric(vertical: basePadding),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    if (_selectedIndex! > 0)
+                                      IconButton(
+                                        icon: Icon(Icons.arrow_back_ios, color: Colors.pinkAccent),
+                                        onPressed: () {
+                                          _onShapeTap(faceShapes[_selectedIndex! - 1], _selectedIndex! - 1);
+                                        },
+                                      )
+                                    else
+                                      SizedBox(width: 48),
+                                    if (_selectedIndex! < faceShapes.length - 1)
+                                      IconButton(
+                                        icon: Icon(Icons.arrow_forward_ios, color: Colors.pinkAccent),
+                                        onPressed: () {
+                                          _onShapeTap(faceShapes[_selectedIndex! + 1], _selectedIndex! + 1);
+                                        },
+                                      )
+                                    else
+                                      SizedBox(width: 48),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            
+                            Expanded(
+                              child: PageView(
+                                controller: _pageController,
+                                onPageChanged: _onPageChanged,
+                                children: faceShapes.map((shape) {
+                                  return SingleChildScrollView(
+                                    padding: EdgeInsets.all(basePadding * 2),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        // Image
+                                        SizedBox(
+                                          width: displayImageSize,
+                                          height: displayImageSize,
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: BetterImage(
+                                              image: AssetImage(shape['image']!),
+                                              width: displayImageSize,
+                                              height: displayImageSize,
+                                            ),
+                                          ),
+                                        ),
+                                        
+                                        // Reduced spacing between image and text
+                                        SizedBox(height: basePadding),
+                                        
+                                        // Shape Name
+                                        Text(
+                                          shape['name']!,
+                                          style: TextStyle(
+                                            fontSize: fontSizeName,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        
+                                        SizedBox(height: basePadding * 0.3),
+                                        
+                                        // Description - Now positioned closer to the image
+                                        Container(
+                                          width: displayImageSize,
+                                          padding: EdgeInsets.symmetric(horizontal: basePadding * 0.5),
+                                          child: Text(
+                                            shape['description']!,
+                                            style: TextStyle(
+                                              fontSize: fontSizeDescription,
+                                              fontWeight: FontWeight.normal,
+                                            ),
+                                            textAlign: TextAlign.justify,
+                                          ),
+                                        ),
+                                        
+                                        SizedBox(height: basePadding * 2),
+                                        
+                                        // Mobile Swipe Indicator
+                                        if (!isLargeScreen && !isLandscape) 
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.swipe, color: Colors.grey, size: fontSizeDescription * 1.2),
+                                              SizedBox(width: basePadding),
+                                              Text(
+                                                'Swipe to explore',
+                                                style: TextStyle(
+                                                  fontSize: fontSizeDescription * 0.9,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Center(
                           child: Padding(
                             padding: EdgeInsets.all(basePadding * 3),
                             child: Column(
@@ -270,59 +392,6 @@ class FaceShapesWidgetState extends State<FaceShapesWidget> {
                                 ),
                               ],
                             ),
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          padding: EdgeInsets.all(basePadding * 2),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Image
-                              SizedBox(
-                                width: displayImageSize,
-                                height: displayImageSize,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: BetterImage(
-                                    image: AssetImage(faceShapes[_selectedIndex!]['image']!),
-                                    width: displayImageSize,
-                                    height: displayImageSize,
-                                  ),
-                                ),
-                              ),
-                              
-                              // Reduced spacing between image and text
-                              SizedBox(height: basePadding),
-                              
-                              // Shape Name
-                              Text(
-                                faceShapes[_selectedIndex!]['name']!,
-                                style: TextStyle(
-                                  fontSize: fontSizeName,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              
-                              SizedBox(height: basePadding * 0.3),
-                              
-                              // Description - Now positioned closer to the image
-                              Container(
-                                width: displayImageSize,
-                                padding: EdgeInsets.symmetric(horizontal: basePadding * 0.5),
-                                child: Text(
-                                  faceShapes[_selectedIndex!]['description']!,
-                                  style: TextStyle(
-                                    fontSize: fontSizeDescription,
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                  textAlign: TextAlign.justify,
-                                ),
-                              ),
-                              
-                              SizedBox(height: basePadding * 3),
-                            ],
                           ),
                         ),
                 ),

@@ -156,9 +156,8 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                           textAlign: TextAlign.center,
                         ),
                         SizedBox(height: basePadding * 0.5),
-                        // Swipe Instruction Text
                         Text(
-                          'Swipe left/right to explore different skin tones',
+                          'Swipe or tap the icon to explore different skin tones',
                           style: TextStyle(
                             fontSize: fontSizeDescription * 0.8,
                             color: Colors.grey[600],
@@ -170,8 +169,6 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                     ),
                   ),
                 ),
-
-                // Skin Tone Icons - Horizontal Scrollable
                 SizedBox(
                   height: isLandscape ? screenHeight * 0.28 : screenHeight * 0.22,
                   child: SingleChildScrollView(
@@ -258,13 +255,10 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                     ),
                   ),
                 ),
-
-                // Content Section - Flexible to use remaining space
                 Expanded(
                   child: _selectedShape != null
                       ? Column(
                           children: [
-                            // Swipe Navigation Arrows (for larger screens)
                             if (isLargeScreen || isLandscape) ...[
                               Padding(
                                 padding: EdgeInsets.symmetric(vertical: basePadding),

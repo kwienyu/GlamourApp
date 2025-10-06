@@ -79,6 +79,20 @@ class CameraPageState extends State<CameraPage> {
   bool _shouldSkipFrame = false;
   Completer<void>? _currentFrameCompleter;
 
+  // Notification system for user feedback
+  String? _currentNotification;
+  Timer? _notificationTimer;
+  bool _showNotification = false;
+  int _repeatedCountdownCancellations = 0;
+  DateTime? _lastCountdownCancelTime;
+  double _lowLightThreshold = 0.2;
+  double _poorLightThreshold = 0.3;
+
+  // Countdown reset tracking
+  int _countdownResetCount = 0;
+  DateTime? _lastCountdownResetTime;
+  bool _showCountdownResetMessage = false;
+
   @override
   void initState() {
     super.initState();
@@ -106,17 +120,180 @@ class CameraPageState extends State<CameraPage> {
     });
   }
 
-  void _initializeFaceDetector() {
-    final options = FaceDetectorOptions(
-      performanceMode: FaceDetectorMode.fast,
-      enableContours: false,
-      enableClassification: false,
-      enableLandmarks: true,
-      enableTracking: true,
-      minFaceSize: 0.3,
-    );
-    _faceDetector = FaceDetector(options: options);
+  // Show notification method with simple elegant design
+  void _showUserNotification(String message, {Duration duration = const Duration(seconds: 4)}) {
+    if (!mounted) return;
+    
+    setState(() {
+      _currentNotification = message;
+      _showNotification = true;
+    });
+
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer(duration, () {
+      if (mounted) {
+        setState(() {
+          _showNotification = false;
+          _currentNotification = null;
+        });
+      }
+    });
   }
+
+  // Analyze why countdown keeps resetting
+  void _analyzeCountdownIssues() {
+    final now = DateTime.now();
+    
+    // Check for repeated countdown cancellations
+    if (_lastCountdownCancelTime != null && 
+        now.difference(_lastCountdownCancelTime!).inSeconds < 5) {
+      _repeatedCountdownCancellations++;
+    } else {
+      _repeatedCountdownCancellations = 1;
+    }
+    
+    _lastCountdownCancelTime = now;
+
+    // Track countdown resets for showing specific messages
+    if (_lastCountdownResetTime != null && 
+        now.difference(_lastCountdownResetTime!).inSeconds < 10) {
+      _countdownResetCount++;
+    } else {
+      _countdownResetCount = 1;
+    }
+    _lastCountdownResetTime = now;
+
+    // Show countdown reset message if it happens multiple times
+    if (_countdownResetCount >= 2 && !_showCountdownResetMessage) {
+      _showCountdownResetMessage = true;
+      _showUserNotification(
+        'Countdown keeps resetting\nEnsure good lighting and hold still',
+        duration: Duration(seconds: 5)
+      );
+      
+      // Reset after showing the message
+      Future.delayed(Duration(seconds: 6), () {
+        if (mounted) {
+          setState(() {
+            _showCountdownResetMessage = false;
+          });
+        }
+      });
+    }
+
+    // Show notifications based on the issue
+    if (_repeatedCountdownCancellations >= 2) {
+      if (!_isFaceDetected) {
+        _showUserNotification(
+          'No face detected\nPosition face in oval',
+          duration: Duration(seconds: 4)
+        );
+      } 
+      else if (!_isFaceInFrame) {
+        _showUserNotification(
+          'Face not properly framed\nMove face inside oval',
+          duration: Duration(seconds: 4)
+        );
+      }
+      else if (_isFaceMoving) {
+        _showUserNotification(
+          'Please hold still\nFace movement detected',
+          duration: Duration(seconds: 4)
+        );
+      }
+      else if (!_isFaceCentered) {
+        _showUserNotification(
+          'Center your face\nAlign in the oval',
+          duration: Duration(seconds: 4)
+        );
+      }
+      else if (_lightLevel < _lowLightThreshold) {
+        _showUserNotification(
+          'Low light detected\nMove to brighter area',
+          duration: Duration(seconds: 4)
+        );
+      }
+      else if (_lightLevel < _poorLightThreshold) {
+        _showUserNotification(
+          'Poor lighting\nImprove light conditions',
+          duration: Duration(seconds: 4)
+        );
+      }
+      else {
+        _showUserNotification(
+          'Face detection issue\nCheck position & lighting',
+          duration: Duration(seconds: 4)
+        );
+      }
+    }
+  }
+
+  // Check lighting conditions and notify user
+  void _checkLightingConditions() {
+    if (_lightLevel < _lowLightThreshold) {
+      _showUserNotification(
+        'Very dark environment\nTurn on more lights',
+        duration: Duration(seconds: 4)
+      );
+    } else if (_lightLevel < _poorLightThreshold) {
+      _showUserNotification(
+        'Dim lighting detected\nBetter light improves accuracy',
+        duration: Duration(seconds: 4)
+      );
+    } else if (_lightLevel > 0.8) {
+      _showUserNotification(
+        'Too bright\nAvoid direct light on face',
+        duration: Duration(seconds: 4)
+      );
+    }
+  }
+  void _handleApiError(dynamic e) {
+    String errorMessage = 'An unexpected error occurred\nPlease try again';
+    
+    if (e is TimeoutException) {
+      errorMessage = 'Connection timeout\nCheck internet connection';
+    } else if (e is SocketException) {
+      errorMessage = 'No internet connection\nCheck network settings';
+    } else if (e is http.ClientException) {
+      errorMessage = 'Network error\nCheck connection';
+    } else if (e.toString().contains('Failed host lookup')) {
+      errorMessage = 'Cannot connect to server\nCheck internet connection';
+    } else if (e.toString().contains('face_shape') || e.toString().contains('skin_tone')) {
+      errorMessage = 'No face shape detected\nTry again with better lighting';
+    } else {
+      errorMessage = e.toString();
+    }
+    
+    if (mounted) {
+      ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorMessage,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          backgroundColor: Colors.red.shade600,
+          duration: Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _initializeFaceDetector() {
+  final options = FaceDetectorOptions(
+    performanceMode: FaceDetectorMode.fast,
+    enableContours: false,
+    enableClassification: false,
+    enableLandmarks: true,
+    enableTracking: true,
+    minFaceSize: 0.3,
+  );
+  _faceDetector = FaceDetector(options: options);
+}
 
   @override
   void dispose() {
@@ -125,6 +302,7 @@ class CameraPageState extends State<CameraPage> {
     _faceCheckTimer?.cancel();
     _countdownTimer?.cancel();
     _warningTimer?.cancel();
+    _notificationTimer?.cancel();
     _controller?.dispose();
     _faceDetector?.close();
     _isTakingPicture = false;
@@ -211,6 +389,9 @@ class CameraPageState extends State<CameraPage> {
       _isCountingDown = false;
       _countdownSeconds = 3;
     });
+    
+    // Analyze why countdown was cancelled
+    _analyzeCountdownIssues();
   }
 
   Future<void> _analyzeLightingAndConfidence(File imageFile) async {
@@ -253,6 +434,9 @@ class CameraPageState extends State<CameraPage> {
       }
       
       _lightLevel = totalLuminance / pixelCount;
+      
+      // Check lighting conditions and notify user
+      _checkLightingConditions();
       
       // Calculate lighting quality score (0-100%)
       double lightingScore = 0.0;
@@ -468,7 +652,7 @@ class CameraPageState extends State<CameraPage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pink.withValues(alpha: 0.2),
+                      color: Colors.pink.withOpacity(0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -525,7 +709,7 @@ class CameraPageState extends State<CameraPage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Colors.white.withOpacity(0.8),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
@@ -611,120 +795,121 @@ class CameraPageState extends State<CameraPage> {
     });
   }
 
-  void _checkFacePosition() async {
-    if (_controller == null || 
-        !_controller!.value.isInitialized || 
-        _isProcessingFrame || 
-        _isProcessing || 
-        _capturedImage != null ||
-        _isTakingPicture ||
-        _hasCaptured ||
-        _shouldSkipFrame) {
-      return;
-    }
-
-    final now = DateTime.now();
-    if (_lastFrameProcessTime != null && 
-        now.difference(_lastFrameProcessTime!).inMilliseconds < _minFrameIntervalMs) {
-      return;
-    }
-
-    try {
-      _isProcessingFrame = true;
-      _lastFrameProcessTime = now;
-      
-      final frame = await _controller!.takePicture();
-      final inputImage = InputImage.fromFilePath(frame.path);
-      final faces = await _faceDetector!.processImage(inputImage);
-      
-      unawaited(File(frame.path).delete());
-
-      if (!mounted) return;
-
-      setState(() {
-        if (faces.isEmpty) {
-          print("DEBUG: No face detected - WHITE");
-          _isFaceDetected = false;
-          _isFaceInFrame = false;
-          _isFaceMoving = false;
-          _isFaceCentered = false;
-          _ovalColor = Colors.white;
-          if (_isCountingDown) {
-            _cancelCountdown();
-          }
-        } else {
-          final face = faces.first;
-          final faceRect = face.boundingBox;
-          
-          final isFaceCovered = _isFaceCovered(face);
-          final isFaceInOval = _isFaceInOval(faceRect);
-          final isCentered = isFaceCenteredInOval(faceRect);
-          final isAligned = checkFaceAlignment(face);
-          
-          _isFaceDetected = true;
-          _isFaceInFrame = isFaceInOval && !isFaceCovered;
-          
-          _checkFaceStability(faceRect);
-          _isFaceMoving = !_isFaceStable;
-          
-          _isFaceCentered = isCentered && isAligned && !isFaceCovered && _isFaceStable;
-          
-          print("DEBUG: FaceInOval: $isFaceInOval, Centered: $isCentered, Aligned: $isAligned, Stable: $_isFaceStable, Moving: $_isFaceMoving");
-          
-          if (!_isFaceDetected || !isFaceInOval) {
-            print("DEBUG: Setting WHITE - Face not in oval");
-            _ovalColor = Colors.white;
-            if (_isCountingDown) {
-              _cancelCountdown();
-            }
-          } 
-          else if (isFaceInOval && (!isCentered || !isAligned)) {
-            print("DEBUG: Setting RED - Face not centered/aligned");
-            _ovalColor = Colors.red;
-            if (_isCountingDown) {
-              _cancelCountdown();
-            }
-          }
-          else if (_isFaceMoving) {
-            print("DEBUG: Setting ORANGE - Face moving");
-            _ovalColor = Colors.orange;
-            if (_isCountingDown) {
-              _cancelCountdown();
-            }
-          }
-          else if (isCentered && isAligned && _isFaceStable && !isFaceCovered) {
-            print("DEBUG: Setting GREEN - Perfect position");
-            _ovalColor = Colors.green;
-            if (!_isCountingDown && !_hasCaptured) {
-              _startCountdown();
-            }
-          }
-          else {
-            print("DEBUG: Setting WHITE - Fallback");
-            _ovalColor = Colors.white;
-            if (_isCountingDown) {
-              _cancelCountdown();
-            }
-          }
-        }
-      });
-    } catch (e) {
-      print('Face detection error: $e');
-      if (mounted) {
-        setState(() {
-          _isFaceStable = false;
-          _ovalColor = Colors.white;
-          if (_isCountingDown) {
-            _cancelCountdown();
-          }
-        });
-      }
-    } finally {
-      _isProcessingFrame = false;
-    }
+ void _checkFacePosition() async {
+  if (_controller == null || 
+      !_controller!.value.isInitialized || 
+      _isProcessingFrame || 
+      _isProcessing || 
+      _capturedImage != null ||
+      _isTakingPicture ||
+      _hasCaptured ||
+      _shouldSkipFrame) {
+    return;
   }
 
-  bool _isFaceGoodEnough(Face face, Rect faceRect) {
+  final now = DateTime.now();
+  if (_lastFrameProcessTime != null && 
+      now.difference(_lastFrameProcessTime!).inMilliseconds < _minFrameIntervalMs) {
+    return;
+  }
+
+  try {
+    _isProcessingFrame = true;
+    _lastFrameProcessTime = now;
+    
+    final frame = await _controller!.takePicture();
+    final inputImage = InputImage.fromFilePath(frame.path);
+    final faces = await _faceDetector!.processImage(inputImage);
+    
+    unawaited(File(frame.path).delete());
+
+    if (!mounted) return;
+
+    setState(() {
+      if (faces.isEmpty) {
+        print("DEBUG: No face detected - WHITE");
+        _isFaceDetected = false;
+        _isFaceInFrame = false;
+        _isFaceMoving = false;
+        _isFaceCentered = false;
+        _ovalColor = Colors.white;
+        if (_isCountingDown) {
+          _cancelCountdown();
+        }
+      } else {
+        final face = faces.first;
+        final faceRect = face.boundingBox;
+        
+        final isFaceCovered = _isFaceCovered(face);
+        final isFaceInOval = _isFaceInOval(faceRect);
+        final isCentered = isFaceCenteredInOval(faceRect);
+        final isAligned = checkFaceAlignment(face);
+        
+        _isFaceDetected = true;
+        _isFaceInFrame = isFaceInOval && !isFaceCovered;
+        
+        _checkFaceStability(faceRect);
+        _isFaceMoving = !_isFaceStable;
+        
+        _isFaceCentered = isCentered && isAligned && !isFaceCovered && _isFaceStable;
+        
+        print("DEBUG: FaceInOval: $isFaceInOval, Centered: $isCentered, Aligned: $isAligned, Stable: $_isFaceStable, Moving: $_isFaceMoving");
+        
+        // ✅ UPDATED: Clear color logic
+        if (!_isFaceInFrame) {
+          print("DEBUG: Setting RED - Face detected but not in oval frame");
+          _ovalColor = Colors.red;
+          if (_isCountingDown) {
+            _cancelCountdown();
+          }
+        } 
+        else if (_isFaceMoving) {
+          print("DEBUG: Setting ORANGE - Face moving");
+          _ovalColor = Colors.orange;
+          if (_isCountingDown) {
+            _cancelCountdown();
+          }
+        }
+        else if (!_isFaceCentered) {
+          print("DEBUG: Setting RED - Face in frame but not centered/aligned");
+          _ovalColor = Colors.red;
+          if (_isCountingDown) {
+            _cancelCountdown();
+          }
+        }
+        else if (_isFaceCentered) {
+          print("DEBUG: Setting GREEN - Perfect position");
+          _ovalColor = Colors.green;
+          if (!_isCountingDown && !_hasCaptured) {
+            _startCountdown();
+          }
+        }
+        else {
+          print("DEBUG: Setting WHITE - Fallback");
+          _ovalColor = Colors.white;
+          if (_isCountingDown) {
+            _cancelCountdown();
+          }
+        }
+      }
+    });
+  } catch (e) {
+    print('Face detection error: $e');
+    if (mounted) {
+      setState(() {
+        _isFaceStable = false;
+        _ovalColor = Colors.white;
+        if (_isCountingDown) {
+          _cancelCountdown();
+        }
+      });
+    }
+  } finally {
+    _isProcessingFrame = false;
+  }
+}
+
+  bool isFaceGoodEnough(Face face, Rect faceRect) {
     if (_isFaceCovered(face)) {
       return false;
     }
@@ -1035,7 +1220,7 @@ class CameraPageState extends State<CameraPage> {
 
       final processedImage = await _processImageForAI(imageFile);
       
-      // ✅ ADDED: Save the captured image path to SharedPreferences
+      // Save the captured image path to SharedPreferences
       await _saveCapturedImagePath(processedImage.path);
       
       setState(() {
@@ -1046,23 +1231,20 @@ class CameraPageState extends State<CameraPage> {
       
     } catch (e) {
       print("Auto capture error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
+      _handleApiError(e); // Use improved error handling
     } finally {
       _shouldSkipFrame = false;
       if (mounted) {
         setState(() {
           _isTakingPicture = false; 
           _isProcessing = false;
+          _hasCaptured = false; // Reset capture state on error
         });
       }
     }
   }
 
-  // ✅ ADDED: New method to save captured image path to SharedPreferences
+  // New method to save captured image path to SharedPreferences
   Future<void> _saveCapturedImagePath(String imagePath) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1072,6 +1254,7 @@ class CameraPageState extends State<CameraPage> {
       print('Error saving captured image path: $e');
     }
   }
+
   Future<File> _processImageForAI(File originalImage) async {
     try {
       final originalBytes = await originalImage.readAsBytes();
@@ -1140,8 +1323,20 @@ class CameraPageState extends State<CameraPage> {
         final responseData = await response.stream.bytesToString();
         final jsonResponse = json.decode(responseData);
 
+        // Improved handling for no face shape/skin tone detection
         if (jsonResponse['face_shape'] == null || jsonResponse['skin_tone'] == null) {
-          throw Exception('Could not detect face shape and skin tone. Please try again with a clearer photo.');
+          setState(() {
+            _isLoading = false;
+            _showResults = true;
+            _faceShape = "Not detected";
+            _skinTone = "Not detected";
+          });
+          
+          _showUserNotification(
+            'No face shape detected\nTry again with better lighting',
+            duration: Duration(seconds: 5)
+          );
+          return;
         }
 
         setState(() {
@@ -1172,7 +1367,7 @@ class CameraPageState extends State<CameraPage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.pink.withValues(alpha: 0.2),
+                        color: Colors.pink.withOpacity(0.2),
                         blurRadius: 20,
                         spreadRadius: 5,
                       ),
@@ -1242,23 +1437,22 @@ class CameraPageState extends State<CameraPage> {
                                   vertical: 12,
                                 ),
                                 elevation: 3,
-                              ),
-                              child: const Text(
-                                "GOT IT",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
+                            ),
+                            child: const Text(
+                              "GOT IT",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    ]
                 ),
-              );
+              ));
             },
           );
         }
@@ -1269,11 +1463,7 @@ class CameraPageState extends State<CameraPage> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
+      _handleApiError(e); // Use improved error handling
     }
   }
 
@@ -1335,6 +1525,21 @@ class CameraPageState extends State<CameraPage> {
     } else {
       return 'Perfect position! Photo will be taken automatically';
     }
+  }
+
+  // Helper methods for elegant notification formatting
+  String _getNotificationTitle(String fullMessage) {
+    if (fullMessage.contains('\n')) {
+      return fullMessage.split('\n')[0];
+    }
+    return 'Face Detection';
+  }
+
+  String _getNotificationMessage(String fullMessage) {
+    if (fullMessage.contains('\n')) {
+      return fullMessage.split('\n')[1];
+    }
+    return fullMessage;
   }
 
   @override
@@ -1426,10 +1631,86 @@ class CameraPageState extends State<CameraPage> {
                   ],
                 ),
 
+             // UPDATED: Simple elegant notification banner placed slightly lower
+if (_showNotification && _currentNotification != null)
+  Positioned(
+    top: MediaQuery.of(context).padding.top + screenHeight * 0.15, // Changed from 0.12 to 0.15
+    left: 20,
+    right: 20,
+    child: AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: Colors.white,
+            size: 18,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getNotificationTitle(_currentNotification!),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  _getNotificationMessage(_currentNotification!),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close_rounded, color: Colors.white, size: 16),
+            onPressed: () {
+              setState(() {
+                _showNotification = false;
+                _currentNotification = null;
+              });
+              _notificationTimer?.cancel();
+            },
+            padding: EdgeInsets.zero,
+            constraints: BoxConstraints(minWidth: 30),
+          ),
+        ],
+      ),
+    ),
+  ),
+
               if (_showWarningMessage && _capturedImage == null)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.85),
+                    color: Colors.black.withOpacity(0.85),
                     child: Center(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(20),
@@ -1452,7 +1733,7 @@ class CameraPageState extends State<CameraPage> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.pink.withValues(alpha: 0.4),
+                                    color: Colors.pink.withOpacity(0.4),
                                     blurRadius: 20,
                                     spreadRadius: 5,
                                   ),
@@ -1484,7 +1765,7 @@ class CameraPageState extends State<CameraPage> {
                               "Please ensure the following:",
                               style: TextStyle(
                                 fontSize: screenWidth * 0.045,
-                                color: Colors.white.withValues(alpha: 0.8),
+                                color: Colors.white.withOpacity(0.8),
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
@@ -1494,10 +1775,10 @@ class CameraPageState extends State<CameraPage> {
                             Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
+                                color: Colors.white.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
+                                  color: Colors.white.withOpacity(0.2),
                                   width: 1,
                                 ),
                               ),
@@ -1543,7 +1824,7 @@ class CameraPageState extends State<CameraPage> {
                                 "Tap anywhere or wait 5 seconds to continue",
                                 style: TextStyle(
                                   fontSize: screenWidth * 0.035,
-                                  color: Colors.white.withValues(alpha: 0.7),
+                                  color: Colors.white.withOpacity(0.7),
                                   fontStyle: FontStyle.italic,
                                 ),
                                 textAlign: TextAlign.center,
@@ -1558,7 +1839,7 @@ class CameraPageState extends State<CameraPage> {
                               height: 4,
                               width: screenWidth * 0.6,
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.3),
+                                color: Colors.white.withOpacity(0.3),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                               child: Stack(
@@ -1647,10 +1928,10 @@ class CameraPageState extends State<CameraPage> {
                   child: Container(
                     padding: EdgeInsets.all(screenWidth * 0.03),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
+                      color: Colors.black.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _ovalColor.withValues(alpha: 0.8),
+                        color: _ovalColor.withOpacity(0.8),
                         width: 2,
                       ),
                     ),
@@ -1665,7 +1946,7 @@ class CameraPageState extends State<CameraPage> {
                         Text(
                           'Detailed Status:',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.white.withOpacity(0.8),
                             fontSize: screenWidth * 0.03,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1696,7 +1977,7 @@ class CameraPageState extends State<CameraPage> {
                           _getStatusMessage(),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.white.withOpacity(0.9),
                             fontSize: screenWidth * 0.03,
                             fontStyle: FontStyle.italic,
                           ),
@@ -1719,7 +2000,7 @@ class CameraPageState extends State<CameraPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
+            color: Colors.white.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -1746,7 +2027,7 @@ class CameraPageState extends State<CameraPage> {
                 description,
                 style: TextStyle(
                   fontSize: screenWidth * 0.035,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: Colors.white.withOpacity(0.7),
                 ),
               ),
             ],
@@ -1766,7 +2047,7 @@ class CameraPageState extends State<CameraPage> {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.pink.withValues(alpha: 0.3),
+              color: Colors.pink.withOpacity(0.3),
               blurRadius: 10,
               spreadRadius: 2,
               offset: const Offset(0, 4),
@@ -1804,7 +2085,7 @@ class CameraPageState extends State<CameraPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // ✅ This will now work because the image path is saved in SharedPreferences
+                  // This will now work because the image path is saved in SharedPreferences
                   Navigator.push(
                     _scaffoldContext,
                     MaterialPageRoute(
@@ -1863,7 +2144,7 @@ class DashedOvalPainter extends CustomPainter {
     
     final Rect ovalRect = Rect.fromCenter(center: center, width: width, height: height);
 
-    final backgroundPaint = Paint()..color = Colors.black.withValues(alpha: 0.5);
+    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.5);
     canvas.drawRect(Offset.zero & size, backgroundPaint);
 
     final clipPath = Path()..addOval(ovalRect);
@@ -1890,7 +2171,7 @@ class DashedOvalPainter extends CustomPainter {
             color: ovalColor,
             shadows: [
               Shadow(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: Colors.black.withOpacity(0.5),
                 blurRadius: 10,
                 offset: const Offset(2, 2),
               ),
@@ -1940,9 +2221,9 @@ class _GlitterPainter extends CustomPainter {
       final radius = random.nextDouble() * 1.5 + 0.5;
       final opacity = random.nextDouble() * 0.7 + 0.3;
       
-      paint.color = Colors.white.withValues(alpha: opacity);
+      paint.color = Colors.white.withOpacity(opacity);
       if (random.nextBool()) {
-        paint.color = Colors.pink.shade200.withValues(alpha: opacity);
+        paint.color = Colors.pink.shade200.withOpacity(opacity);
       }
       
       canvas.drawCircle(Offset(x, y), radius, paint);

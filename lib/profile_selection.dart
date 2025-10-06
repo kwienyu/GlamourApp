@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'makeup_artistform.dart';
 import 'package:intl/intl.dart';
 import 'apicall_recommendation.dart';
 import 'help_desk.dart';
@@ -269,49 +268,50 @@ class ProfileSelectionState extends State<ProfileSelection> {
     );
   }
 
-  Widget _buildDrawer() {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Colors.pinkAccent),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                GestureDetector(
-                  onTap: _pickProfileImage,
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        backgroundImage: _getProfileImage(),
-                        child: profilePic == null
-                            ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.pinkAccent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            color: Colors.white,
-                            size: 16,
-                          ),
+ Widget _buildDrawer() {
+  return Drawer(
+    child: ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        DrawerHeader(
+          decoration: const BoxDecoration(color: Colors.pinkAccent),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: _pickProfileImage,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      backgroundImage: _getProfileImage(),
+                      child: profilePic == null
+                          ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.pinkAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 16,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Column(
+              ),
+              const SizedBox(width: 16),
+              Expanded( // Added Expanded to prevent overflow
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -327,90 +327,112 @@ class ProfileSelectionState extends State<ProfileSelection> {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
+                            maxLines: 2, // Allow name to wrap to second line
+                            overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 4), // Added spacing
                           Text(
                             email ?? 'Loading...',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
                             ),
+                            maxLines: 2, // Allow email to wrap
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          if (username != null)
+                          if (username != null) ...[
+                            const SizedBox(height: 2),
                             Text(
                               '@$username',
                               style: const TextStyle(
                                 color: Colors.white,
-                              fontSize: 12,
+                                fontSize: 12,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          if (gender != null || age != null)
+                          ],
+                          if (gender != null || age != null) ...[
+                            const SizedBox(height: 2),
                             Text(
                               '${gender ?? ''} ${age != null ? '• $age years old' : ''}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ],
                         ],
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Face Analysis',
-              style: TextStyle(
-                color: const Color.fromARGB(255, 9, 9, 9),
-                fontWeight: FontWeight.bold,
               ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Face Analysis',
+            style: TextStyle(
+              color: const Color.fromARGB(255, 9, 9, 9),
+              fontWeight: FontWeight.bold,
             ),
           ),
-          ListTile(
-            title: const Text('Face Shape'),
-            subtitle: Text(faceShape ?? 'Not analyzed yet'),
+        ),
+        ListTile(
+          title: const Text('Face Shape'),
+          subtitle: Text(
+            faceShape ?? 'Not analyzed yet',
+            maxLines: 2, 
+            overflow: TextOverflow.ellipsis,
           ),
-          ListTile(
-            title: const Text('Skin Tone'),
-            subtitle: Text(skinTone ?? 'Not analyzed yet'),
+        ),
+        ListTile(
+          title: const Text('Skin Tone'),
+          subtitle: Text(
+            skinTone ?? 'Not analyzed yet',
+            maxLines: 2, 
+            overflow: TextOverflow.ellipsis,
           ),
-          const Divider(),
-          
-          ListTile(
-            title: const Text('Settings'),
-            onTap: () {},
-          ),
-          
-          ListTile(
-            title: const Text('Help Desk & Support'),
-            leading: const Icon(Icons.help_outline),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HelpDeskScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.description),
-            title: const Text('Terms and Conditions'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TermsAndConditionsPage(),
-                ),
-              );
-            },
-          ),
-        ], 
-      ), 
-    ); 
-  }
+        ),
+        const Divider(),
+        
+        ListTile(
+          title: const Text('Settings'),
+          onTap: () {},
+        ),
+        
+        ListTile(
+          title: const Text('Help Desk & Support'),
+          leading: const Icon(Icons.help_outline),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const HelpDeskScreen()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.description),
+          title: const Text('Terms and Conditions'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TermsAndConditionsPage(),
+              ),
+            );
+          },
+        ),
+      ], 
+    ), 
+  ); 
+}
 
   String _getFullName() {
     String fullName = name ?? '';
@@ -622,12 +644,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
               .animate()
               .fadeIn(delay: 300.ms)
               .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MakeupArtistForm(userId: int.parse(widget.userId)),
-            ),
-          ),
+          onPressed: null,
         ),
       ],
     );
@@ -788,11 +805,11 @@ Widget _buildProfileCards(BuildContext context) {
             .animate()
             .fadeIn(delay: 300.ms)
             .scaleXY(begin: 0.8, end: 1),
-            _buildProfileCard(context, Icons.auto_awesome, "Recommendation For You", MakeupHubPage(
+        _buildProfileCard(context, Icons.auto_awesome, "Recommendation For You", MakeupHubPage(
               skinTone: skinTone,
               userId: widget.userId,
             )) 
-            .animate()
+            .animate() 
             .fadeIn(delay: 400.ms)
             .scaleXY(begin: 0.8, end: 1),
         _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) 
@@ -1247,12 +1264,8 @@ Widget _buildRecommendationContent() {
           ),
         ),
         const SizedBox(height: 16),
-
-        // 1. Your Beauty Profile
         _buildBeautyProfileBox(),
         const SizedBox(height: 24),
-
-        // 2. Most Popular Look (if available)
         if (_recommendation!.overallMostPopularLook != null) ...[
           const Text(
             '🌟 Most Popular Look',
@@ -1268,7 +1281,6 @@ Widget _buildRecommendationContent() {
         ],
 
         if (hasValidAnalysis && hasSavedData) ...[
-          // 3. Top Looks by Type
           if (_recommendation!.topMakeupLooksByType.isNotEmpty) ...[
             const Text(
               'Top Looks by Type',
@@ -1282,8 +1294,7 @@ Widget _buildRecommendationContent() {
             _buildTopLooksByTypeSection(),
             const SizedBox(height: 24),
           ],
-          
-          // 4. Most Used Looks
+        
           if (_recommendation!.mostUsedSavedLooks.isNotEmpty) ...[
             const Text(
               'Most Used Looks',
@@ -1297,11 +1308,10 @@ Widget _buildRecommendationContent() {
             ..._recommendation!.mostUsedSavedLooks
                 .take(3)
                 .map(_buildLookCard)
-                .toList(),
+                ,
             const SizedBox(height: 24),
           ],
           
-          // 5. Most Used Makeup Shades
           if (_hasSavedShades()) ...[
             const Text(
               'Most Used Makeup Shades',
@@ -1322,22 +1332,17 @@ Widget _buildRecommendationContent() {
   );
 }
 
-// Updated method to build Top Looks by Type section - simplified UI
 Widget _buildTopLooksByTypeSection() {
-  // Group by makeup type and get the top look (highest usage) for each type
   final Map<String, MakeupLook> topLooksByType = {};
   
   for (var look in _recommendation!.topMakeupLooksByType) {
     final currentType = look.makeupType;
-    
-    // If this type doesn't exist yet, or if current look has higher usage count
     if (!topLooksByType.containsKey(currentType) || 
         look.usageCount > topLooksByType[currentType]!.usageCount) {
       topLooksByType[currentType] = look;
     }
   }
   
-  // Convert to list and sort by usage count (descending)
   final topLooks = topLooksByType.values.toList()
     ..sort((a, b) => b.usageCount.compareTo(a.usageCount));
   
@@ -1387,7 +1392,6 @@ Widget _buildTopLooksByTypeSection() {
   );
 }
 
-// Simplified _buildMakeupTypeCard using old UI style
 Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
   return Container(
     margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -1408,7 +1412,6 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Simple header with icon only
             Row(
               children: [
                 Container(
@@ -1438,7 +1441,7 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
             
             // Look name with "Look" text added
             Text(
-              '${makeupLook.lookName} Look', // Added "Look" here
+              '${makeupLook.lookName} Look', 
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -1446,8 +1449,6 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
               ),
             ),
             const SizedBox(height: 24),
-            
-            // Rest of the code remains the same...
             if (makeupLook.shadesByType.isNotEmpty) ...[
               ...makeupLook.shadesByType.entries.map((entry) {
                 final productType = entry.key;
@@ -1806,7 +1807,7 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          '${look.lookName} Look', // Added "Look" here
+                          '${look.lookName} Look', 
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -1826,7 +1827,6 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
               ),
             ],
           ),
-          // Rest of the code remains the same...
           const SizedBox(height: 16),
           Row(
             children: [
@@ -1842,7 +1842,7 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
             // Show top three shades for each product type in the most popular look
             ...look.shadesByType.entries.map((entry) {
               final category = entry.key;
-              final shades = entry.value.take(3).toList(); // Top 3 shades
+              final shades = entry.value.take(3).toList(); 
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1893,7 +1893,7 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${look.lookName} Look', // Added "Look" here
+            '${look.lookName} Look', 
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
