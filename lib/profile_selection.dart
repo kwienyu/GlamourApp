@@ -6,15 +6,19 @@ import 'faceshapes.dart';
 import 'skintone.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:math';
 import 'package:intl/intl.dart';
 import 'apicall_recommendation.dart';
 import 'help_desk.dart';
 import 'terms_and_conditions.dart'; 
 import 'makeuphub.dart';
+import 'login_screen.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 class MakeupShade {
   final String shadeId;
@@ -171,8 +175,9 @@ class MakeupRecommendationService {
 }
 
 class ProfileSelection extends StatefulWidget {
-  final String userId;
-  const ProfileSelection({super.key, required this.userId});
+  final String? userId; // Make userId optional
+  
+  const ProfileSelection({super.key, this.userId});
 
   @override
   ProfileSelectionState createState() => ProfileSelectionState();
@@ -188,7 +193,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
   String? suffix;
   String? faceShape;
   String? skinTone;
-  dynamic profilePic;
+  String? profilePic;
   String? email;
   String? username;
   String? gender;
@@ -204,15 +209,80 @@ class ProfileSelectionState extends State<ProfileSelection> {
   String _recommendationError = '';
 
   final recommendationServiceOld = ApiCallRecommendation();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  late Future<SharedPreferences> _sharedPrefs;
+  bool _isCheckingAuth = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfileData().then((_) {
-      if (_hasValidAnalysis()) {
-        _loadRecommendations();
+    _sharedPrefs = SharedPreferences.getInstance();
+    _initializeUserData();
+  }
+
+  Future<void> _initializeUserData() async {
+    try {
+      // Check if we have a valid user ID
+      String? effectiveUserId = widget.userId;
+      
+      // If no userId provided, check shared preferences
+      if (effectiveUserId == null || effectiveUserId.isEmpty) {
+        final prefs = await _sharedPrefs;
+        effectiveUserId = prefs.getString('user_id');
       }
-    });
+
+      // If still no user ID, redirect to login
+      if (effectiveUserId == null || effectiveUserId.isEmpty) {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
+      // Verify token is still valid
+      final token = await _secureStorage.read(key: 'auth_token');
+      if (token == null || token.isEmpty) {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
+      // Set loading complete and fetch profile data
+      setState(() {
+        _isCheckingAuth = false;
+      });
+
+      await _fetchProfileData(effectiveUserId);
+      
+      if (_hasValidAnalysis()) {
+        _loadRecommendations(effectiveUserId);
+      }
+      
+    } catch (e) {
+      print('Error initializing user data: $e');
+      if (mounted) {
+        setState(() {
+          _isCheckingAuth = false;
+        });
+        // Redirect to login on error
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
+
+    // Hide welcome bubble after delay
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) setState(() => showBubble = false);
     });
@@ -227,7 +297,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
            faceShape != "Not Available";
   }
 
-  Future<void> _loadRecommendations() async {
+  Future<void> _loadRecommendations(String userId) async {
     if (!_hasValidAnalysis()) return;
 
     setState(() {
@@ -237,7 +307,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
 
     try {
       final response = await _recommendationService.getFullRecommendation(
-        userId: widget.userId,
+        userId: userId,
         timeFilter: 'all',
       );
 
@@ -259,14 +329,37 @@ class ProfileSelectionState extends State<ProfileSelection> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
+@override
+Widget build(BuildContext context) {
+  // Show loading screen while checking authentication
+  if (_isCheckingAuth) {
     return Scaffold(
-      appBar: _buildAppBar(context),
-      drawer: _buildDrawer(),
-      body: _buildBody(context),
+      backgroundColor: Colors.pinkAccent,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/glam_logo.png',
+              height: 100,
+            ),
+            const SizedBox(height: 20),
+            LoadingAnimationWidget.staggeredDotsWave(
+              color: Colors.pinkAccent,
+              size: 50,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
+  return Scaffold(
+    appBar: _buildAppBar(context),
+    drawer: _buildDrawer(),
+    body: _buildBody(context),
+  );
+}
 
  Widget _buildDrawer() {
   return Drawer(
@@ -286,7 +379,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
                       radius: 40,
                       backgroundColor: Colors.white,
                       backgroundImage: _getProfileImage(),
-                      child: profilePic == null
+                      child: profilePic == null && _selectedProfileImage == null
                           ? const Icon(Icons.person, size: 40, color: Colors.grey)
                           : null,
                     ),
@@ -310,7 +403,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded( // Added Expanded to prevent overflow
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -327,17 +420,17 @@ class ProfileSelectionState extends State<ProfileSelection> {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
-                            maxLines: 2, // Allow name to wrap to second line
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4), // Added spacing
+                          const SizedBox(height: 4),
                           Text(
                             email ?? 'Loading...',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
                             ),
-                            maxLines: 2, // Allow email to wrap
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (username != null) ...[
@@ -429,6 +522,13 @@ class ProfileSelectionState extends State<ProfileSelection> {
             );
           },
         ),
+        
+        const Divider(),
+        ListTile(
+          leading: const Icon(Icons.logout, color: Colors.red),
+          title: const Text('Log Out', style: TextStyle(color: Colors.red)),
+          onTap: _showLogoutConfirmation,
+        ),
       ], 
     ), 
   ); 
@@ -450,23 +550,18 @@ class ProfileSelectionState extends State<ProfileSelection> {
     final cachedImage = prefs.getString('profile_pic');
 
     if (cachedImage != null && cachedImage.isNotEmpty && cachedImage != "null") {
-      try {
-        String base64Str = cachedImage;
-        if (base64Str.startsWith('data:image')) {
-          base64Str = base64Str.split(',').last;
-        }
-
-        Uint8List imageBytes = base64Decode(base64Str);
-
-        if (imageBytes.isNotEmpty) {
-          setState(() {
-            profilePic = imageBytes;
-          });
-        }
-      } catch (e) {
-        debugPrint("Error loading cached image: $e");
-      }
+      setState(() {
+        profilePic = _getFullImageUrl(cachedImage);
+      });
     }
+  }
+
+  String _getFullImageUrl(String path) {
+    if (path.startsWith('http')) return path;
+    if (path.startsWith('/')) {
+      return 'https://glamouraika.com$path';
+    }
+    return 'https://glamouraika.com/static/$path';
   }
 
   void _setErrorState() {
@@ -485,11 +580,11 @@ class ProfileSelectionState extends State<ProfileSelection> {
     });
   }
 
-  Future<void> _fetchProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userid = prefs.getString('user_id');
+  Future<void> _fetchProfileData(String userId) async {
+    final prefs = await _sharedPrefs;
+    final userid = prefs.getString('user_id') ?? userId;
 
-    if (userid == null || userid.isEmpty) {
+    if (userid.isEmpty) {
       _setErrorState();
       return;
     }
@@ -502,19 +597,10 @@ class ProfileSelectionState extends State<ProfileSelection> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        String? base64Image = data['profile_pic'];
-        Uint8List? imageBytes;
-
-        if (base64Image != null && base64Image.isNotEmpty) {
-          try {
-            if (base64Image.startsWith('data:image')) {
-              base64Image = base64Image.split(',').last;
-            }
-            imageBytes = base64Decode(base64Image);
-            await prefs.setString('user_profile_base64', base64Image);
-          } catch (e) {
-            debugPrint("Image decoding error: $e");
-          }
+        String? profilePicPath = data['profile_pic'];
+        
+        if (profilePicPath != null && profilePicPath.isNotEmpty && profilePicPath != "null") {
+          profilePicPath = _getFullImageUrl(profilePicPath);
         }
 
         setState(() {
@@ -523,7 +609,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
           suffix = data['suffix'] ?? "";
           faceShape = data['face_shape'] ?? "Not Available";
           skinTone = data['skin_tone'] ?? "Not Available";
-          profilePic = imageBytes;
+          profilePic = profilePicPath;
           email = data['email'] ?? "Not available";
           username = data['username'];
           gender = data['gender'] ?? "Not specified";
@@ -558,8 +644,10 @@ class ProfileSelectionState extends State<ProfileSelection> {
   Future<void> _updateProfilePicture() async {
     if (_selectedProfileImage == null) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('user_id') ?? widget.userId;
+    final prefs = await _sharedPrefs;
+    final userId = prefs.getString('user_id') ?? widget.userId ?? '';
+
+    if (userId.isEmpty) return;
 
     var request = http.MultipartRequest(
       'POST',
@@ -576,10 +664,25 @@ class ProfileSelectionState extends State<ProfileSelection> {
     try {
       final response = await request.send();
       if (response.statusCode == 200) {
+        final responseBody = await response.stream.bytesToString();
+        final responseData = jsonDecode(responseBody);
+        
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile picture updated successfully')),
         );
-        await _fetchProfileData();
+        
+        if (responseData['profile'] != null && responseData['profile']['profile_pic'] != null) {
+          final newProfilePic = responseData['profile']['profile_pic'];
+          setState(() {
+            profilePic = _getFullImageUrl(newProfilePic);
+          });
+        }
+        
+        await _fetchProfileData(userId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update profile picture')),
+        );
       }
     } catch (e) {
       debugPrint('Error updating profile picture: $e');
@@ -595,12 +698,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
     }
     if (profilePic == null) return null;
     
-    if (profilePic is Uint8List) {
-      return MemoryImage(profilePic as Uint8List);
-    } else if (profilePic is String) {
-      return NetworkImage(profilePic as String);
-    }
-    return null;
+    return NetworkImage(profilePic!);
   }
 
   int? calculateAge(String? dobString) {
@@ -620,178 +718,354 @@ class ProfileSelectionState extends State<ProfileSelection> {
     }
   }
 
- AppBar _buildAppBar(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return AppBar(
-      backgroundColor: Colors.pinkAccent,
-      elevation: 0,
-      title: Image.asset(
-        'assets/glam_logo.png',
-        height: screenHeight * 0.10,
-        fit: BoxFit.contain,
-      )
-          .animate()
-          .fadeIn(duration: 500.ms)
-          .slide(begin: Offset(0, -0.5), end: Offset.zero, duration: 500.ms),
-      centerTitle: true,
-      actions: [
-        IconButton(
-          icon: Image.asset(
-            'assets/facscan_icon.gif',
-            height: screenHeight * 0.05,
-          )
-              .animate()
-              .fadeIn(delay: 300.ms)
-              .slide(begin: Offset(-0.5, 0), end: Offset.zero),
-          onPressed: null,
-        ),
-      ],
-    );
+  Future<void> _logout() async {
+    try {
+      await LoginScreenState.logout();
+      
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint('Logout error: $e');
+      _showErrorSnackBar('Logout failed. Please try again.');
+    }
   }
 
-  Widget _buildBody(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return SingleChildScrollView(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: screenHeight,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                _buildCurvedBackground(screenHeight),
-                _buildMainContent(context),
-              ],
+void _showLogoutConfirmation() {
+  showDialog(
+    context: context,
+    barrierColor: const Color(0xB3000000),
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF4F7),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0x4D9C4D6F),
+                    blurRadius: 35,
+                    spreadRadius: 3,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Simple icon without animations
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE91E63),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0x66E91E63),
+                            blurRadius: 15,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 28),
+                    
+                    Text(
+                      'Ready to Leave?',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF7E4A71),
+                        fontFamily: 'PlayfairDisplay',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    const Text(
+                      'Are you sure you want to log out?\nYou\'ll need to sign in again to access your beauty profile and recommendations.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF9E8296),
+                        height: 1.5,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: const BorderSide(
+                                  color: Color(0xFFE0E0E0),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: const Color(0xFF7E4A71),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 16),
+                        
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _logout();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE91E63),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Log Out',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(
+                                  Icons.logout_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-            _buildCategoriesSection(context),
-            _buildRecommendationsSection(), 
-          ],
+          ),
         ),
+      );
+    },
+  );
+}
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
       ),
     );
   }
-  
-  Widget _buildCurvedBackground(double screenHeight) {
-    return Stack(
-      children: [
-        ClipPath(
-          clipper: ElegantTopCurveClipper (),
-          child: Container(
-            height: screenHeight * 0.22,
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.pinkAccent.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-          ),
-        ).animate().fadeIn(duration: 300.ms),
-        ClipPath(
-          clipper: ElegantTopCurveClipper (),
-          child: Container(
-            height: screenHeight * 0.22,
-            decoration: const BoxDecoration(
-              color: Colors.pinkAccent,
-            ),
-          ),
-        ).animate().fadeIn(duration: 500.ms),
-      ],
-    );
-  }
 
-  Widget _buildMainContent(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
+AppBar _buildAppBar(BuildContext context) {
+  final screenHeight = MediaQuery.of(context).size.height;
 
-    return Column(
-      children: [
-        SizedBox(
-          height: screenHeight * 0.22,
-          child: Stack(
+  return AppBar(
+    backgroundColor: Colors.pinkAccent,
+    elevation: 0,
+    title: Image.asset(
+      'assets/glam_logo.png',
+      height: screenHeight * 0.10,
+      fit: BoxFit.contain,
+    ),
+    centerTitle: true,
+    actions: [
+      IconButton(
+        icon: Image.asset(
+          'assets/facscan_icon.gif',
+          height: screenHeight * 0.05,
+        ),
+        onPressed: null,
+      ),
+    ],
+  );
+}
+
+Widget _buildBody(BuildContext context) {
+  final screenHeight = MediaQuery.of(context).size.height;
+
+  return SingleChildScrollView(
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: screenHeight,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
             children: [
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment(0.0, -0.4),
-                  child: _buildWelcomeText(),
-                ),
+              _buildCurvedBackground(screenHeight),
+              _buildMainContent(context),
+            ],
+          ),
+          _buildCategoriesSection(context),
+          _buildRecommendationsSection(), 
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildCurvedBackground(double screenHeight) {
+  return Stack(
+    children: [
+      ClipPath(
+        clipper: ElegantTopCurveClipper(),
+        child: Container(
+          height: screenHeight * 0.22,
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0x80FF4081),
+                blurRadius: 20,
+                spreadRadius: 5,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
         ),
-        _buildProfileCards(context),
-        SizedBox(height: screenHeight * 0.04),
-      ],
-    );
-  }
+      ),
+      ClipPath(
+        clipper: ElegantTopCurveClipper(),
+        child: Container(
+          height: screenHeight * 0.22,
+          decoration: const BoxDecoration(
+            color: Colors.pinkAccent,
+          ),
+        ),
+      ),
+    ],
+  );
+}
 
-  Widget _buildWelcomeText() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
+Widget _buildMainContent(BuildContext context) {
+  final screenHeight = MediaQuery.of(context).size.height;
+
+  return Column(
+    children: [
+      SizedBox(
+        height: screenHeight * 0.22,
+        child: Stack(
           children: [
-            Text(
-              'Hello',
-              style: TextStyle(
-                fontSize: 26,
-                fontFamily: 'Serif',
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Positioned.fill(
+              child: Align(
+                alignment: const Alignment(0.0, -0.4),
+                child: _buildWelcomeText(),
               ),
-            )
-                .animate()
-                .fadeIn(duration: 100.ms, delay: 200.ms)
-                .scaleXY(begin: 0.8, end: 1),
-            SizedBox(width: 4),
-            Text(
-              '👋',
-              style: TextStyle(
-                fontSize: 26,
-                fontFamily: 'Serif',
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            )
-                .animate(onPlay: (controller) => controller.repeat())
-                .rotate(
-                  begin: -0.1,
-                  end: 0.1,
-                  duration: 500.ms,
-                  curve: Curves.easeInOut,
-                ),
+            ),
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Welcome to glam-up!!',
-          style: TextStyle(
-            fontSize: 22,
-            fontFamily: 'Serif',
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+      ),
+      _buildProfileCards(context),
+      SizedBox(height: screenHeight * 0.04),
+    ],
+  );
+}
+Widget _buildWelcomeText() {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Hello',
+            style: TextStyle(
+              fontSize: 26,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-        )
-            .animate()
-            .fadeIn(delay: 500.ms)
-            .slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
-      ],
-    );
-  }
+          const SizedBox(width: 4),
+          Text(
+            '👋',
+            style: TextStyle(
+              fontSize: 26,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          )
+              .animate(onPlay: (controller) => controller.repeat())
+              .rotate(
+                begin: -0.1,
+                end: 0.1,
+                duration: 500.ms,
+                curve: Curves.easeInOut,
+              ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Welcome to glam-up!!',
+        style: TextStyle(
+          fontSize: 22,
+          fontFamily: 'Serif',
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    ],
+  );
+}
 
 Widget _buildProfileCards(BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
-  int? parsedUserId;
+  
+  String effectiveUserId = '';
+  if (widget.userId != null && widget.userId!.isNotEmpty) {
+    effectiveUserId = widget.userId!;
+  } else {
+    effectiveUserId = '0';
+  }
 
+  int? parsedUserId;
   try {
-    parsedUserId = int.parse(widget.userId);
+    parsedUserId = int.parse(effectiveUserId);
   } catch (e) {
     parsedUserId = 0; 
   }
@@ -801,136 +1075,117 @@ Widget _buildProfileCards(BuildContext context) {
     child: PageView(
       controller: _pageController,
       children: [
-        _buildProfileCard(context, 'assets/camera.png', "Test My Look", CameraPage())
-            .animate()
-            .fadeIn(delay: 300.ms)
-            .scaleXY(begin: 0.8, end: 1),
+        _buildProfileCard(context, 'assets/camera.png', "Test My Look", const CameraPage()),
         _buildProfileCard(context, Icons.auto_awesome, "Recommendation For You", MakeupHubPage(
               skinTone: skinTone,
-              userId: widget.userId,
-            )) 
-            .animate() 
-            .fadeIn(delay: 400.ms)
-            .scaleXY(begin: 0.8, end: 1),
-        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)) 
-            .animate()
-            .fadeIn(delay: 500.ms)
-            .scaleXY(begin: 0.8, end: 1),
+              userId: effectiveUserId,
+            )), 
+        _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)), 
       ],
     ),
   );
 }
 
-  Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
-    final size = MediaQuery.of(context).size;
+Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget route) {
+  final size = MediaQuery.of(context).size;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => route));
-      },
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => route));
+    },
+    child: Container(
+      margin: EdgeInsets.symmetric(horizontal: size.width * 0.07),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size.width * 0.05),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: size.width * 0.02,
+            spreadRadius: size.width * 0.002,
+          ),
+        ],
+        image: const DecorationImage(
+          image: AssetImage('assets/card.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: size.width * 0.07),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(size.width * 0.05),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: size.width * 0.02,
-              spreadRadius: size.width * 0.002,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon is IconData)
+              Icon(
+                icon,
+                color: Colors.white,
+                size: size.width * 0.20,
+              ),
+            if (icon is String)
+              Image.asset(
+                icon,
+                width: size.width * 0.20,
+                height: size.width * 0.20,
+              ),
+            SizedBox(height: size.height * 0.02),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: size.width * 0.06,
+                fontFamily: 'Serif',
+                fontWeight: FontWeight.bold,
+                color: const Color.fromARGB(255, 16, 16, 16),
+              ),
             ),
           ],
-          image: const DecorationImage(
-            image: AssetImage('assets/card.jpg'),
-            fit: BoxFit.cover,
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildCategoriesSection(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: screenWidth * 0.05),
+          child: const Text(
+            'Categories',
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: 'Serif',
+              fontWeight: FontWeight.bold,
+              color: Color.fromARGB(255, 10, 10, 10),
+            ),
           ),
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(size.width * 0.05),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        SizedBox(height: screenWidth * 0.05),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            alignment: WrapAlignment.start,
+            spacing: screenWidth * 0.08,
+            runSpacing: screenWidth * 0.05,
             children: [
-              if (icon is IconData)
-                Icon(
-                  icon,
-                  color: Colors.white,
-                  size: size.width * 0.20,
-                )
-                    .animate(onPlay: (controller) => controller.repeat())
-                    .shake(duration: 2000.ms, hz: 2),
-              if (icon is String)
-                Image.asset(
-                  icon,
-                  width: size.width * 0.20,
-                  height: size.width * 0.20,
-                )
-                    .animate(onPlay: (controller) => controller.repeat())
-                    .shake(duration: 2000.ms, hz: 2),
-              SizedBox(height: size.height * 0.02),
-              Text(
-                text,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: size.width * 0.06,
-                  fontFamily: 'Serif',
-                  fontWeight: FontWeight.bold,
-                  color: const Color.fromARGB(255, 16, 16, 16),
-                ),
-              )
-                  .animate()
-                  .fadeIn(delay: 200.ms)
-                  .slideY(begin: 0.1, end: 0),
+              Padding(
+                padding: EdgeInsets.only(left: screenWidth * 0.05),
+                child: _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId ?? '')),
+              ),
+              _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId ?? '')),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildCategoriesSection(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.05),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: screenWidth * 0.05),
-            child: const Text(
-              'Categories',
-              style: TextStyle(
-                fontSize: 24,
-                fontFamily: 'Serif',
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 10, 10, 10),
-              ),
-            )
-                .animate()
-                .fadeIn(delay: 200.ms)
-                .scaleXY(begin: 0.8, end: 1),
-          ),
-          SizedBox(height: screenWidth * 0.05),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Wrap(
-              alignment: WrapAlignment.start,
-              spacing: screenWidth * 0.08,
-              runSpacing: screenWidth * 0.05,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(left: screenWidth * 0.05),
-                  child: _buildCategoryItem(context, 'assets/face shape 2.png', 'Face Shape', FaceShapesApp(userId: widget.userId)),
-                ),
-                _buildCategoryItem(context, 'assets/skin tone 2.png', 'Skin Tone', SkinTone(userId: widget.userId)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
   Widget _buildBeautyProfileBox() {
   return Container(
@@ -947,7 +1202,7 @@ Widget _buildProfileCards(BuildContext context) {
       borderRadius: BorderRadius.circular(24.0),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFD4A5BD).withValues(alpha: 0.2),
+          color: Color.fromRGBO(212, 165, 189, 0.2),
           blurRadius: 20.0,
           offset: const Offset(0, 8),
         ),
@@ -971,7 +1226,7 @@ Widget _buildProfileCards(BuildContext context) {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFC98DA9).withValues(alpha: 0.4),
+                    color: Color.fromRGBO(201, 141, 169, 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1009,10 +1264,10 @@ Widget _buildProfileCards(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
+        color: Color.fromRGBO(255, 255, 255, 0.6),
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: const Color(0xFFE8CFDE).withValues(alpha: 0.5),
+          color: Color.fromRGBO(232, 207, 222, 0.5),
           width: 1.0,
         ),
       ),
@@ -1072,7 +1327,7 @@ Widget _buildProfileCards(BuildContext context) {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
+              color: Color.fromRGBO(229, 184, 210, 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1119,7 +1374,7 @@ Widget _buildProfileCards(BuildContext context) {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 245, 87, 156).withValues(alpha: 0.2),
+            color: Color.fromRGBO(245, 87, 156, 0.2),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -1170,7 +1425,7 @@ Widget _buildProfileCards(BuildContext context) {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
+              color: Color.fromRGBO(229, 184, 210, 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1191,7 +1446,7 @@ Widget _buildProfileCards(BuildContext context) {
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _loadRecommendations,
+              onPressed: () => _loadRecommendations(widget.userId ?? ''),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7E4A71),
                 foregroundColor: Colors.white,
@@ -1217,7 +1472,7 @@ Widget _buildProfileCards(BuildContext context) {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
+              color: Color.fromRGBO(229, 184, 210, 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1242,6 +1497,7 @@ Widget _buildProfileCards(BuildContext context) {
       ),
     );
   }
+
 Widget _buildRecommendationContent() {
   final hasValidAnalysis = _recommendation!.userSkinTone != "Unknown" &&
       _recommendation!.userFaceShape != "Unknown";
@@ -1307,8 +1563,7 @@ Widget _buildRecommendationContent() {
             const SizedBox(height: 12),
             ..._recommendation!.mostUsedSavedLooks
                 .take(3)
-                .map(_buildLookCard)
-                ,
+                .map((look) => _buildLookCard(look)),
             const SizedBox(height: 24),
           ],
           
@@ -1383,7 +1638,7 @@ Widget _buildTopLooksByTypeSection() {
               shape: BoxShape.circle,
               color: index == 0 
                   ? const Color(0xFF7E4A71)
-                  : const Color(0xFFD4A5BD).withValues(alpha: 0.5),
+                  : Color.fromRGBO(212, 165, 189, 0.5),
             ),
           );
         }),
@@ -1400,7 +1655,7 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFE5B8D2).withValues(alpha: 0.3),
+          color: Color.fromRGBO(229, 184, 210, 0.3),
           blurRadius: 15,
           offset: const Offset(0, 5),
         ),
@@ -1439,7 +1694,6 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
             ),
             const SizedBox(height: 16),
             
-            // Look name with "Look" text added
             Text(
               '${makeupLook.lookName} Look', 
               style: const TextStyle(
@@ -1454,7 +1708,6 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
                 final productType = entry.key;
                 final shades = entry.value;
                 
-                // Take top 3 shades for this product type
                 final top3Shades = shades.take(3).toList();
                 
                 return Column(
@@ -1499,44 +1752,7 @@ Widget _buildMakeupTypeCard(MakeupLook makeupLook) {
     ),
   );
 }
-List<Widget> buildAllProductShadesFromUserData() {
-  final List<Widget> shadeSections = [];
-  
-  final productTypes = [
-    'blush', 'concealer', 'contour', 'eyeshadow', 
-    'foundation', 'highlighter', 'eyebrow'
-  ];
 
-  for (final productType in productTypes) {
-    final topShades = _getTopShadesForCategory(productType);
-    
-    if (topShades.isNotEmpty) {
-      shadeSections.addAll([
-        const SizedBox(height: 12),
-        Text(
-          _capitalizeFirstLetter(productType),
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF7E4A71),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: topShades
-              .take(3)
-              .map((shade) => _buildShadeChip(shade))
-              .toList(),
-        ),
-        const SizedBox(height: 16),
-      ]);
-    }
-  }
-
-  return shadeSections;
-}
 List<MakeupLook> getTopLooksByType() {
   final Map<String, MakeupLook> grouped = {};
 
@@ -1554,7 +1770,7 @@ List<MakeupLook> getTopLooksByType() {
       .toList();
 }
 
-List<MakeupShade> _getTopShadesForCategory(String category) {
+List<MakeupShade> getTopShadesForCategory(String category) {
   final Map<MakeupShade, int> shadeFrequency = {};
   
   for (var look in _recommendation!.topMakeupLooksByType) {
@@ -1742,7 +1958,7 @@ Widget _buildMostUsedShadesSection() {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
+            color: Color.fromRGBO(229, 184, 210, 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1776,7 +1992,7 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFE5B8D2).withValues(alpha: 0.3),
+          color: Color.fromRGBO(229, 184, 210, 0.3),
           blurRadius: 15,
           offset: const Offset(0, 5),
         ),
@@ -1839,7 +2055,6 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
           ),
           if (look.shadesByType.isNotEmpty) ...[
             const SizedBox(height: 20),
-            // Show top three shades for each product type in the most popular look
             ...look.shadesByType.entries.map((entry) {
               final category = entry.key;
               final shades = entry.value.take(3).toList(); 
@@ -1881,7 +2096,7 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
       borderRadius: BorderRadius.circular(15),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFFE5B8D2).withValues(alpha: 0.2),
+          color: Color.fromRGBO(229, 184, 210, 0.2),
           blurRadius: 8,
           offset: const Offset(0, 3),
         ),
@@ -1965,12 +2180,12 @@ Widget _buildShadeChip(MakeupShade shade) {
               color: _parseHexColor(shade.hexCode),
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
+                color: Color.fromRGBO(255, 255, 255, 0.3),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Color.fromRGBO(0, 0, 0, 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -2011,7 +2226,7 @@ void _showShadeVisualization(MakeupShade shade) {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: Color.fromRGBO(0, 0, 0, 0.15),
                     blurRadius: 25,
                     spreadRadius: 1,
                     offset: const Offset(0, 8),
@@ -2031,15 +2246,15 @@ void _showShadeVisualization(MakeupShade shade) {
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white.withValues(alpha: 0.8),
-                          Colors.white.withValues(alpha: 0.2),
+                          Color.fromRGBO(255, 255, 255, 0.8),
+                          Color.fromRGBO(255, 255, 255, 0.2),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
+                          color: Color.fromRGBO(0, 0, 0, 0.1),
                           blurRadius: 20,
                           spreadRadius: 1,
                           offset: const Offset(0, 6),
@@ -2055,7 +2270,7 @@ void _showShadeVisualization(MakeupShade shade) {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
+                              color: Color.fromRGBO(0, 0, 0, 0.2),
                               blurRadius: 18,
                               offset: const Offset(0, 5),
                             ),
@@ -2114,12 +2329,12 @@ void _showShadeVisualization(MakeupShade shade) {
                     color: Colors.white,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF7E4A71).withValues(alpha: 0.3),
+                      color: Color.fromRGBO(126, 74, 113, 0.3),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
+                        color: Color.fromRGBO(0, 0, 0, 0.15),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -2158,7 +2373,7 @@ void _showShadeVisualization(MakeupShade shade) {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.5),
+                  color: Color.fromRGBO(158, 158, 158, 0.5),
                   spreadRadius: 2,
                   blurRadius: 5,
                   offset: const Offset(0, 3),
@@ -2240,4 +2455,76 @@ class ElegantTopCurveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class ModernLogoutDialogPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x08E91E63)
+      ..style = PaintingStyle.fill;
+
+    final paint2 = Paint()
+      ..color = const Color(0x059C4D6F)
+      ..style = PaintingStyle.fill;
+
+    // Soft background circles
+    canvas.drawCircle(
+      Offset(size.width * 0.15, size.height * 0.1),
+      size.width * 0.08,
+      paint,
+    );
+
+    canvas.drawCircle(
+      Offset(size.width * 0.85, size.height * 0.25),
+      size.width * 0.06,
+      paint2,
+    );
+
+    canvas.drawCircle(
+      Offset(size.width * 0.1, size.height * 0.75),
+      size.width * 0.05,
+      paint,
+    );
+
+    canvas.drawCircle(
+      Offset(size.width * 0.9, size.height * 0.85),
+      size.width * 0.04,
+      paint2,
+    );
+
+    // Elegant glitter effects
+    final sparklePaint = Paint()
+      ..color = const Color(0x15FFFFFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+
+    final random = Random();
+    for (int i = 0; i < 25; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 1.2 + 0.3;
+      
+      // Only draw sparkles in certain areas to keep it elegant
+      if (y > size.height * 0.3 && y < size.height * 0.7) {
+        canvas.drawCircle(Offset(x, y), radius, sparklePaint);
+      }
+    }
+
+    // Subtle border decoration
+    final borderPaint = Paint()
+      ..color = const Color(0x08E91E63)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
+        const Radius.circular(28),
+      ),
+      borderPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

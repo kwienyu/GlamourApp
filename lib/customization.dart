@@ -57,6 +57,7 @@ class CustomizationPageState extends State<CustomizationPage> with TickerProvide
   bool _showHeart = true;
   Map<String, bool> expandedProducts = {};
   bool _isApplyingMakeup = false;
+  bool _isRemovingMakeup = false;
   Uint8List? _processedImage;
   Uint8List? _currentMakeupImage;
   bool _hasShownCustomizationDialog = false;
@@ -118,13 +119,20 @@ class CustomizationPageState extends State<CustomizationPage> with TickerProvide
   final String? _apiToken = null;
 
   late final List<String> _loadingPhrases;
+  late final List<String> _removingPhrases;
 
   String _currentLoadingPhrase = "";
+  String _currentRemovingPhrase = "";
   Timer? _loadingPhraseTimer;
+  Timer? _removingPhraseTimer;
   int _currentPhraseIndex = 0;
+  int _currentRemovingPhraseIndex = 0;
   late AnimationController _phraseAnimationController;
+  late AnimationController _removingPhraseAnimationController;
   late Animation<double> _phraseFadeAnimation;
+  late Animation<double> _removingPhraseFadeAnimation;
   late Animation<Offset> _phraseSlideAnimation;
+  late Animation<Offset> _removingPhraseSlideAnimation;
   double _scale = 1.0;
   double _previousScale = 1.0;
   Offset _offset = Offset.zero;
@@ -144,6 +152,17 @@ void initState() {
     "Just a sec—glow mode is activating🔥",
     "Almost there... your glam is worth the wait💅",
     "Sprinkling a bit of sparkle on your look✨",
+  ];
+
+  _removingPhrases = [
+    "Removing your customized shade...",
+    "Clearing the makeup overlay...",
+    "Taking off the ${widget.selectedMakeupLook ?? "makeup"}...",
+    "Restoring your natural look...",
+    "Removing the makeup application...",
+    "Cleaning up the virtual makeup...",
+    "Reverting to previous state...",
+    "Removing customized shade...",
   ];
   
   _processRecommendationData();
@@ -176,6 +195,11 @@ void initState() {
     vsync: this,
   );
 
+  _removingPhraseAnimationController = AnimationController(
+    duration: const Duration(milliseconds: 800),
+    vsync: this,
+  );
+
   _phraseFadeAnimation = Tween<double>(
     begin: 0.0,
     end: 1.0,
@@ -184,11 +208,27 @@ void initState() {
     curve: Curves.easeInOut,
   ));
 
+  _removingPhraseFadeAnimation = Tween<double>(
+    begin: 0.0,
+    end: 1.0,
+  ).animate(CurvedAnimation(
+    parent: _removingPhraseAnimationController,
+    curve: Curves.easeInOut,
+  ));
+
   _phraseSlideAnimation = Tween<Offset>(
     begin: const Offset(0.0, 0.3),
     end: Offset.zero,
   ).animate(CurvedAnimation(
     parent: _phraseAnimationController,
+    curve: Curves.easeOutCubic,
+  ));
+
+  _removingPhraseSlideAnimation = Tween<Offset>(
+    begin: const Offset(0.0, 0.3),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(
+    parent: _removingPhraseAnimationController,
     curve: Curves.easeOutCubic,
   ));
 
@@ -228,16 +268,43 @@ Future<void> _applyMakeupOnInit() async {
     });
   }
 
+  void _startRemovingPhraseTimer() {
+    _currentRemovingPhraseIndex = 0;
+    _currentRemovingPhrase = _removingPhrases[_currentRemovingPhraseIndex];
+    _removingPhraseAnimationController.forward();
+    
+    _removingPhraseTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (mounted) {
+        _removingPhraseAnimationController.reverse().then((_) {
+          if (mounted) {
+            setState(() {
+              _currentRemovingPhraseIndex = (_currentRemovingPhraseIndex + 1) % _removingPhrases.length;
+              _currentRemovingPhrase = _removingPhrases[_currentRemovingPhraseIndex];
+            });
+            _removingPhraseAnimationController.forward();
+          }
+        });
+      }
+    });
+  }
+
   void _stopLoadingPhraseTimer() {
     _loadingPhraseTimer?.cancel();
     _loadingPhraseTimer = null;
+  }
+
+  void _stopRemovingPhraseTimer() {
+    _removingPhraseTimer?.cancel();
+    _removingPhraseTimer = null;
   }
 
   @override
   void dispose() {
     _heartController.dispose();
     _phraseAnimationController.dispose();
+    _removingPhraseAnimationController.dispose();
     _stopLoadingPhraseTimer();
+    _stopRemovingPhraseTimer();
     _showNavigationBar();
     super.dispose();
   }
@@ -545,10 +612,13 @@ Future<void> _applyMakeupOnInit() async {
 
   Future<void> removeOverlay(String productName) async {
     setState(() {
+      _isRemovingMakeup = true;
       _lastChangedProduct = productName;
       selectedShades[productName] = null;
       currentShades[productName] = 'Primary';
     });
+
+    _startRemovingPhraseTimer();
 
     try {
       if (widget.capturedImage == null) {
@@ -591,6 +661,11 @@ Future<void> _applyMakeupOnInit() async {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error removing overlay: $e')),
       );
+    } finally {
+      setState(() {
+        _isRemovingMakeup = false;
+        _stopRemovingPhraseTimer();
+      });
     }
   }
 
@@ -651,6 +726,7 @@ Future<void> _applyMakeupOnInit() async {
     });
 
     try {
+      // Reset all states to initial values
       setState(() {
         currentShades = {
           'Eyeshadow': 'Primary',
@@ -658,11 +734,29 @@ Future<void> _applyMakeupOnInit() async {
           'Lipstick': 'Primary',
         };
         selectedShades.updateAll((key, value) => null);
-        _userChoseToCustomize = false;
+        _userChoseToCustomize = true; // Enable customization again
         _lastChangedProduct = null;
+        selectedProduct = null;
+        showMakeupProducts = false; // Hide makeup products
+        showShades = false; // Hide shades
+        
+        // Reset all expansion states
+        expandedProducts.updateAll((key, value) => false);
+        
+        // Reset dialog flags to show customization dialog again
+        _hasShownCustomizationDialog = false;
+        _hasShownCustomizationDialogForSave = false;
+        _hasShownCustomizationDialogForProduct = false;
+        
+        // Reset product dialog flags
+        _hasShownProductDialog.updateAll((key, value) => false);
       });
 
       await _applyVirtualMakeupAutomatically({});
+      
+      // Show reset success message
+      _showResetSuccessMessage();
+      
     } catch (e) {
       setState(() {
         _processedImage = null;
@@ -674,6 +768,26 @@ Future<void> _applyMakeupOnInit() async {
     } finally {
       setState(() => _isResetting = false);
     }
+  }
+
+  void _showResetSuccessMessage() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.success,
+        style: ToastificationStyle.flatColored,
+        title: const Text('Reset Complete'),
+        description: const Text('Makeup has been reset. Click any product to customize your look.'),
+        alignment: Alignment.topCenter,
+        autoCloseDuration: const Duration(seconds: 4),
+        borderRadius: BorderRadius.circular(12),
+        showProgressBar: true,
+        icon: const Icon(Icons.refresh, color: Colors.green),
+        primaryColor: Colors.green,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      );
+    });
   }
 
   void _processRecommendationData() {
@@ -822,6 +936,19 @@ Future<void> _applyMakeupOnInit() async {
 }
 
   Future<void> _handleShadeSelection(String productName, Color color, int index, bool isPrimary) async {
+    // Show customization dialog if it hasn't been shown yet
+    if (!_hasShownCustomizationDialog && !_hasShownCustomizationDialogForProduct) {
+      _hasShownCustomizationDialogForProduct = true;
+      await showCustomizationDialog();
+      return;
+    }
+    
+    // Prevent customization if user chose not to customize
+    if (!_userChoseToCustomize) {
+      _showCustomizationDisabledMessage();
+      return;
+    }
+    
     _lastChangedProduct = productName;
     
     final isOverlayProduct = ['Eyeshadow', 'Blush', 'Lipstick'].contains(productName);
@@ -847,9 +974,11 @@ Future<void> _applyMakeupOnInit() async {
       
       if (isOverlayProduct) {
         if (!wasSelected && selectedShades[productName] != null) {
+          // Apply makeup when selecting a shade
           await _applyVirtualMakeup();
         } else if (wasSelected && selectedShades[productName] == null) {
-          await _applyVirtualMakeup();
+          // Remove overlay when deselecting a shade
+          await removeOverlay(productName);
         }
       }
     } else {
@@ -861,15 +990,34 @@ Future<void> _applyMakeupOnInit() async {
           currentShades[productName] = 'Primary';
         }
       });
-      
-      if (!_hasShownCustomizationDialogForProduct && !_hasShownCustomizationDialog) {
-        _hasShownCustomizationDialogForProduct = true;
-        await showCustomizationDialog();
-      }
     }
   }
 
+  void _showCustomizationDisabledMessage() {
+    toastification.show(
+      context: context,
+      type: ToastificationType.warning,
+      style: ToastificationStyle.flatColored,
+      title: const Text('Customization Disabled'),
+      description: const Text('You chose to use AI recommendations. Click "Reset" to enable customization.'),
+      alignment: Alignment.topCenter,
+      autoCloseDuration: const Duration(seconds: 4),
+      borderRadius: BorderRadius.circular(12),
+      showProgressBar: true,
+      icon: const Icon(Icons.info_outline, color: Colors.amber),
+      primaryColor: Colors.amber.shade200,
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+    );
+  }
+
   Future<void> handleShadeDeselection(String productName) async {
+    // Prevent customization if user chose not to customize
+    if (!_userChoseToCustomize) {
+      _showCustomizationDisabledMessage();
+      return;
+    }
+    
     final hasSelectedOverlay = ['Eyeshadow', 'Blush', 'Lipstick'].any(
       (product) => selectedShades[product] != null
     );
@@ -1082,6 +1230,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
   final isPrimary = index == 0;
   final size = isPrimary ? 70.0 : 50.0;
   final isMediumShade = index == 2;
+  final isCustomizationDisabled = !_userChoseToCustomize;
 
   return Column(
     mainAxisSize: MainAxisSize.min,
@@ -1112,33 +1261,52 @@ Widget _buildShadeItem(Color color, int index, String productName) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: size,
-              height: size,
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? const ui.Color.fromARGB(255, 239, 107, 157) : 
-                        isPrimary ? Colors.green : 
-                        isMediumShade ? Colors.green : Colors.grey,
-                  width: isPrimary ? 3 : 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const ui.Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                  if (isSelected) 
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      blurRadius: 10,
-                      spreadRadius: 2,
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: size,
+                  height: size,
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? const ui.Color.fromARGB(255, 239, 107, 157) : 
+                            isPrimary ? Colors.green : 
+                            isMediumShade ? Colors.green : Colors.grey,
+                      width: isPrimary ? 3 : 2,
                     ),
-                ],
-              ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const ui.Color.fromARGB(255, 255, 255, 255).withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                      if (isSelected) 
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                    ],
+                  ),
+                ),
+                if (isCustomizationDisabled && !isPrimary)
+                  Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.block,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+              ],
             ),
             if (isPrimary && !expandedProducts[productName]!)
               Container(
@@ -1271,6 +1439,9 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                         setState(() {
                           selectedShades.updateAll((key, value) => null);
                           _userChoseToCustomize = false;
+                          // Show products and shades but disable customization
+                          showMakeupProducts = true;
+                          showShades = true;
                         });
                         _showSatisfiedToast();
                       },
@@ -1299,7 +1470,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                         Navigator.of(context).pop();
                         setState(() {
                           showShades = true;
-                          showMakeupProducts = true; // Add this line
+                          showMakeupProducts = true;
                           _processedImage = null;
                           _currentMakeupImage = null;
                           _userChoseToCustomize = true;
@@ -1449,6 +1620,66 @@ Widget _buildShadeItem(Color color, int index, String productName) {
     );
   }
 
+  Widget _buildRemovingLoadingIndicator() {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.4),
+          ),
+        ),
+        
+        Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.7,
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                LoadingAnimationWidget.flickr(
+                  leftDotColor: Colors.blueAccent,
+                  rightDotColor: Colors.cyanAccent,
+                  size: 60,
+                ),
+                
+                const SizedBox(height: 24),
+                Text(
+                  'Removing your customized shade',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const ui.Color.fromARGB(255, 249, 247, 248),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                SlideTransition(
+                  position: _removingPhraseSlideAnimation,
+                  child: FadeTransition(
+                    opacity: _removingPhraseFadeAnimation,
+                    child: Text(
+                      _currentRemovingPhrase,
+                      style: TextStyle(
+                        fontSize: 12, 
+                        color: const ui.Color.fromARGB(255, 249, 247, 248),
+                        fontWeight: FontWeight.w500,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1520,6 +1751,9 @@ Widget _buildShadeItem(Color color, int index, String productName) {
             
             if (_isApplyingMakeup)
               _buildMakeupLoadingIndicator(),
+
+            if (_isRemovingMakeup)
+              _buildRemovingLoadingIndicator(),
             
             // Zoom instructions
             if (_isZooming)
@@ -1629,15 +1863,16 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                                 child: GestureDetector(
                                   onTap: () async {
+                                    // Show customization dialog if it hasn't been shown yet
+                                    if (!_hasShownCustomizationDialog && !_hasShownCustomizationDialogForProduct) {
+                                      _hasShownCustomizationDialogForProduct = true;
+                                      await showCustomizationDialog();
+                                    }
+                                    
                                     setState(() {
                                       selectedProduct = product;
                                       showShades = true;
                                     });
-                                    
-                                    if (!_hasShownCustomizationDialogForProduct && !_hasShownCustomizationDialog) {
-                                      _hasShownCustomizationDialogForProduct = true;
-                                      await showCustomizationDialog();
-                                    }
                                   },
                                   child: Stack(
                                     alignment: Alignment.center,

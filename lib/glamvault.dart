@@ -781,11 +781,8 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
 
   void _removeTagFromAllLooks(String tagToDelete) {
     setState(() {
-      // Remove tag from available tags
       _availableTags.remove(tagToDelete);
       _saveTags();
-      
-      // Remove this tag from all looks
       _lookTags.forEach((lookId, currentTag) {
         if (currentTag == tagToDelete) {
           _lookTags[lookId] = null;
@@ -818,9 +815,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
 
   void _updateLookTag(SavedLook look, String? newTag, String? oldTag) {
     setState(() {
-      // If changing from one tag to another, handle the old tag cleanup
       if (oldTag != null && oldTag.isNotEmpty && newTag != null && newTag.isNotEmpty && oldTag != newTag) {
-        // Check if old tag is still being used by other looks
         bool isOldTagStillUsed = false;
         _lookTags.forEach((lookId, currentTag) {
           if (currentTag == oldTag && lookId != look.savedLookId) {
@@ -828,7 +823,6 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
           }
         });
         
-        // If old tag is not used by any other look, remove it from available tags
         if (!isOldTagStillUsed) {
           _availableTags.remove(oldTag);
           _saveTags();
@@ -840,8 +834,6 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
         _lookTags.remove(look.savedLookId);
       } else {
         _lookTags[look.savedLookId] = newTag;
-        
-        // Add new tag to available tags if it doesn't exist
         if (!_availableTags.contains(newTag)) {
           _availableTags.add(newTag);
           _saveTags();
@@ -895,7 +887,7 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
                           child: Container(
                             padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.pinkAccent.withOpacity(0.8),
+                              color: Colors.pinkAccent.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -1524,94 +1516,72 @@ class GlamVaultScreenState extends State<GlamVaultScreen> {
     );
   }
 
-  Widget _buildLookImage(int lookId, double screenWidth) {
-    final imageBytes = lookImages[lookId];
-    
-    if (imageBytes == null || imageBytes.isEmpty) {
-      return _buildPlaceholder(screenWidth);
-    }
+   Widget _buildLookImage(int lookId, double screenWidth) {
+  final imageBytes = lookImages[lookId];
+  
+  if (imageBytes == null || imageBytes.isEmpty) {
+    return _buildPlaceholder(screenWidth);
+  }
 
-    try {
-      if (imageBytes.lengthInBytes < 100) {
-        return _buildErrorPlaceholder(screenWidth);
-      }
-      
-      return Image.memory(
-        imageBytes,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) {
-            return child;
-          }
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-            child: child,
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          debugPrint('Image.memory error: $error');
-          return _buildErrorPlaceholder(screenWidth);
-        },
-      );
-    } catch (e) {
-      debugPrint('Error building image: $e');
+  try {
+    if (imageBytes.lengthInBytes < 100) {
       return _buildErrorPlaceholder(screenWidth);
     }
-  }
-
-  Widget _buildPlaceholder(double screenWidth) {
-    return Container(
-      color: Colors.grey[200],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            LoadingAnimationWidget.staggeredDotsWave(
-              color: Colors.pinkAccent,
-              size: screenWidth * 0.1,
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Please wait a moment...',
-              style: TextStyle(
-                fontSize: screenWidth * 0.035,
-                color: Colors.pinkAccent[700],
-              ),
-            ),
-          ],
-        ),
-      ),
+    
+    return Image.memory(
+      imageBytes,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Image.memory error: $error');
+        return _buildErrorPlaceholder(screenWidth);
+      },
     );
+  } catch (e) {
+    debugPrint('Error building image: $e');
+    return _buildErrorPlaceholder(screenWidth);
   }
+}
 
-  Widget _buildErrorPlaceholder(double screenWidth) {
-    return Container(
-      color: Colors.grey[200],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
+
+ Widget _buildPlaceholder(double screenWidth) {
+  return Container(
+    color: Colors.grey[200],
+    child: Center(
+      child: Icon(
+        Icons.photo,
+        color: Colors.grey[400],
+        size: screenWidth * 0.1,
+      ),
+    ),
+  );
+}
+
+Widget _buildErrorPlaceholder(double screenWidth) {
+  return Container(
+    color: Colors.grey[200],
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: screenWidth * 0.1,
+          ),
+          Text(
+            'Invalid image',
+            style: TextStyle(
               color: Colors.red,
-              size: screenWidth * 0.1,
+              fontSize: screenWidth * 0.035,
             ),
-            Text(
-              'Invalid image',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: screenWidth * 0.035,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class SavedLook {
@@ -1697,24 +1667,11 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
   bool _showTipsBox = false;
   String? _currentProductName;
   String? _currentTip;
-  bool _isImageLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadFaceShape();
-    // Simulate image loading delay
-    if (widget.imageBytes != null) {
-      Future.delayed(Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() {
-            _isImageLoading = false;
-          });
-        }
-      });
-    } else {
-      _isImageLoading = false;
-    }
   }
 
   @override
@@ -2097,22 +2054,10 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
     return Container(
       color: Colors.grey[200],
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            LoadingAnimationWidget.staggeredDotsWave(
-              color: Colors.pinkAccent,
-              size: isSmallScreen ? 40 : 50,
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Please wait a moment...',
-              style: TextStyle(
-                fontSize: isSmallScreen ? screenWidth * 0.035 : 14,
-                color: Colors.pinkAccent[700],
-              ),
-            ),
-          ],
+        child: Icon(
+          Icons.photo_library,
+          size: isSmallScreen ? screenWidth * 0.1 : 40,
+          color: Colors.grey,
         ),
       ),
     );
@@ -2285,17 +2230,15 @@ class _LookDetailsScreenState extends State<LookDetailsScreen> {
                   child: SizedBox(
                     height: safeScreenHeight * 0.4,
                     width: double.infinity,
-                    child: _isImageLoading
-                        ? _buildPlaceholder()
-                        : (widget.imageBytes != null
-                            ? Image.memory(
-                                widget.imageBytes!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildErrorPlaceholder();
-                                },
-                              )
-                            : _buildPlaceholder()),
+                    child: widget.imageBytes != null
+                        ? Image.memory(
+                            widget.imageBytes!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildErrorPlaceholder();
+                            },
+                          )
+                        : _buildPlaceholder(),
                   ),
                 ),
                 SizedBox(height: safeScreenHeight * 0.025),

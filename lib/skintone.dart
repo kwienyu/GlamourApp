@@ -369,14 +369,14 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                           ],
                         )
                       : Center(
-                          child: Padding(
+                          child: Padding( 
                             padding: EdgeInsets.all(basePadding * 3),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(height: basePadding),
                                 Text(
-                                  'Select a face shape to view details',
+                                  'Select a skin tone to view details',
                                   style: TextStyle(
                                     fontSize: fontSizeName,
                                     color: Colors.grey,

@@ -1268,8 +1268,8 @@ class CameraPageState extends State<CameraPage> {
         image = img.flipHorizontal(image);
       }
       
-      const targetWidth = 1440;
-      const targetHeight = 2560;
+        const targetWidth = 1152;
+        const targetHeight = 2048;
       
       final resizedImage = img.copyResize(
         image, 
@@ -1367,7 +1367,7 @@ class CameraPageState extends State<CameraPage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.pink.withOpacity(0.2),
+                        color: Colors.pink.withValues(alpha: 0.2),
                         blurRadius: 20,
                         spreadRadius: 5,
                       ),
@@ -1642,15 +1642,15 @@ if (_showNotification && _currentNotification != null)
       curve: Curves.easeInOut,
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
+        color: Colors.black.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: Colors.white.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -1680,7 +1680,7 @@ if (_showNotification && _currentNotification != null)
                 Text(
                   _getNotificationMessage(_currentNotification!),
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1710,7 +1710,7 @@ if (_showNotification && _currentNotification != null)
               if (_showWarningMessage && _capturedImage == null)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withOpacity(0.85),
+                    color: Colors.black.withValues(alpha: 0.85),
                     child: Center(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(20),
@@ -1733,7 +1733,7 @@ if (_showNotification && _currentNotification != null)
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.pink.withOpacity(0.4),
+                                    color: Colors.pink.withValues(alpha: 0.4),
                                     blurRadius: 20,
                                     spreadRadius: 5,
                                   ),
@@ -1765,7 +1765,7 @@ if (_showNotification && _currentNotification != null)
                               "Please ensure the following:",
                               style: TextStyle(
                                 fontSize: screenWidth * 0.045,
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontStyle: FontStyle.italic,
                               ),
                             ),
@@ -1775,10 +1775,10 @@ if (_showNotification && _currentNotification != null)
                             Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   width: 1,
                                 ),
                               ),
@@ -1839,7 +1839,7 @@ if (_showNotification && _currentNotification != null)
                               height: 4,
                               width: screenWidth * 0.6,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                               child: Stack(
@@ -1928,10 +1928,10 @@ if (_showNotification && _currentNotification != null)
                   child: Container(
                     padding: EdgeInsets.all(screenWidth * 0.03),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _ovalColor.withOpacity(0.8),
+                        color: _ovalColor.withValues(alpha: 0.8),
                         width: 2,
                       ),
                     ),
@@ -1946,7 +1946,7 @@ if (_showNotification && _currentNotification != null)
                         Text(
                           'Detailed Status:',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontSize: screenWidth * 0.03,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1977,7 +1977,7 @@ if (_showNotification && _currentNotification != null)
                           _getStatusMessage(),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: screenWidth * 0.03,
                             fontStyle: FontStyle.italic,
                           ),
@@ -2000,7 +2000,7 @@ if (_showNotification && _currentNotification != null)
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -2027,7 +2027,7 @@ if (_showNotification && _currentNotification != null)
                 description,
                 style: TextStyle(
                   fontSize: screenWidth * 0.035,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -2047,7 +2047,7 @@ if (_showNotification && _currentNotification != null)
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.pink.withOpacity(0.3),
+              color: Colors.pink.withValues(alpha: 0.3),
               blurRadius: 10,
               spreadRadius: 2,
               offset: const Offset(0, 4),
@@ -2171,7 +2171,7 @@ class DashedOvalPainter extends CustomPainter {
             color: ovalColor,
             shadows: [
               Shadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 10,
                 offset: const Offset(2, 2),
               ),
@@ -2221,9 +2221,9 @@ class _GlitterPainter extends CustomPainter {
       final radius = random.nextDouble() * 1.5 + 0.5;
       final opacity = random.nextDouble() * 0.7 + 0.3;
       
-      paint.color = Colors.white.withOpacity(opacity);
+      paint.color = Colors.white.withValues(alpha: opacity);
       if (random.nextBool()) {
-        paint.color = Colors.pink.shade200.withOpacity(opacity);
+        paint.color = Colors.pink.shade200.withValues(alpha: opacity);
       }
       
       canvas.drawCircle(Offset(x, y), radius, paint);

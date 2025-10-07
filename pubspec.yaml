@@ -50,6 +50,7 @@ dependencies:
   csv: ^6.0.0
   toastification: ^3.0.3
   custom_refresh_indicator: ^4.0.1
+  flutter_secure_storage: ^9.2.4
   
 
 
