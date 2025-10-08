@@ -37,7 +37,6 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Hide navigation bar when splash screen loads
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     
     Future.delayed(const Duration(seconds: 5), () {
@@ -52,7 +51,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
-    // Don't restore navigation bar here - let MainScreen handle it
     super.dispose();
   }
 
@@ -77,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 child: Center(
                   child: LoadingAnimationWidget.staggeredDotsWave(
                     color: Colors.pinkAccent,
-                    size: constraints.maxWidth * 0.12, // Responsive size
+                    size: constraints.maxWidth * 0.12, 
                   ),
                 ),
               ),
@@ -138,7 +136,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Calculate responsive values
             final screenHeight = constraints.maxHeight;
             final screenWidth = constraints.maxWidth;
             final curvedContainerHeight = screenHeight * 0.4;
@@ -150,7 +147,6 @@ class _MainScreenState extends State<MainScreen> {
 
             return Stack(
               children: [
-                // Full background image with shimmer effect
                 Shimmer(
                   duration: const Duration(seconds: 3),
                   color: Colors.white,
@@ -166,8 +162,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                 ),
-
-                // Pink Inverted U-Shaped Container at Bottom
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -204,8 +198,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                 ),
-
-                // Logo positioned on top of the U-shape
                 Positioned(
                   top: logoTopPosition,
                   left: 0,
@@ -219,8 +211,6 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                 ),
-
-                // Text and Button positioned lower
                 Positioned(
                   bottom: screenHeight * 0.02,
                   left: 0,

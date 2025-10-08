@@ -107,15 +107,14 @@ class SignUpPage2State extends State<SignUpPage2> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // INCREASED THIS VALUE TO MOVE LOGO DOWNWARD
-                  const SizedBox(height: 120), // Changed from 80 to 120
+                  const SizedBox(height: 120),
                   
                   Image.asset(
                     'assets/glam_logo.png',
                     height: 100,
                   ),
                   
-                  const SizedBox(height: 10), // Keep this spacing the same
+                  const SizedBox(height: 10), 
                   
                   Container(
                     padding: const EdgeInsets.all(25.0),
@@ -281,7 +280,6 @@ class SignUpPage2State extends State<SignUpPage2> {
     );
   }
 
-  // Email verification dialog with enhanced design
   void _showVerificationDialog() {
     showDialog(
       context: context,

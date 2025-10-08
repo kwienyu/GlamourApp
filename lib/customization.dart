@@ -734,11 +734,11 @@ Future<void> _applyMakeupOnInit() async {
           'Lipstick': 'Primary',
         };
         selectedShades.updateAll((key, value) => null);
-        _userChoseToCustomize = true; // Enable customization again
+        _userChoseToCustomize = true; 
         _lastChangedProduct = null;
         selectedProduct = null;
-        showMakeupProducts = false; // Hide makeup products
-        showShades = false; // Hide shades
+        showMakeupProducts = false; 
+        showShades = false; 
         
         // Reset all expansion states
         expandedProducts.updateAll((key, value) => false);
@@ -754,7 +754,6 @@ Future<void> _applyMakeupOnInit() async {
 
       await _applyVirtualMakeupAutomatically({});
       
-      // Show reset success message
       _showResetSuccessMessage();
       
     } catch (e) {
@@ -974,10 +973,8 @@ Future<void> _applyMakeupOnInit() async {
       
       if (isOverlayProduct) {
         if (!wasSelected && selectedShades[productName] != null) {
-          // Apply makeup when selecting a shade
           await _applyVirtualMakeup();
         } else if (wasSelected && selectedShades[productName] == null) {
-          // Remove overlay when deselecting a shade
           await removeOverlay(productName);
         }
       }

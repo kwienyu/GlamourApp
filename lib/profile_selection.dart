@@ -212,6 +212,7 @@ class ProfileSelectionState extends State<ProfileSelection> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   late Future<SharedPreferences> _sharedPrefs;
   bool _isCheckingAuth = true;
+  bool _isLoggingOut = false; // Add this flag for logout loading state
 
   @override
   void initState() {
@@ -224,8 +225,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
     try {
       // Check if we have a valid user ID
       String? effectiveUserId = widget.userId;
-      
-      // If no userId provided, check shared preferences
       if (effectiveUserId == null || effectiveUserId.isEmpty) {
         final prefs = await _sharedPrefs;
         effectiveUserId = prefs.getString('user_id');
@@ -255,8 +254,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
         }
         return;
       }
-
-      // Set loading complete and fetch profile data
       setState(() {
         _isCheckingAuth = false;
       });
@@ -273,7 +270,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
         setState(() {
           _isCheckingAuth = false;
         });
-        // Redirect to login on error
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -281,8 +277,6 @@ class ProfileSelectionState extends State<ProfileSelection> {
         );
       }
     }
-
-    // Hide welcome bubble after delay
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) setState(() => showBubble = false);
     });
@@ -323,15 +317,53 @@ class ProfileSelectionState extends State<ProfileSelection> {
     }
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
+Future<List<MakeupLook>> _fetchMostSavedLooksFromGlammery() async {
+  try {
+    final prefs = await _sharedPrefs;
+    final userId = prefs.getString('user_id') ?? widget.userId ?? '';
+    
+    if (userId.isEmpty) return [];
 
+    final response = await http.get(
+      Uri.parse('https://glamouraika.com/api/user/$userId/saved_looks'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List<MakeupLook> savedLooks = [];
+
+      for (var lookData in data['saved_looks']) {
+        try {
+          final makeupLook = MakeupLook.fromJson({
+            'makeup_look_id': lookData['saved_look_id'],
+            'makeup_look_name': lookData['makeup_look_name'],
+            'makeup_type_name': lookData['makeup_type_name'] ?? lookData['makeup_type'] ?? 'Saved Look',
+            'usage_count': lookData['usage_count'] ?? 0,
+            'save_count': lookData['save_count'] ?? 1, 
+            'shades_by_type': lookData['shades_by_type'] ?? {},
+            'source': 'glammery',
+            'time_period': 'all',
+          });
+          savedLooks.add(makeupLook);
+        } catch (e) {
+          debugPrint('Error processing saved look: $e');
+        }
+      }
+
+      savedLooks.sort((a, b) => b.saveCount.compareTo(a.saveCount));
+      
+      return savedLooks;
+    } else {
+      debugPrint('Failed to fetch saved looks: ${response.statusCode}');
+      return [];
+    }
+  } catch (e) {
+    debugPrint('Error fetching saved looks: $e');
+    return [];
+  }
+}
 @override
 Widget build(BuildContext context) {
-  // Show loading screen while checking authentication
   if (_isCheckingAuth) {
     return Scaffold(
       backgroundColor: Colors.pinkAccent,
@@ -354,6 +386,32 @@ Widget build(BuildContext context) {
       ),
     );
   }
+  if (_isLoggingOut) {
+    return Scaffold(
+      backgroundColor: Colors.pinkAccent.withOpacity(0.9),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            LoadingAnimationWidget.staggeredDotsWave(
+              color: Colors.white,
+              size: 60,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Logging out...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   return Scaffold(
     appBar: _buildAppBar(context),
     drawer: _buildDrawer(),
@@ -719,6 +777,10 @@ Widget build(BuildContext context) {
   }
 
   Future<void> _logout() async {
+    setState(() {
+      _isLoggingOut = true;
+    });
+
     try {
       await LoginScreenState.logout();
       
@@ -731,6 +793,11 @@ Widget build(BuildContext context) {
       }
     } catch (e) {
       debugPrint('Logout error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoggingOut = false;
+        });
+      }
       _showErrorSnackBar('Logout failed. Please try again.');
     }
   }
@@ -766,7 +833,6 @@ void _showLogoutConfirmation() {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Simple icon without animations
                     Container(
                       width: 80,
                       height: 80,
@@ -891,6 +957,7 @@ void _showLogoutConfirmation() {
     },
   );
 }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1076,13 +1143,233 @@ Widget _buildProfileCards(BuildContext context) {
       controller: _pageController,
       children: [
         _buildProfileCard(context, 'assets/camera.png', "Test My Look", const CameraPage()),
-        _buildProfileCard(context, Icons.auto_awesome, "Recommendation For You", MakeupHubPage(
-              skinTone: skinTone,
-              userId: effectiveUserId,
-            )), 
+        _buildRecommendationCard(context), 
         _buildProfileCard(context, Icons.star, "Glammery", GlamVaultScreen(userId: parsedUserId)), 
       ],
     ),
+  );
+}
+
+// The recommendation card with lock 
+Widget _buildRecommendationCard(BuildContext context) {
+  final size = MediaQuery.of(context).size;
+  final bool hasAnalysis = _hasValidAnalysis();
+  
+  String effectiveUserId = '';
+  if (widget.userId != null && widget.userId!.isNotEmpty) {
+    effectiveUserId = widget.userId!;
+  } else {
+    effectiveUserId = '0';
+  }
+
+  return GestureDetector(
+    onTap: () {
+      if (hasAnalysis) {
+        Navigator.push(
+          context, 
+          MaterialPageRoute(
+            builder: (context) => MakeupHubPage(
+              skinTone: skinTone,
+              userId: effectiveUserId,
+            )
+          )
+        );
+      } else {
+        _showAnalysisRequiredDialog(context);
+      }
+    },
+    child: Container(
+      margin: EdgeInsets.symmetric(horizontal: size.width * 0.07),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size.width * 0.05),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: size.width * 0.02,
+            spreadRadius: size.width * 0.002,
+          ),
+        ],
+        image: const DecorationImage(
+          image: AssetImage('assets/card.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size.width * 0.05),
+          color: !hasAnalysis ? Colors.black54 : Colors.transparent,
+        ),
+        child: Stack(
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: hasAnalysis ? Colors.white : Colors.white60,
+                  size: size.width * 0.20,
+                ),
+                SizedBox(height: size.height * 0.02),
+                Text(
+                  "Recommendation For You",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: size.width * 0.06,
+                    fontFamily: 'Serif',
+                    fontWeight: FontWeight.bold,
+                    color: hasAnalysis ? const Color.fromARGB(255, 16, 16, 16) : Colors.white60,
+                  ),
+                ),
+                if (!hasAnalysis) ...[
+                  SizedBox(height: size.height * 0.01),
+                  Text(
+                    "Complete analysis to unlock",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: size.width * 0.035,
+                      fontFamily: 'Serif',
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (!hasAnalysis) 
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.pinkAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.lock,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _showAnalysisRequiredDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierColor: const Color(0xB3000000),
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: SingleChildScrollView(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF4F7),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0x4D9C4D6F),
+                    blurRadius: 35,
+                    spreadRadius: 3,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF4081),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0x66FF4081),
+                            blurRadius: 15,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 28),
+                    
+                    Text(
+                      'Analysis Required',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF7E4A71),
+                        fontFamily: 'PlayfairDisplay',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    const Text(
+                      'To get personalized makeup recommendations, you need to complete your beauty analysis first.\n\nUse the "Test My Look" feature to capture your face and analyze your face shape and skin tone.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF9E8296),
+                        height: 1.5,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Single "Got It" button centered
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF4081),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text(
+                          'Got It',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -1145,7 +1432,6 @@ Widget _buildProfileCard(BuildContext context, dynamic icon, String text, Widget
     ),
   );
 }
-
 Widget _buildCategoriesSection(BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
 
@@ -1502,10 +1788,6 @@ Widget _buildRecommendationContent() {
   final hasValidAnalysis = _recommendation!.userSkinTone != "Unknown" &&
       _recommendation!.userFaceShape != "Unknown";
 
-  final hasSavedData = _recommendation!.mostUsedSavedLooks.isNotEmpty ||
-      _recommendation!.topMakeupLooksByType.isNotEmpty ||
-      _recommendation!.overallMostPopularLook != null;
-
   return Padding(
     padding: const EdgeInsets.all(16.0),
     child: Column(
@@ -1522,6 +1804,46 @@ Widget _buildRecommendationContent() {
         const SizedBox(height: 16),
         _buildBeautyProfileBox(),
         const SizedBox(height: 24),
+        FutureBuilder<List<MakeupLook>>(
+          future: _fetchMostSavedLooksFromGlammery(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildShimmerLoading();
+            }
+            
+            if (snapshot.hasError) {
+              return _buildErrorState();
+            }
+            
+            final mostSavedLooks = snapshot.data ?? [];
+            final groupedLooks = _getGroupedMakeupLooks(mostSavedLooks);
+            
+            if (groupedLooks.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Most Saved Looks ',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7E4A71),
+                    ), 
+                  ),
+                  const SizedBox(height: 12),
+                  ...groupedLooks
+                      .take(3)
+                      .map((look) => _buildLookCard(look)),
+                  const SizedBox(height: 16),
+                ],
+              );
+            } else {
+              return const SizedBox.shrink();
+            }
+          },
+        ),
+
+        const SizedBox(height: 13),
         if (_recommendation!.overallMostPopularLook != null) ...[
           const Text(
             '🌟 Most Popular Look',
@@ -1531,12 +1853,12 @@ Widget _buildRecommendationContent() {
               color: Color(0xFF7E4A71),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _buildFeaturedLookCard(_recommendation!.overallMostPopularLook!),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
         ],
 
-        if (hasValidAnalysis && hasSavedData) ...[
+        if (hasValidAnalysis) ...[
           if (_recommendation!.topMakeupLooksByType.isNotEmpty) ...[
             const Text(
               'Top Looks by Type',
@@ -1546,25 +1868,9 @@ Widget _buildRecommendationContent() {
                 color: Color(0xFF7E4A71),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildTopLooksByTypeSection(),
-            const SizedBox(height: 24),
-          ],
-        
-          if (_recommendation!.mostUsedSavedLooks.isNotEmpty) ...[
-            const Text(
-              'Most Used Looks',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF7E4A71),
-              ), 
-            ),
-            const SizedBox(height: 12),
-            ..._recommendation!.mostUsedSavedLooks
-                .take(3)
-                .map((look) => _buildLookCard(look)),
-            const SizedBox(height: 24),
+            const SizedBox(height: 24), 
           ],
           
           if (_hasSavedShades()) ...[
@@ -1576,15 +1882,54 @@ Widget _buildRecommendationContent() {
                 color: Color(0xFF7E4A71),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10), 
             _buildMostUsedShadesSection(),
           ],
-        ] else if (hasValidAnalysis && !hasSavedData) ...[
+        ] else if (hasValidAnalysis) ...[
           _buildNoSavedDataSection(),
         ],
       ],
     ),
   );
+}
+
+List<MakeupLook> _getGroupedMakeupLooks(List<MakeupLook> looks) {
+  final Map<String, MakeupLook> groupedLooks = {};
+  final Map<String, int> saveCounts = {};
+  
+  for (var look in looks) {
+    final uniqueKey = '${look.makeupType}_${look.lookName}';
+    saveCounts[uniqueKey] = (saveCounts[uniqueKey] ?? 0) + 1;
+    if (!groupedLooks.containsKey(uniqueKey)) {
+      groupedLooks[uniqueKey] = MakeupLook(
+        lookId: look.lookId,
+        lookName: look.lookName,
+        makeupType: look.makeupType,
+        usageCount: look.usageCount,
+        saveCount: saveCounts[uniqueKey]!, 
+        shadesByType: look.shadesByType,
+        source: look.source,
+        timePeriod: look.timePeriod,
+      );
+    } else {
+      // Update the save count for existing look
+      groupedLooks[uniqueKey] = MakeupLook(
+        lookId: look.lookId,
+        lookName: look.lookName,
+        makeupType: look.makeupType,
+        usageCount: look.usageCount,
+        saveCount: saveCounts[uniqueKey]!, 
+        shadesByType: look.shadesByType,
+        source: look.source,
+        timePeriod: look.timePeriod,
+      );
+    }
+  }
+  
+  final result = groupedLooks.values.toList()
+    ..sort((a, b) => b.saveCount.compareTo(a.saveCount));
+  
+  return result;
 }
 
 Widget _buildTopLooksByTypeSection() {
@@ -2033,26 +2378,20 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(look.makeupType,
-                        style: const TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF9E8296),
-                            fontStyle: FontStyle.italic)),
+                    Text(
+                      look.makeupType, 
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF9E8296),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.visibility, size: 16, color: Color(0xFF9E8296)),
-              const SizedBox(width: 6),
-              Text('${look.usageCount} uses',
-                  style:
-                      const TextStyle(fontSize: 13, color: Color(0xFF9E8296))),
-            ],
-          ),
+          // REMOVED THE SAVE COUNT SECTION HERE
           if (look.shadesByType.isNotEmpty) ...[
             const SizedBox(height: 20),
             ...look.shadesByType.entries.map((entry) {
@@ -2087,8 +2426,7 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
     ),
   );
 }
-
- Widget _buildLookCard(MakeupLook look) {
+Widget _buildLookCard(MakeupLook look) {
   return Container(
     margin: const EdgeInsets.only(bottom: 16),
     decoration: BoxDecoration(
@@ -2116,17 +2454,23 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
             ),
           ),
           const SizedBox(height: 8),
-          Text(look.makeupType,
-              style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E8296))),
+          Text(
+            look.makeupType, 
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF9E8296),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.visibility, size: 12, color: Color(0xFF9E8296)),
+              const Icon(Icons.bookmark, size: 12, color: Color(0xFF9E8296)),
               const SizedBox(width: 4),
-              Text('${look.usageCount} uses',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF9E8296))),
+              Text(
+                '${look.saveCount} saves',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF9E8296)),
+              ),
             ],
           ),
           if (look.shadesByType.isNotEmpty) ...[
@@ -2163,7 +2507,6 @@ Widget _buildFeaturedLookCard(MakeupLook look) {
     ),
   );
 }
-
 
 Widget _buildShadeChip(MakeupShade shade) {
   return GestureDetector(
@@ -2457,74 +2800,74 @@ class ElegantTopCurveClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-class ModernLogoutDialogPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x08E91E63)
-      ..style = PaintingStyle.fill;
+  class ModernLogoutDialogPainter extends CustomPainter {
+    @override
+    void paint(Canvas canvas, Size size) {
+      final paint = Paint()
+        ..color = const Color(0x08E91E63)
+        ..style = PaintingStyle.fill;
 
-    final paint2 = Paint()
-      ..color = const Color(0x059C4D6F)
-      ..style = PaintingStyle.fill;
+      final paint2 = Paint()
+        ..color = const Color(0x059C4D6F)
+        ..style = PaintingStyle.fill;
 
-    // Soft background circles
-    canvas.drawCircle(
-      Offset(size.width * 0.15, size.height * 0.1),
-      size.width * 0.08,
-      paint,
-    );
+      // Soft background circles
+      canvas.drawCircle(
+        Offset(size.width * 0.15, size.height * 0.1),
+        size.width * 0.08,
+        paint,
+      );
 
-    canvas.drawCircle(
-      Offset(size.width * 0.85, size.height * 0.25),
-      size.width * 0.06,
-      paint2,
-    );
+      canvas.drawCircle(
+        Offset(size.width * 0.85, size.height * 0.25),
+        size.width * 0.06,
+        paint2,
+      );
 
-    canvas.drawCircle(
-      Offset(size.width * 0.1, size.height * 0.75),
-      size.width * 0.05,
-      paint,
-    );
+      canvas.drawCircle(
+        Offset(size.width * 0.1, size.height * 0.75),
+        size.width * 0.05,
+        paint,
+      );
 
-    canvas.drawCircle(
-      Offset(size.width * 0.9, size.height * 0.85),
-      size.width * 0.04,
-      paint2,
-    );
+      canvas.drawCircle(
+        Offset(size.width * 0.9, size.height * 0.85),
+        size.width * 0.04,
+        paint2,
+      );
 
-    // Elegant glitter effects
-    final sparklePaint = Paint()
-      ..color = const Color(0x15FFFFFF)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+      // Elegant glitter effects
+      final sparklePaint = Paint()
+        ..color = const Color(0x15FFFFFF)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
 
-    final random = Random();
-    for (int i = 0; i < 25; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      final radius = random.nextDouble() * 1.2 + 0.3;
-      
-      // Only draw sparkles in certain areas to keep it elegant
-      if (y > size.height * 0.3 && y < size.height * 0.7) {
-        canvas.drawCircle(Offset(x, y), radius, sparklePaint);
+      final random = Random();
+      for (int i = 0; i < 25; i++) {
+        final x = random.nextDouble() * size.width;
+        final y = random.nextDouble() * size.height;
+        final radius = random.nextDouble() * 1.2 + 0.3;
+        
+        // Only draw sparkles in certain areas to keep it elegant
+        if (y > size.height * 0.3 && y < size.height * 0.7) {
+          canvas.drawCircle(Offset(x, y), radius, sparklePaint);
+        }
       }
+
+      // Subtle border decoration
+      final borderPaint = Paint()
+        ..color = const Color(0x08E91E63)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5;
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
+          const Radius.circular(28),
+        ),
+        borderPaint,
+      );
     }
 
-    // Subtle border decoration
-    final borderPaint = Paint()
-      ..color = const Color(0x08E91E63)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
-        const Radius.circular(28),
-      ),
-      borderPaint,
-    );
+    @override
+    bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}

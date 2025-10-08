@@ -20,8 +20,6 @@ class LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
   bool _obscurePassword = true;
   final _formKey = GlobalKey<FormState>();
-  
-  // Add secure storage for token
   final _secureStorage = FlutterSecureStorage();
   late Future<SharedPreferences> _sharedPrefs;
 
@@ -45,7 +43,6 @@ class LoginScreenState extends State<LoginScreen> {
         final isValid = await _verifyToken(token);
         
         if (isValid && mounted) {
-          // Token is valid, navigate directly to profile selection
           final prefs = await _sharedPrefs;
           final userId = prefs.getString('user_id');
           
@@ -60,8 +57,6 @@ class LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      print('Token check error: $e');
-      // If token is invalid, remove it
       await _secureStorage.delete(key: 'auth_token');
     } finally {
       if (mounted) {
@@ -69,27 +64,23 @@ class LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-  
-  // Verify token with server
   Future<bool> _verifyToken(String token) async {
-    try {
-      final response = await http.post(
-        Uri.parse('https://glamouraika.com/api/verify_token'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'token': token}),
-      );
-      
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        print('✅ Token verified for user: ${responseData['name']}');
-        return true;
-      }
-    } catch (e) {
-      print('Token verification error: $e');
+  try {
+    final response = await http.post(
+      Uri.parse('https://glamouraika.com/api/verify_token'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'token': token}),
+    );
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      return responseData['isValid'] ?? false; 
+    } else {
+      return false;
     }
-    
+  } catch (e) {
     return false;
   }
+}
 
   Future<void> loginUser() async {
     if (!_formKey.currentState!.validate()) return;
@@ -109,9 +100,7 @@ class LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
-
       final responseBody = jsonDecode(response.body);
-      print('API Response: ${response.statusCode} - $responseBody');
 
       if (response.statusCode == 200) {
         await _handleSuccessResponse(responseBody);
@@ -130,7 +119,6 @@ class LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       _showErrorMessage('An unexpected error occurred');
-      print('Login error: $e');
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -459,9 +447,6 @@ class LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
-      
-      final responseBody = jsonDecode(response.body);
-      print('Forgot Password Response: ${response.statusCode} - $responseBody');
 
       if (response.statusCode == 200) {
         _showSuccessMessage('✨ Password reset email sent! Check your inbox for the magic link.');
@@ -480,7 +465,6 @@ class LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       _showErrorMessage('An unexpected error occurred');
-      print('Forgot password error: $e');
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -670,8 +654,6 @@ class LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleSuccessResponse(Map<String, dynamic> responseData) async {
     final prefs = await _sharedPrefs;
-    
-    // Save user data to shared preferences
     await prefs.setString('user_id', responseData['user_id'].toString());
     await prefs.setString('user_email', responseData['email']);
     await prefs.setString('username', responseData['username']);
@@ -683,11 +665,8 @@ class LoginScreenState extends State<LoginScreen> {
         key: 'auth_token', 
         value: responseData['token']
       );
-      print("✅ Saved auth token for persistent login");
     }
     
-    print("✅ Saved user data: ${responseData['user_id']}");
-
     if (!mounted) return;
     _showSuccessMessage('Welcome, ${responseData['name']}!');
     
@@ -704,7 +683,7 @@ class LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Add this method for logging out (you can call it from your profile page)
+  // for logging out (you can call it from your profile page)
   static Future<void> logout() async {
     final storage = FlutterSecureStorage();
     final prefs = await SharedPreferences.getInstance();
@@ -716,7 +695,6 @@ class LoginScreenState extends State<LoginScreen> {
     await prefs.remove('username');
     await prefs.remove('name');
     
-    print('✅ User logged out and data cleared');
   }
 
   void _showSuccessMessage(String message) {
@@ -763,7 +741,6 @@ class LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -772,13 +749,9 @@ class LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-
-          // Semi-transparent overlay
           Container(
             color: Colors.black.withValues(alpha: 0.4),
           ),
-
-          // Content
           SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -795,8 +768,6 @@ class LoginScreenState extends State<LoginScreen> {
                       height: 100,
                     ),
                     const SizedBox(height: 20),
-
-                    // Login Form Container
                     Container(
                       padding: const EdgeInsets.all(25.0),
                       decoration: BoxDecoration(
@@ -812,7 +783,6 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Email/Username Field
                           TextFormField(
                             controller: identifierController,
                             style: const TextStyle(color: Colors.black),
@@ -839,8 +809,6 @@ class LoginScreenState extends State<LoginScreen> {
                             validator: _validateIdentifier,
                           ),
                           const SizedBox(height: 20),
-
-                          // Password Field
                           TextFormField(
                             controller: passwordController,
                             obscureText: _obscurePassword,
@@ -891,8 +859,6 @@ class LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 9),
-
-                          // Login Button
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color.fromARGB(255, 246, 67, 126),
@@ -926,8 +892,6 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Register Link
                     TextButton(
                       onPressed: () => Navigator.push(
                         context,

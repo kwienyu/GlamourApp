@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'splash_screen.dart';
 import 'profile_selection.dart';
 
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -13,6 +14,7 @@ void main() {
   debugPaintPointersEnabled = false;
   debugRepaintRainbowEnabled = false;
   debugPaintLayerBordersEnabled = false;
+
 
   runApp(const GlamourApp());
 }
@@ -24,7 +26,7 @@ class GlamourApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AuthDirect(), // Use AuthDirect instead of SplashScreen
+      home: AuthDirect(), 
     );
   }
 }
@@ -49,34 +51,23 @@ class _AuthDirectState extends State<AuthDirect> {
 
   Future<void> _checkAuthenticationDirect() async {
     try {
-      print("Direct authentication check...");
-      
-      // Check if user has a valid token and user ID
+
       final token = await _secureStorage.read(key: 'auth_token');
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id');
 
-      print("📱 Token: ${token != null ? 'Exists' : 'Missing'}");
-      print("📱 User ID: ${userId ?? 'Missing'}");
-
       if (token != null && token.isNotEmpty && userId != null && userId.isNotEmpty) {
-        // Returning user - DIRECT to Profile Selection (no splash screen)
-        print("Returning user, DIRECT to ProfileSelection");
         setState(() {
           _initialRoute = const ProfileSelection();
           _isCheckingAuth = false;
         });
       } else {
-        // New user - go to Splash Screen (your existing flow)
-        print("New user, going to SplashScreen");
         setState(() {
           _initialRoute = const SplashScreen();
           _isCheckingAuth = false;
         });
       }
     } catch (e) {
-      print("Error during direct auth check: $e");
-      // On error, go to splash screen
       setState(() {
         _initialRoute = const SplashScreen();
         _isCheckingAuth = false;

@@ -133,7 +133,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
               padding: const EdgeInsets.only(top: 20.0, left: 10.0),
               child: Column(
                 children: [
-                  // Show loading for image
                   if (isLoadingImage)
                     Container(
                       margin: const EdgeInsets.all(16),
@@ -199,9 +198,7 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                           ),
                         ],
                       ),
-                    ),
-                  
-                  // REMOVED: The success message for captured image           
+                    ),      
                   Align(
                     alignment: Alignment.topLeft,
                     child: const Text(
@@ -404,14 +401,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
             isProcessingMakeupLook = true;
             currentlyProcessingLook = look;
           });
-
-          print("Selected Values:");
-          print("- Undertone: $selectedUndertone");
-          print("- Makeup Type: $selectedMakeupType");
-          print("- Makeup Look: $look");
-          print("- Skin Tone: $userSkinTone");
-          print("- Captured Image: ${_capturedImage?.path}");
-
           try {
             final userId = widget.userId ?? await getUserId();
             if (userId != null) {

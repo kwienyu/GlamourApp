@@ -43,7 +43,6 @@ class CameraPageState extends State<CameraPage> {
   static const int _stabilityDurationMs = 500; 
   bool _isProcessingFrame = false;
   bool _isTakingPicture = false;
-  InputImageRotation _rotation = InputImageRotation.rotation0deg;
 
   // Color indicator state
   Color _ovalColor = Colors.white; 
@@ -85,8 +84,10 @@ class CameraPageState extends State<CameraPage> {
   bool _showNotification = false;
   int _repeatedCountdownCancellations = 0;
   DateTime? _lastCountdownCancelTime;
-  double _lowLightThreshold = 0.2;
-  double _poorLightThreshold = 0.3;
+  
+  // FIXED: Made these fields final since they're never reassigned
+  final double _lowLightThreshold = 0.2;
+  final double _poorLightThreshold = 0.3;
 
   // Countdown reset tracking
   int _countdownResetCount = 0;
@@ -390,7 +391,6 @@ class CameraPageState extends State<CameraPage> {
       _countdownSeconds = 3;
     });
     
-    // Analyze why countdown was cancelled
     _analyzeCountdownIssues();
   }
 
@@ -406,8 +406,6 @@ class CameraPageState extends State<CameraPage> {
       double totalLuminance = 0;
       int pixelCount = 0;
       List<double> regionLuminances = [];
-      
-      // Divide image into 9 regions for more detailed analysis
       final regionWidth = image.width ~/ 3;
       final regionHeight = image.height ~/ 3;
       
@@ -435,23 +433,17 @@ class CameraPageState extends State<CameraPage> {
       
       _lightLevel = totalLuminance / pixelCount;
       
-      // Check lighting conditions and notify user
       _checkLightingConditions();
-      
-      // Calculate lighting quality score (0-100%)
+
       double lightingScore = 0.0;
-      
-      // Ideal lighting range: 0.3 to 0.7 (not too dark, not overexposed)
       if (_lightLevel >= 0.3 && _lightLevel <= 0.7) {
-        lightingScore = 40.0; // Base score for good lighting
+        lightingScore = 40.0; 
         
-        // Bonus for even lighting (low standard deviation between regions)
         if (regionLuminances.length > 1) {
           final meanLuminance = regionLuminances.reduce((a, b) => a + b) / regionLuminances.length;
           final variance = regionLuminances.map((l) => pow(l - meanLuminance, 2)).reduce((a, b) => a + b) / regionLuminances.length;
           final stdDev = sqrt(variance);
           
-          // Lower standard deviation = more even lighting = higher score
           if (stdDev < 0.1) {
             lightingScore += 20.0; // Excellent even lighting
           } else if (stdDev < 0.2) {
@@ -474,17 +466,13 @@ class CameraPageState extends State<CameraPage> {
       if (faces.isNotEmpty) {
         final face = faces.first;
         
-        // Face quality analysis with weighted scores
         double totalFaceScore = 0.0;
-        int faceFactors = 0;
         
-        // Factor 1: Face size and proportion (30% weight)
+        // Face size and proportion 
         final boundingBox = face.boundingBox;
         final faceArea = boundingBox.width * boundingBox.height;
         final imageArea = image.width * image.height;
         final faceAreaRatio = faceArea / imageArea;
-        
-        // Ideal face area: 15-30% of image
         double sizeScore = 0.0;
         if (faceAreaRatio >= 0.15 && faceAreaRatio <= 0.30) {
           sizeScore = 30.0; // Perfect size
@@ -496,9 +484,7 @@ class CameraPageState extends State<CameraPage> {
           sizeScore = 5.0; // Poor size
         }
         totalFaceScore += sizeScore;
-        faceFactors++;
         
-        // Factor 2: Face landmarks completeness (25% weight)
         final landmarks = face.landmarks;
         final requiredLandmarks = [
           FaceLandmarkType.leftEye,
@@ -517,16 +503,14 @@ class CameraPageState extends State<CameraPage> {
         
         final landmarkScore = (detectedLandmarks / requiredLandmarks.length) * 25.0;
         totalFaceScore += landmarkScore;
-        faceFactors++;
         
-        // Factor 3: Face alignment and rotation (25% weight)
+        // Face alignment and rotation
         final headEulerAngleY = face.headEulerAngleY ?? 0.0;
         final headEulerAngleX = face.headEulerAngleX ?? 0.0;
         final headEulerAngleZ = face.headEulerAngleZ ?? 0.0;
         
-        double alignmentScore = 25.0; // Start with perfect score
-        
-        // Deduct points for rotation
+        double alignmentScore = 25.0; 
+      
         final totalRotation = headEulerAngleY.abs() + headEulerAngleX.abs() + headEulerAngleZ.abs();
         if (totalRotation <= 5.0) {
           alignmentScore = 25.0; // Perfect alignment
@@ -538,9 +522,6 @@ class CameraPageState extends State<CameraPage> {
           alignmentScore = 5.0; // Poor alignment
         }
         totalFaceScore += alignmentScore;
-        faceFactors++;
-        
-        // Factor 4: Face position in frame (20% weight)
         final faceCenterX = boundingBox.left + boundingBox.width / 2;
         final faceCenterY = boundingBox.top + boundingBox.height / 2;
         final imageCenterX = image.width / 2;
@@ -560,12 +541,9 @@ class CameraPageState extends State<CameraPage> {
           positionScore = 5.0; // Poor position
         }
         totalFaceScore += positionScore;
-        faceFactors++;
         
-        // Calculate final face quality score
         faceQualityScore = totalFaceScore;
-        
-        // Additional bonus for tracking ID (indicates stable detection)
+      
         if (face.trackingId != null) {
           faceQualityScore += 5.0;
         }
@@ -573,45 +551,29 @@ class CameraPageState extends State<CameraPage> {
       } else {
         faceQualityScore = 0.0;
       }
-      
-      // Final confidence calculation with weighted components
+    
       double finalConfidence = 0.0;
       
       if (faceQualityScore > 0) {
-        // Lighting contributes 40%, Face quality contributes 60%
+        // Lighting contributes and Face quality contributes 
         finalConfidence = (lightingScore * 0.4) + (faceQualityScore * 0.6);
-        
-        // Ensure confidence is within bounds and realistic
         finalConfidence = finalConfidence.clamp(0.0, 100.0);
         
-        // Apply quality thresholds for realistic scoring
+        // Apply quality thresholds
         if (finalConfidence >= 85.0) {
-          // Excellent capture - adjust to 90-95% range
           finalConfidence = 90.0 + (finalConfidence - 85.0) * 0.5;
         } else if (finalConfidence >= 70.0) {
-          // Good capture - adjust to 75-89% range
           finalConfidence = 75.0 + (finalConfidence - 70.0) * 0.7;
         } else if (finalConfidence >= 50.0) {
-          // Acceptable capture - adjust to 50-74% range
           finalConfidence = 50.0 + (finalConfidence - 50.0) * 0.6;
         } else {
-          // Poor capture - keep as is or slightly adjust
           finalConfidence = finalConfidence * 0.9;
         }
       } else {
         finalConfidence = 0.0;
       }
       
-      // Final bounds check
-      _faceDetectionConfidence = finalConfidence.clamp(0.0, 95.0); // Never show 100% - always room for improvement
-      
-      // Debug logging
-      print('DEBUG CONFIDENCE ANALYSIS:');
-      print('  Lighting Level: ${(_lightLevel * 100).toStringAsFixed(1)}%');
-      print('  Lighting Score: ${lightingScore.toStringAsFixed(1)}%');
-      print('  Face Quality Score: ${faceQualityScore.toStringAsFixed(1)}%');
-      print('  Final Confidence: ${_faceDetectionConfidence.toStringAsFixed(1)}%');
-      
+      _faceDetectionConfidence = finalConfidence.clamp(0.0, 95.0); 
       _accuracyReports.add({
         'timestamp': DateTime.now(),
         'light_level': _lightLevel,
@@ -623,7 +585,6 @@ class CameraPageState extends State<CameraPage> {
       });
       
     } catch (e) {
-      print('Lighting analysis error: $e');
       _faceDetectionConfidence = 0.0;
       _lightLevel = 0.0;
     }
@@ -795,119 +756,108 @@ class CameraPageState extends State<CameraPage> {
     });
   }
 
- void _checkFacePosition() async {
-  if (_controller == null || 
-      !_controller!.value.isInitialized || 
-      _isProcessingFrame || 
-      _isProcessing || 
-      _capturedImage != null ||
-      _isTakingPicture ||
-      _hasCaptured ||
-      _shouldSkipFrame) {
-    return;
-  }
+  void _checkFacePosition() async {
+    if (_controller == null || 
+        !_controller!.value.isInitialized || 
+        _isProcessingFrame || 
+        _isProcessing || 
+        _capturedImage != null ||
+        _isTakingPicture ||
+        _hasCaptured ||
+        _shouldSkipFrame) {
+      return;
+    }
 
-  final now = DateTime.now();
-  if (_lastFrameProcessTime != null && 
-      now.difference(_lastFrameProcessTime!).inMilliseconds < _minFrameIntervalMs) {
-    return;
-  }
+    final now = DateTime.now();
+    if (_lastFrameProcessTime != null && 
+        now.difference(_lastFrameProcessTime!).inMilliseconds < _minFrameIntervalMs) {
+      return;
+    }
 
-  try {
-    _isProcessingFrame = true;
-    _lastFrameProcessTime = now;
-    
-    final frame = await _controller!.takePicture();
-    final inputImage = InputImage.fromFilePath(frame.path);
-    final faces = await _faceDetector!.processImage(inputImage);
-    
-    unawaited(File(frame.path).delete());
+    try {
+      _isProcessingFrame = true;
+      _lastFrameProcessTime = now;
+      
+      final frame = await _controller!.takePicture();
+      final inputImage = InputImage.fromFilePath(frame.path);
+      final faces = await _faceDetector!.processImage(inputImage);
+      
+      unawaited(File(frame.path).delete());
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      if (faces.isEmpty) {
-        print("DEBUG: No face detected - WHITE");
-        _isFaceDetected = false;
-        _isFaceInFrame = false;
-        _isFaceMoving = false;
-        _isFaceCentered = false;
-        _ovalColor = Colors.white;
-        if (_isCountingDown) {
-          _cancelCountdown();
-        }
-      } else {
-        final face = faces.first;
-        final faceRect = face.boundingBox;
-        
-        final isFaceCovered = _isFaceCovered(face);
-        final isFaceInOval = _isFaceInOval(faceRect);
-        final isCentered = isFaceCenteredInOval(faceRect);
-        final isAligned = checkFaceAlignment(face);
-        
-        _isFaceDetected = true;
-        _isFaceInFrame = isFaceInOval && !isFaceCovered;
-        
-        _checkFaceStability(faceRect);
-        _isFaceMoving = !_isFaceStable;
-        
-        _isFaceCentered = isCentered && isAligned && !isFaceCovered && _isFaceStable;
-        
-        print("DEBUG: FaceInOval: $isFaceInOval, Centered: $isCentered, Aligned: $isAligned, Stable: $_isFaceStable, Moving: $_isFaceMoving");
-        
-        // ✅ UPDATED: Clear color logic
-        if (!_isFaceInFrame) {
-          print("DEBUG: Setting RED - Face detected but not in oval frame");
-          _ovalColor = Colors.red;
-          if (_isCountingDown) {
-            _cancelCountdown();
-          }
-        } 
-        else if (_isFaceMoving) {
-          print("DEBUG: Setting ORANGE - Face moving");
-          _ovalColor = Colors.orange;
-          if (_isCountingDown) {
-            _cancelCountdown();
-          }
-        }
-        else if (!_isFaceCentered) {
-          print("DEBUG: Setting RED - Face in frame but not centered/aligned");
-          _ovalColor = Colors.red;
-          if (_isCountingDown) {
-            _cancelCountdown();
-          }
-        }
-        else if (_isFaceCentered) {
-          print("DEBUG: Setting GREEN - Perfect position");
-          _ovalColor = Colors.green;
-          if (!_isCountingDown && !_hasCaptured) {
-            _startCountdown();
-          }
-        }
-        else {
-          print("DEBUG: Setting WHITE - Fallback");
+      setState(() {
+        if (faces.isEmpty) {
+          _isFaceDetected = false;
+          _isFaceInFrame = false;
+          _isFaceMoving = false;
+          _isFaceCentered = false;
           _ovalColor = Colors.white;
           if (_isCountingDown) {
             _cancelCountdown();
           }
-        }
-      }
-    });
-  } catch (e) {
-    print('Face detection error: $e');
-    if (mounted) {
-      setState(() {
-        _isFaceStable = false;
-        _ovalColor = Colors.white;
-        if (_isCountingDown) {
-          _cancelCountdown();
+        } else {
+          final face = faces.first;
+          final faceRect = face.boundingBox;
+          final isFaceCovered = _isFaceCovered(face);
+          final isFaceInOval = _isFaceInOval(faceRect);
+          final isCentered = isFaceCenteredInOval(faceRect);
+          final isAligned = checkFaceAlignment(face);
+          
+          _isFaceDetected = true;
+          _isFaceInFrame = isFaceInOval && !isFaceCovered;
+          
+          _checkFaceStability(faceRect);
+          _isFaceMoving = !_isFaceStable;
+          
+          _isFaceCentered = isCentered && isAligned && !isFaceCovered && _isFaceStable;
+
+          if (!_isFaceInFrame) {
+            _ovalColor = Colors.white;
+            if (_isCountingDown) {
+              _cancelCountdown();
+            }
+          } 
+          else if (_isFaceMoving) {
+            _ovalColor = Colors.orange; 
+            if (_isCountingDown) {
+              _cancelCountdown();
+            }
+          }
+          else if (!_isFaceCentered) {
+            _ovalColor = Colors.red; 
+            if (_isCountingDown) {
+              _cancelCountdown();
+            }
+          }
+          else if (_isFaceCentered) {
+            _ovalColor = Colors.green; 
+            if (!_isCountingDown && !_hasCaptured) {
+              _startCountdown();
+            }
+          }
+          else {
+            _ovalColor = Colors.white;
+            if (_isCountingDown) {
+              _cancelCountdown();
+            }
+          }
         }
       });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isFaceStable = false;
+          _ovalColor = Colors.white;
+          if (_isCountingDown) {
+            _cancelCountdown();
+          }
+        });
+      }
+    } finally {
+      _isProcessingFrame = false;
     }
-  } finally {
-    _isProcessingFrame = false;
   }
-}
 
   bool isFaceGoodEnough(Face face, Rect faceRect) {
     if (_isFaceCovered(face)) {
@@ -915,14 +865,13 @@ class CameraPageState extends State<CameraPage> {
     }
 
     final isRoughlyInOval = _isFaceInOval(faceRect);
-    final isRoughlyCentered = isFaceCenteredInOval(faceRect);
     final isRoughlyAligned = checkFaceAlignment(face);
-    final isSomewhatStable = _checkQuickStability(faceRect);
+    
 
     return isRoughlyInOval && isRoughlyAligned;
   }
 
-  bool _checkQuickStability(Rect currentPosition) {
+  bool checkQuickStability(Rect currentPosition) {
     if (_lastFacePosition == null) {
       _lastFacePosition = currentPosition;
       _lastFaceMovementTime = DateTime.now();
@@ -957,11 +906,9 @@ class CameraPageState extends State<CameraPage> {
       _lastFacePosition = currentPosition;
       _lastFaceMovementTime = now;
       _isFaceStable = false;
-      print("DEBUG: Movement detected: $movement");
     } else if (_lastFaceMovementTime != null && 
               now.difference(_lastFaceMovementTime!).inMilliseconds > _stabilityDurationMs) {
       _isFaceStable = true;
-      print("DEBUG: Face is now stable");
     }
 
     _lastFacePosition = currentPosition;
@@ -975,10 +922,10 @@ class CameraPageState extends State<CameraPage> {
     final screenSize = MediaQuery.of(_scaffoldContext).size;
     final previewSize = _controller!.value.previewSize!;
 
+    final scaleX = screenSize.width / previewSize.height;
+    final scaleY = screenSize.height / previewSize.width;
+    
     if (_isUsingFrontCamera) {
-      final scaleX = screenSize.width / previewSize.height;
-      final scaleY = screenSize.height / previewSize.width;
-      
       final mirroredLeft = previewSize.height - faceRect.right;
       
       return Rect.fromLTRB(
@@ -988,19 +935,12 @@ class CameraPageState extends State<CameraPage> {
         (faceRect.top + faceRect.height) * scaleY,
       );
     } else {
-      final scaleX = screenSize.width / previewSize.height;
-      final scaleY = screenSize.height / previewSize.width;
-      
-      final rotatedTop = faceRect.left;
-      final rotatedLeft = previewSize.height - faceRect.bottom;
-      final rotatedWidth = faceRect.height;
-      final rotatedHeight = faceRect.width;
-      
+      // Back camera 
       return Rect.fromLTRB(
-        rotatedLeft * scaleX,
-        rotatedTop * scaleY,
-        (rotatedLeft + rotatedWidth) * scaleX,
-        (rotatedTop + rotatedHeight) * scaleY,
+        faceRect.left * scaleX,
+        faceRect.top * scaleY,
+        (faceRect.left + faceRect.width) * scaleX,
+        (faceRect.top + faceRect.height) * scaleY,
       );
     }
   }
@@ -1120,11 +1060,9 @@ class CameraPageState extends State<CameraPage> {
       
       await _controller!.initialize();
       await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
-      _rotation = _getRotation(selectedCamera.sensorOrientation);
       
       if (mounted) setState(() {});
     } catch (e) {
-      print("Camera init error: $e");
       if (mounted) {
         ScaffoldMessenger.of(_scaffoldContext).showSnackBar(
           const SnackBar(content: Text("Failed to initialize camera")),
@@ -1137,40 +1075,24 @@ class CameraPageState extends State<CameraPage> {
     return ResolutionPreset.high;
   }
 
-  InputImageRotation _getRotation(int sensorOrientation) {
-    switch (sensorOrientation) {
-      case 90:
-        return InputImageRotation.rotation90deg;
-      case 180:
-        return InputImageRotation.rotation180deg;
-      case 270:
-        return InputImageRotation.rotation270deg;
-      default:
-        return InputImageRotation.rotation0deg;
-    }
-  }
-
   Matrix4 _getCameraPreviewTransform() {
     final screenSize = MediaQuery.of(_scaffoldContext).size;
     final cameraAspectRatio = _controller!.value.aspectRatio;
     final screenAspectRatio = screenSize.width / screenSize.height;
-
-    if (_isUsingFrontCamera) {
-      if (cameraAspectRatio > screenAspectRatio) {
-        final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
-        return Matrix4.diagonal3Values(-1.0, scale, 1.0); 
-      } else {
-        final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
-        return Matrix4.diagonal3Values(-scale, 1.0, 1.0); 
-      }
+    if (cameraAspectRatio > screenAspectRatio) {
+      final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
+      return Matrix4.diagonal3Values(
+        _isUsingFrontCamera ? -1.0 : 1.0, 
+        scale, 
+        1.0
+      );
     } else {
-      if (cameraAspectRatio > screenAspectRatio) {
-        final scale = screenSize.height / (screenSize.width / cameraAspectRatio);
-        return Matrix4.diagonal3Values(1.0, scale, 1.0);
-      } else {
-        final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
-        return Matrix4.diagonal3Values(scale, 1.0, 1.0);
-      }
+      final scale = screenSize.width / (screenSize.height * cameraAspectRatio);
+      return Matrix4.diagonal3Values(
+        _isUsingFrontCamera ? -scale : scale, 
+        1.0, 
+        1.0
+      );
     }
   }
 
@@ -1217,10 +1139,8 @@ class CameraPageState extends State<CameraPage> {
       
       final XFile file = await _controller!.takePicture();
       final File imageFile = File(file.path);
-
       final processedImage = await _processImageForAI(imageFile);
-      
-      // Save the captured image path to SharedPreferences
+  
       await _saveCapturedImagePath(processedImage.path);
       
       setState(() {
@@ -1230,26 +1150,23 @@ class CameraPageState extends State<CameraPage> {
       await _analyzeImage(processedImage);
       
     } catch (e) {
-      print("Auto capture error: $e");
-      _handleApiError(e); // Use improved error handling
+      _handleApiError(e); 
     } finally {
       _shouldSkipFrame = false;
       if (mounted) {
         setState(() {
           _isTakingPicture = false; 
           _isProcessing = false;
-          _hasCaptured = false; // Reset capture state on error
+          _hasCaptured = false; 
         });
       }
     }
   }
 
-  // New method to save captured image path to SharedPreferences
   Future<void> _saveCapturedImagePath(String imagePath) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_captured_image_path', imagePath);
-      print('DEBUG: Saved captured image path to SharedPreferences: $imagePath');
     } catch (e) {
       print('Error saving captured image path: $e');
     }
@@ -1287,7 +1204,6 @@ class CameraPageState extends State<CameraPage> {
       
       return processedFile;
     } catch (e) {
-      print('Error processing image for AI: $e');
       return originalImage;
     }
   }
@@ -1322,8 +1238,6 @@ class CameraPageState extends State<CameraPage> {
       if (response.statusCode == 200) {
         final responseData = await response.stream.bytesToString();
         final jsonResponse = json.decode(responseData);
-
-        // Improved handling for no face shape/skin tone detection
         if (jsonResponse['face_shape'] == null || jsonResponse['skin_tone'] == null) {
           setState(() {
             _isLoading = false;
@@ -1463,7 +1377,7 @@ class CameraPageState extends State<CameraPage> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      _handleApiError(e); // Use improved error handling
+      _handleApiError(e); 
     }
   }
 
@@ -1526,8 +1440,6 @@ class CameraPageState extends State<CameraPage> {
       return 'Perfect position! Photo will be taken automatically';
     }
   }
-
-  // Helper methods for elegant notification formatting
   String _getNotificationTitle(String fullMessage) {
     if (fullMessage.contains('\n')) {
       return fullMessage.split('\n')[0];
@@ -1573,7 +1485,7 @@ class CameraPageState extends State<CameraPage> {
                           alignment: Alignment.center,
                           transform: _isUsingFrontCamera
                               ? (Matrix4.identity()..scale(-1.0, 1.0, 1.0)) 
-                              : Matrix4.identity(),
+                              : Matrix4.identity(), 
                           child: CameraPreview(_controller!),
                         ),
                         Positioned.fill(
@@ -1630,11 +1542,9 @@ class CameraPageState extends State<CameraPage> {
                       ),
                   ],
                 ),
-
-             // UPDATED: Simple elegant notification banner placed slightly lower
 if (_showNotification && _currentNotification != null)
   Positioned(
-    top: MediaQuery.of(context).padding.top + screenHeight * 0.15, // Changed from 0.12 to 0.15
+    top: MediaQuery.of(context).padding.top + screenHeight * 0.15, 
     left: 20,
     right: 20,
     child: AnimatedContainer(
@@ -1920,10 +1830,58 @@ if (_showNotification && _currentNotification != null)
                   ),
                 ),
 
+               if (_capturedImage == null && !_showWarningMessage)
+                Column(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top + 20,
+                        left: 16,
+                      ),
+                      alignment: Alignment.topLeft,
+                      child: IconButton(
+                        icon: Icon(Icons.flip_camera_android, 
+                                   color: Colors.white, 
+                                   size: screenWidth * 0.08),
+                        onPressed: _isProcessing ? null : _switchCamera,
+                      ),
+                    ),
+                    Container(
+                      margin: EdgeInsets.only(top: screenHeight * 0.01),
+                      child: Text(
+                        "Position your face in the oval - it will capture automatically",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: screenWidth * 0.045,
+                          fontWeight: FontWeight.bold,
+                          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                )
+              else if (_capturedImage != null)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 20,
+                  left: 0,
+                  right: 0,
+                  child: Text(
+                    "Your Captured Photo",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: screenWidth * 0.070,
+                      fontWeight: FontWeight.bold,
+                      shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
               if (_capturedImage == null && !_showWarningMessage)
                 Positioned(
                   bottom: screenHeight * 0.08,
-                  left: screenWidth * 0.05,
+                  left: screenWidth * 0.08,
                   right: screenWidth * 0.05,
                   child: Container(
                     padding: EdgeInsets.all(screenWidth * 0.03),
@@ -2085,7 +2043,6 @@ if (_showNotification && _currentNotification != null)
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // This will now work because the image path is saved in SharedPreferences
                   Navigator.push(
                     _scaffoldContext,
                     MaterialPageRoute(

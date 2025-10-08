@@ -382,7 +382,6 @@ class _CameraClientState extends State<CameraClient> {
       );
 
       if (response.statusCode != 200) {
-        print("Failed to save data: ${response.body}");
       }
     } catch (e) {
       print("Exception: $e");

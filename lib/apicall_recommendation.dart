@@ -18,7 +18,7 @@ class ApiCallRecommendation {
   }) async {
     final uri = Uri.parse('$_baseUrl/$userId/full_recommendation');
     
-    // Add query parameters if they exist
+    // Add query parameters 
     final params = <String, String>{};
     if (skinToneId != null) params['skin_tone_id'] = skinToneId.toString();
     if (faceShapeId != null) params['face_shape_id'] = faceShapeId.toString();

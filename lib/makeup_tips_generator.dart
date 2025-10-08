@@ -27,17 +27,11 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
 
   Future<void> _fetchUserFaceShape() async {
     try {
-      print('Fetching face shape for user: ${widget.userId}');
       final response = await http.get(
         Uri.parse('https://glamouraika.com/api/user-face-shape?user_id=${widget.userId}'),
       );
-
-      print('API Response Status: ${response.statusCode}');
-      print('API Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('Parsed data: $data');
         setState(() {
           faceShape = data['face_shape'];
           isLoading = false;
@@ -46,7 +40,7 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
         setState(() {
           errorMessage = 'Face shape analysis not found. Please complete a face analysis first in the app.';
           isLoading = false;
-          showAnalysisOption = true; // Show the analysis prompt
+          showAnalysisOption = true; 
         });
       } else {
         setState(() {
@@ -55,7 +49,6 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
         });
       }
     } catch (e) {
-      print('Error fetching face shape: $e');
       setState(() {
         errorMessage = 'An error occurred: $e';
         isLoading = false;
@@ -116,7 +109,7 @@ class _MakeupTipsPageState extends State<MakeupTipsPage> {
           ),
         ),
         child: isLoading
-            ? Center( // Fixed: Removed Expanded widget
+            ? Center( 
                 child: LoadingAnimationWidget.staggeredDotsWave(
                   color: Colors.pinkAccent,
                   size: isSmallScreen ? 50 : 60,

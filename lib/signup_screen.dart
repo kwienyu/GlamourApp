@@ -192,16 +192,13 @@ class SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderState
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // INCREASED THIS VALUE TO MOVE BOTH LOGO AND BOX DOWNWARD
-                  SizedBox(height: isSmallScreen ? 120.0 : screenHeight * 0.2), // Changed from 80 to 120
+                  SizedBox(height: isSmallScreen ? 120.0 : screenHeight * 0.2), 
                   
                   Image.asset(
                     'assets/glam_logo.png',
                     height: isSmallScreen ? 80.0 : screenHeight * 0.15,
                     fit: BoxFit.contain,
                   ),
-                  
-                  // KEPT ORIGINAL SPACING BETWEEN LOGO AND BOX
                   const SizedBox(height: 10),
                   
                   Container(

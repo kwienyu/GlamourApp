@@ -75,16 +75,10 @@ class HelpDeskScreenState extends State<HelpDeskScreen> {
         'POST',
         Uri.parse('https://glamouraika.com/api/submit-report'),
       );
-
-      // Add form fields
       request.fields['message'] = _messageController.text;
-      
-      // Add user ID if available
       if (userId != null) {
         request.fields['user_id'] = userId;
       }
-
-      // Add screenshot if selected
       if (_screenshot != null) {
         request.files.add(
           await http.MultipartFile.fromPath(
@@ -93,13 +87,9 @@ class HelpDeskScreenState extends State<HelpDeskScreen> {
           ),
         );
       }
-
-      // Add authorization header if using token-based auth
       if (authToken != null) {
         request.headers['Authorization'] = 'Bearer $authToken';
       }
-
-      // Send cookies for session (if needed)
       if (cookies != null) {
         request.headers['Cookie'] = cookies;
       }
@@ -154,18 +144,17 @@ class HelpDeskScreenState extends State<HelpDeskScreen> {
         centerTitle: true,
       ),
       body: Container(
-        color: Colors.white, // Changed from gradient to solid white
+        color: Colors.white, 
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Section
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.pink.shade200, // Changed from gradient to solid color
+                  color: Colors.pink.shade200, 
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -315,8 +304,6 @@ class HelpDeskScreenState extends State<HelpDeskScreen> {
               ],
               
               const SizedBox(height: 30),
-              
-              // Submit Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -367,8 +354,6 @@ class HelpDeskScreenState extends State<HelpDeskScreen> {
                 ),
               
               const SizedBox(height: 30),
-              
-              // FAQ Section - Changed from Center to Align to left
               const Text(
                 'FAQ',
                 style: TextStyle(
@@ -378,8 +363,6 @@ class HelpDeskScreenState extends State<HelpDeskScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // FAQ Items
               _buildFAQItem(
                 'What are the requirements for face scanning?',
                 'For accurate analysis, please ensure:\n\n• No face accessories (glasses, masks, hats)\n• Face is bare with no heavy makeup\n• Well-lit environment\n• Face properly aligned within the frame\n• Head held straight and stable',
