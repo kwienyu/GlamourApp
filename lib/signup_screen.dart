@@ -134,7 +134,7 @@ class SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderState
           },
           style: OutlinedButton.styleFrom(
             backgroundColor: gender == genderOption 
-                ? _getGlitterColor(genderOption).withOpacity(0.1)
+                ? _getGlitterColor(genderOption).withValues(alpha: 0.1)
                 : Colors.transparent,
             foregroundColor: gender == genderOption 
                 ? _getGlitterColor(genderOption)
@@ -142,7 +142,7 @@ class SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderState
             side: BorderSide(
               color: gender == genderOption 
                   ? _getGlitterColor(genderOption)
-                  : Colors.grey.withOpacity(0.5),
+                  : Colors.grey.withValues(alpha: 0.5),
               width: 1.5,
             ),
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -180,7 +180,7 @@ class SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderState
             ),
           ),
           Container(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
           ),
           SingleChildScrollView(
             child: Padding(
@@ -205,11 +205,11 @@ class SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderState
                     padding: EdgeInsets.all(isSmallScreen ? 20.0 : 30.0),
                     margin: const EdgeInsets.only(top: 1),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           spreadRadius: 2,
                         ),
@@ -287,7 +287,7 @@ class SignUpPage1State extends State<SignUpPage1> with SingleTickerProviderState
                                 'Gender *',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.black.withOpacity(0.6),
+                                  color: Colors.black.withValues(alpha: 0.6),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),

@@ -522,7 +522,7 @@ class _GlitterPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final random = Random();
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.8)
+      ..color = Colors.white.withValues(alpha: 0.8)
       ..blendMode = BlendMode.plus;
 
     for (int i = 0; i < 50; i++) {

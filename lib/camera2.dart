@@ -613,7 +613,7 @@ class CameraPageState extends State<CameraPage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pink.withOpacity(0.2),
+                      color: Colors.pink.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -670,7 +670,7 @@ class CameraPageState extends State<CameraPage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
@@ -1734,7 +1734,7 @@ if (_showNotification && _currentNotification != null)
                                 "Tap anywhere or wait 5 seconds to continue",
                                 style: TextStyle(
                                   fontSize: screenWidth * 0.035,
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   fontStyle: FontStyle.italic,
                                 ),
                                 textAlign: TextAlign.center,
@@ -2101,7 +2101,7 @@ class DashedOvalPainter extends CustomPainter {
     
     final Rect ovalRect = Rect.fromCenter(center: center, width: width, height: height);
 
-    final backgroundPaint = Paint()..color = Colors.black.withOpacity(0.5);
+    final backgroundPaint = Paint()..color = Colors.black.withValues(alpha: 0.5);
     canvas.drawRect(Offset.zero & size, backgroundPaint);
 
     final clipPath = Path()..addOval(ovalRect);

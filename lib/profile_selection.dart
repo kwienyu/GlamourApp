@@ -388,7 +388,7 @@ Widget build(BuildContext context) {
   }
   if (_isLoggingOut) {
     return Scaffold(
-      backgroundColor: Colors.pinkAccent.withOpacity(0.9),
+      backgroundColor: Colors.pinkAccent.withValues(alpha: 0.9),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

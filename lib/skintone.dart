@@ -108,12 +108,10 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
         final screenWidth = constraints.maxWidth;
         final screenHeight = constraints.maxHeight;
         
-        // Dynamic sizing based on screen dimensions
         final bool isSmallScreen = screenWidth < 350;
         final bool isLargeScreen = screenWidth > 600;
         final bool isLandscape = screenWidth > screenHeight;
         
-        // Responsive values
         final double basePadding = isSmallScreen ? 8.0 : 12.0;
         final double iconSize = isLandscape 
             ? screenHeight * 0.14
@@ -141,7 +139,6 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
           body: SafeArea(
             child: Column(
               children: [
-                // Title Section
                 Padding(
                   padding: EdgeInsets.all(basePadding * 1.5),
                   child: FadeTransitionWidget(
@@ -189,7 +186,6 @@ class SkinToneWidgetState extends State<SkinToneWidget> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Icon Container
                                   AnimatedContainer(
                                     duration: Duration(milliseconds: 300),
                                     width: iconSize,
