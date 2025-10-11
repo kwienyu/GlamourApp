@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
-import 'makeuphub.dart';
 import 'glamvault.dart';
 import 'package:toastification/toastification.dart';
 
@@ -139,9 +138,27 @@ class CustomizationPageState extends State<CustomizationPage> with TickerProvide
   Offset _previousOffset = Offset.zero;
   bool _isZooming = false;
 
+  // NEW: Makeup look change functionality variables
+  bool _showMakeupTypes = false;
+  bool _showMakeupLooks = false;
+  String? _selectedMakeupTypeForChange;
+  
+  // FIXED: Made field final as suggested
+  final Map<String, List<String>> _makeupTypesAndLooks = {
+    'Casual': ['No-Makeup', 'Everyday Glow', 'Sun-Kissed'],
+    'Light': ['Dewy', 'Rosy Cheeks', 'Soft Glam'],
+    'Heavy': ['Matte', 'Cut Crease', 'Glam Night'],
+  };
+
+  // NEW: Current makeup look state
+  String _currentMakeupLook = '';
+
   @override
 void initState() {
   super.initState();
+
+  // Initialize current makeup look with the widget's selected look
+  _currentMakeupLook = widget.selectedMakeupLook ?? 'No look selected';
 
   _loadingPhrases = [
     "Preparing your ${widget.selectedMakeupLook ?? "makeup"} look...",
@@ -241,32 +258,181 @@ void initState() {
   });
 }
 
+// NEW: Makeup look change methods
+void _toggleMakeupLookDisplay() {
+  setState(() {
+    // Toggle makeup products and shades visibility
+    if (showMakeupProducts || showShades) {
+      showMakeupProducts = false;
+      showShades = false;
+    }
+    
+    // Toggle makeup type and look selection visibility
+    if (_showMakeupTypes || _showMakeupLooks) {
+      _showMakeupTypes = false;
+      _showMakeupLooks = false;
+      _selectedMakeupTypeForChange = null;
+    } else {
+      _showMakeupTypes = true;
+    }
+  });
+}
+
+void _handleMakeupLookChange() {
+  _toggleMakeupLookDisplay();
+}
+
+void _selectMakeupType(String makeupType) {
+  setState(() {
+    _selectedMakeupTypeForChange = makeupType;
+    _showMakeupLooks = true;
+  });
+}
+
+void _selectMakeupLook(String makeupLook) {
+  setState(() {
+    _showMakeupTypes = false;
+    _showMakeupLooks = false;
+    
+    // Update the current makeup look name
+    _currentMakeupLook = makeupLook;
+    
+    // Reset all customized shades when changing makeup look
+    _resetCustomizedShades();
+    
+    // Apply the new makeup look automatically with undertone
+    _applyNewMakeupLook(makeupLook);
+  });
+}
+
+// NEW: Reset customized shades when changing makeup look
+void _resetCustomizedShades() {
+  setState(() {
+    // Reset all selected shades
+    selectedShades.updateAll((key, value) => null);
+    
+    // Reset current shades to primary
+    currentShades = {
+      'Eyeshadow': 'Primary',
+      'Blush': 'Primary',
+      'Lipstick': 'Primary',
+    };
+    
+    // Reset expansion states
+    expandedProducts.updateAll((key, value) => false);
+    
+    // Reset customization dialog flags to show customization dialog again
+    _hasShownCustomizationDialog = false;
+    _hasShownCustomizationDialogForSave = false;
+    _hasShownCustomizationDialogForProduct = false;
+    
+    // Reset user choice to customize
+    _userChoseToCustomize = false;
+  });
+}
+
+Future<void> _applyNewMakeupLook(String newMakeupLook) async {
+  setState(() {
+    _isApplyingMakeup = true;
+  });
+
+  try {
+    if (widget.capturedImage == null) {
+      throw Exception('No captured image available');
+    }
+
+    final imageBytes = await widget.capturedImage!.readAsBytes();
+    final base64Image = base64Encode(imageBytes);
+
+    final response = await http.post(
+      Uri.parse('https://glamouraika.com/models/generate-makeup-combinations'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'image': base64Image,
+        'skin_tone': widget.skinTone ?? 'Medium',
+        'undertone': widget.undertone, // Ensure undertone is included
+        'makeup_type': _selectedMakeupTypeForChange ?? widget.selectedMakeupType,
+        'makeup_look': newMakeupLook,
+        'eyeshadow_shade': currentShades['Eyeshadow'] ?? 'Primary',
+        'blush_shade': currentShades['Blush'] ?? 'Primary',
+        'lipstick_shade': currentShades['Lipstick'] ?? 'Primary',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final overlayImageBase64 = data['combinations']['EBL']['image'];
+      final imageBytes = base64Decode(overlayImageBase64);
+      
+      setState(() {
+        _processedImage = imageBytes;
+        _currentMakeupImage = _processedImage;
+      });
+      
+      // Show success message
+      _showMakeupLookChangedSuccess(newMakeupLook);
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error applying new makeup look: $e')),
+    );
+  } finally {
+    setState(() {
+      _isApplyingMakeup = false;
+    });
+  }
+}
+
+void _showMakeupLookChangedSuccess(String newLook) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      style: ToastificationStyle.flatColored,
+      title: const Text('Makeup Look Updated'),
+      description: Text('Successfully applied $newLook look. Custom shades have been reset.'),
+      alignment: Alignment.topCenter,
+      autoCloseDuration: const Duration(seconds: 3),
+      borderRadius: BorderRadius.circular(12),
+      showProgressBar: true,
+      icon: const Icon(Icons.auto_awesome, color: Colors.pink),
+      primaryColor: Colors.pink.shade200,
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+    );
+  });
+}
+
+void _startLoadingPhraseTimer() {
+  _currentPhraseIndex = 0;
+  _currentLoadingPhrase = _loadingPhrases[_currentPhraseIndex];
+  _phraseAnimationController.forward();
+  
+  _loadingPhraseTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    if (mounted) {
+      _phraseAnimationController.reverse().then((_) {
+        if (mounted) {
+          setState(() {
+            _currentPhraseIndex = (_currentPhraseIndex + 1) % _loadingPhrases.length;
+            _currentLoadingPhrase = _loadingPhrases[_currentPhraseIndex];
+          });
+          _phraseAnimationController.forward();
+        }
+      });
+    }
+  });
+}
+
 Future<void> _applyMakeupOnInit() async {
   _userChoseToCustomize = true;
   
   // Fetch recommendations and apply makeup
   await _fetchRecommendations();
-}
-
-  void _startLoadingPhraseTimer() {
-    _currentPhraseIndex = 0;
-    _currentLoadingPhrase = _loadingPhrases[_currentPhraseIndex];
-    _phraseAnimationController.forward();
-    
-    _loadingPhraseTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (mounted) {
-        _phraseAnimationController.reverse().then((_) {
-          if (mounted) {
-            setState(() {
-              _currentPhraseIndex = (_currentPhraseIndex + 1) % _loadingPhrases.length;
-              _currentLoadingPhrase = _loadingPhrases[_currentPhraseIndex];
-            });
-            _phraseAnimationController.forward();
-          }
-        });
-      }
-    });
+  
+  if (_processedImage == null && widget.recommendationData != null) {
+    await _applyVirtualMakeupAutomatically(widget.recommendationData!);
   }
+}
 
   void _startRemovingPhraseTimer() {
     _currentRemovingPhraseIndex = 0;
@@ -374,9 +540,22 @@ Future<void> _applyMakeupOnInit() async {
     });
   }
 
+  // MODIFIED: Handle tap to close selection menus
   void _handleTap() {
     if (_isZooming) return;
-    
+  
+    // Close makeup selection menus if they're open OR close products/shades if open
+    if (_showMakeupTypes || _showMakeupLooks || showMakeupProducts || showShades) {
+      setState(() {
+        _showMakeupTypes = false;
+        _showMakeupLooks = false;
+        _selectedMakeupTypeForChange = null;
+        showMakeupProducts = false;
+        showShades = false;
+      });
+      return;
+    }
+  
     final now = DateTime.now();
     if (_lastTapTime != null && now.difference(_lastTapTime!) < Duration(milliseconds: 300)) {
       _toggleNavigationBar();
@@ -515,9 +694,9 @@ Future<void> _applyMakeupOnInit() async {
       body: jsonEncode({
         'image': base64Image,
         'skin_tone': widget.skinTone ?? 'Medium',
-        'undertone': widget.undertone,
+        'undertone': widget.undertone, 
         'makeup_type': widget.selectedMakeupType,
-        'makeup_look': widget.selectedMakeupLook,
+        'makeup_look': _currentMakeupLook,
         'eyeshadow_shade': currentShades['Eyeshadow'] ?? 'Primary',
         'blush_shade': currentShades['Blush'] ?? 'Primary',
         'lipstick_shade': currentShades['Lipstick'] ?? 'Primary',
@@ -567,9 +746,9 @@ Future<void> _applyMakeupOnInit() async {
       body: jsonEncode({
         'image': base64Image,
         'skin_tone': widget.skinTone ?? 'Medium',
-        'undertone': widget.undertone,
+        'undertone': widget.undertone, 
         'makeup_type': widget.selectedMakeupType,
-        'makeup_look': widget.selectedMakeupLook,
+        'makeup_look': _currentMakeupLook,
         'current_overlay': currentOverlays,
         'shades': currentShadesMap,
         'change_overlay': changeInfo['overlayType'],
@@ -634,9 +813,9 @@ Future<void> _applyMakeupOnInit() async {
         body: jsonEncode({
           'image': base64Image,
           'skin_tone': widget.skinTone ?? 'Medium',
-          'undertone': widget.undertone,
+          'undertone': widget.undertone, // Ensure undertone is included
           'makeup_type': widget.selectedMakeupType,
-          'makeup_look': widget.selectedMakeupLook,
+          'makeup_look': _currentMakeupLook,
           'current_overlay': _getCurrentOverlayCode(),
           'shades': _getCurrentShadesMap(),
           'change_overlay': _getOverlayType(productName),
@@ -669,8 +848,11 @@ Future<void> _applyMakeupOnInit() async {
     }
   }
 
-  Future<void> _applyVirtualMakeupAutomatically(Map<String, dynamic> recommendations) async {
-    setState(() => _isApplyingMakeup = true);
+  // NEW: Method to apply current makeup look with reset shades
+  Future<void> _applyCurrentMakeupLookWithResetShades() async {
+    setState(() {
+      _isApplyingMakeup = true;
+    });
 
     try {
       if (widget.capturedImage == null) {
@@ -688,7 +870,58 @@ Future<void> _applyMakeupOnInit() async {
           'skin_tone': widget.skinTone ?? 'Medium',
           'undertone': widget.undertone,
           'makeup_type': widget.selectedMakeupType,
-          'makeup_look': widget.selectedMakeupLook,
+          'makeup_look': _currentMakeupLook, // Use current makeup look
+          'eyeshadow_shade': 'Primary', // Reset to primary shades
+          'blush_shade': 'Primary',     // Reset to primary shades
+          'lipstick_shade': 'Primary',  // Reset to primary shades
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final overlayImageBase64 = data['combinations']['EBL']['image'];
+        final imageBytes = base64Decode(overlayImageBase64);
+        
+        setState(() {
+          _processedImage = imageBytes;
+          _currentMakeupImage = _processedImage;
+        });
+      } else {
+        final bytes = await widget.capturedImage!.readAsBytes();
+        setState(() {
+          _processedImage = bytes;
+          _currentMakeupImage = _processedImage;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error applying current makeup look: $e')),
+      );
+    } finally {
+      setState(() => _isApplyingMakeup = false);
+    }
+  }
+
+  Future<void> _applyVirtualMakeupAutomatically(Map<String, dynamic> recommendations) async {
+    setState(() => _isApplyingMakeup = true);
+
+    try {
+      if (widget.capturedImage == null) {
+        throw Exception('No captured image available');
+      }
+
+      final imageBytes = await widget.capturedImage!.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
+
+      final response = await http.post(
+        Uri.parse('https://glamouraika.com/models/generate-makeup-combinations'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'image': base64Image,
+          'skin_tone': widget.skinTone ?? 'Medium',
+          'undertone': widget.undertone, // Ensure undertone is included
+          'makeup_type': widget.selectedMakeupType,
+          'makeup_look': _currentMakeupLook,
           'eyeshadow_shade': 'Primary',
           'blush_shade': 'Primary',
           'lipstick_shade': 'Primary',
@@ -720,55 +953,66 @@ Future<void> _applyMakeupOnInit() async {
     }
   }
 
-  Future<void> _resetVirtualMakeup() async {
+  // UPDATED: Reset method to maintain current makeup look
+ Future<void> _resetVirtualMakeup() async {
+  setState(() {
+    _isResetting = true;
+  });
+
+  try {
+    // Reset all states to initial values BUT keep the current makeup look
     setState(() {
-      _isResetting = true;
+      currentShades = {
+        'Eyeshadow': 'Primary',
+        'Blush': 'Primary',
+        'Lipstick': 'Primary',
+      };
+      selectedShades.updateAll((key, value) => null);
+      _userChoseToCustomize = true; 
+      _lastChangedProduct = null;
+      selectedProduct = null;
+      showMakeupProducts = false; 
+      showShades = false; 
+      
+      // KEEP the current makeup look instead of reverting to original
+      // _currentMakeupLook remains unchanged - this is the key change
+      
+      // Reset all expansion states
+      expandedProducts.updateAll((key, value) => false);
+      
+      // Reset dialog flags to show customization dialog again
+      _hasShownCustomizationDialog = false;
+      _hasShownCustomizationDialogForSave = false;
+      _hasShownCustomizationDialogForProduct = false;
+      
+      // Reset product dialog flags
+      _hasShownProductDialog.updateAll((key, value) => false);
     });
 
-    try {
-      // Reset all states to initial values
-      setState(() {
-        currentShades = {
-          'Eyeshadow': 'Primary',
-          'Blush': 'Primary',
-          'Lipstick': 'Primary',
-        };
-        selectedShades.updateAll((key, value) => null);
-        _userChoseToCustomize = true; 
-        _lastChangedProduct = null;
-        selectedProduct = null;
-        showMakeupProducts = false; 
-        showShades = false; 
-        
-        // Reset all expansion states
-        expandedProducts.updateAll((key, value) => false);
-        
-        // Reset dialog flags to show customization dialog again
-        _hasShownCustomizationDialog = false;
-        _hasShownCustomizationDialogForSave = false;
-        _hasShownCustomizationDialogForProduct = false;
-        
-        // Reset product dialog flags
-        _hasShownProductDialog.updateAll((key, value) => false);
-      });
-
-      await _applyVirtualMakeupAutomatically({});
-      
-      _showResetSuccessMessage();
-      
-    } catch (e) {
-      setState(() {
-        _processedImage = null;
-        _currentMakeupImage = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error resetting to AI recommendations: $e')),
-      );
-    } finally {
-      setState(() => _isResetting = false);
-    }
+    // Apply the current makeup look with reset shades
+    await _applyCurrentMakeupLookWithResetShades();
+    
+    // NEW: Show the visibility button after reset is complete
+    setState(() {
+      showMakeupProducts = true; // Make the eye button visible
+    });
+    
+    _showResetSuccessMessage();
+    
+  } catch (e) {
+    setState(() {
+      _processedImage = null;
+      _currentMakeupImage = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error resetting to AI recommendations: $e')),
+    );
+  } finally {
+    setState(() => _isResetting = false);
   }
+}
 
+  // UPDATED: Reset success message to reflect current look
   void _showResetSuccessMessage() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       toastification.show(
@@ -776,7 +1020,7 @@ Future<void> _applyMakeupOnInit() async {
         type: ToastificationType.success,
         style: ToastificationStyle.flatColored,
         title: const Text('Reset Complete'),
-        description: const Text('Makeup has been reset. Click any product to customize your look.'),
+        description: Text('Makeup has been reset to $_currentMakeupLook look with AI recommendations. Click any product to customize your look.'),
         alignment: Alignment.topCenter,
         autoCloseDuration: const Duration(seconds: 4),
         borderRadius: BorderRadius.circular(12),
@@ -788,6 +1032,44 @@ Future<void> _applyMakeupOnInit() async {
       );
     });
   }
+
+  // UPDATED: Reset to AI recommendations for consistency
+ Future<void> _resetToAIRecommendations() async {
+  setState(() {
+    _isResetting = true;
+  });
+
+  try {
+    setState(() {
+      currentShades = {
+        'Eyeshadow': 'Primary',
+        'Blush': 'Primary',
+        'Lipstick': 'Primary',
+      };
+      selectedShades.updateAll((key, value) => null);
+      _lastChangedProduct = null;
+    });
+
+    // Use the new method that maintains current makeup look
+    await _applyCurrentMakeupLookWithResetShades();
+    
+    // NEW: Show the visibility button after reset is complete
+    setState(() {
+      showMakeupProducts = true; // Make the eye button visible
+    });
+    
+  } catch (e) {
+    setState(() {
+      _processedImage = null;
+      _currentMakeupImage = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error resetting to AI recommendations: $e')),
+    );
+  } finally {
+    setState(() => _isResetting = false);
+  }
+}
 
   void _processRecommendationData() {
     if (widget.recommendationData != null) {
@@ -856,9 +1138,9 @@ Future<void> _applyMakeupOnInit() async {
       headers: headers,
       body: jsonEncode({
         'user_id': widget.userId,
-        'undertone': widget.undertone,
+        'undertone': widget.undertone, // Ensure undertone is included
         'makeup_type': widget.selectedMakeupType,
-        'makeup_look': widget.selectedMakeupLook,
+        'makeup_look': _currentMakeupLook,
       }),
     ).timeout(const Duration(seconds: 10));
 
@@ -935,7 +1217,7 @@ Future<void> _applyMakeupOnInit() async {
 }
 
   Future<void> _handleShadeSelection(String productName, Color color, int index, bool isPrimary) async {
-    // Show customization dialog if it hasn't been shown yet
+    // Show customization dialog if it hasn't been shown yet for this new look
     if (!_hasShownCustomizationDialog && !_hasShownCustomizationDialogForProduct) {
       _hasShownCustomizationDialogForProduct = true;
       await showCustomizationDialog();
@@ -1026,36 +1308,6 @@ Future<void> _applyMakeupOnInit() async {
     }
   }
 
-  Future<void> _resetToAIRecommendations() async {
-    setState(() {
-      _isResetting = true;
-    });
-
-    try {
-      setState(() {
-        currentShades = {
-          'Eyeshadow': 'Primary',
-          'Blush': 'Primary',
-          'Lipstick': 'Primary',
-        };
-        selectedShades.updateAll((key, value) => null);
-        _lastChangedProduct = null;
-      });
-
-      await _applyVirtualMakeupAutomatically({});
-    } catch (e) {
-      setState(() {
-        _processedImage = null;
-        _currentMakeupImage = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error resetting to AI recommendations: $e')),
-      );
-    } finally {
-      setState(() => _isResetting = false);
-    }
-  }
-
   void resetVirtualMakeup() {
     setState(() {
       _processedImage = null;
@@ -1076,13 +1328,14 @@ Future<void> _applyMakeupOnInit() async {
   }
 
   Future<void> _saveLook() async {
-    if (!_hasShownCustomizationDialogForSave && !_hasShownCustomizationDialog) {
+    // Show customization dialog if it hasn't been shown yet for this new look
+    if (!_hasShownCustomizationDialog && !_hasShownCustomizationDialogForSave) {
       _hasShownCustomizationDialogForSave = true;
       await showCustomizationDialog();
       return;
     }
 
-    if (widget.selectedMakeupLook == null) {
+    if (_currentMakeupLook.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No makeup look selected')),
       );
@@ -1141,7 +1394,7 @@ Future<void> _applyMakeupOnInit() async {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': widget.userId,
-          'makeup_look': widget.selectedMakeupLook,
+          'makeup_look': _currentMakeupLook,
           'shades': labeledShades,
           'image_data': base64Image,
         }),
@@ -1155,7 +1408,7 @@ Future<void> _applyMakeupOnInit() async {
 
         await _cacheSavedLook(
           responseData['saved_look_id'],
-          widget.selectedMakeupLook!,
+          _currentMakeupLook,
           base64Image,
           labeledShades,
         );
@@ -1774,27 +2027,279 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 ),
               ),
 
+            // NEW: Updated Makeup Look Display with Change Functionality
             Positioned(
-              top: MediaQuery.of(context).padding.top + 40,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade200.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Text(
-                    widget.selectedMakeupLook ?? 'No look selected',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+  top: MediaQuery.of(context).padding.top + 40,
+  left: 0,
+  right: 0,
+  child: Column(
+    children: [
+      // Makeup Look Display 
+      GestureDetector(
+        onTap: _handleMakeupLookChange,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          decoration: BoxDecoration(
+            color: const ui.Color.fromARGB(255, 245, 136, 173), 
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.pink.withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+                spreadRadius: 1,
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.1),
+                blurRadius: 2,
+                offset: const Offset(0, -1),
+                spreadRadius: 0,
+              ),
+            ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.6),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                _currentMakeupLook,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black38,
+                      blurRadius: 3,
+                      offset: Offset(1, 1),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      
+      const SizedBox(height: 10),
+                  
+                  // Makeup Types Selection (Horizontal)
+                  if (_showMakeupTypes)
+                    Container(
+                      height: 60,
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.pink.shade200.withOpacity(0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                        itemCount: _makeupTypesAndLooks.keys.length,
+                        itemBuilder: (context, index) {
+                          final makeupType = _makeupTypesAndLooks.keys.elementAt(index);
+                          return GestureDetector(
+                            onTap: () => _selectMakeupType(makeupType),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              decoration: BoxDecoration(
+                                gradient: _selectedMakeupTypeForChange == makeupType
+                                    ? LinearGradient(
+                                        colors: [
+                                          Colors.pink.shade400,
+                                          Colors.purple.shade400,
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : LinearGradient(
+                                        colors: [
+                                          Colors.grey.shade100,
+                                          Colors.grey.shade200,
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color: _selectedMakeupTypeForChange == makeupType
+                                      ? Colors.pink.shade300
+                                      : Colors.grey.shade300,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 5,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  makeupType,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedMakeupTypeForChange == makeupType
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  
+                  // Makeup Looks Selection (Vertical)
+                  if (_showMakeupLooks && _selectedMakeupTypeForChange != null)
+                    Container(
+                      width: MediaQuery.of(context).size.width * 0.7,
+                      height: 200,
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.pink.shade200.withOpacity(0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Header
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.pink.shade50,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: Text(
+                              '$_selectedMakeupTypeForChange Looks',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.pink,
+                              ),
+                            ),
+                          ),
+                          
+                          // Looks List
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              itemCount: _makeupTypesAndLooks[_selectedMakeupTypeForChange]!.length,
+                              itemBuilder: (context, index) {
+                                final makeupLook = _makeupTypesAndLooks[_selectedMakeupTypeForChange]![index];
+                                return GestureDetector(
+                                  onTap: () => _selectMakeupLook(makeupLook),
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.pink.shade100,
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 3,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.face_retouching_natural,
+                                          color: Colors.pink.shade300,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            makeupLook,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.arrow_forward_ios,
+                                          color: Colors.pink.shade300,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -1860,10 +2365,11 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                                 child: GestureDetector(
                                   onTap: () async {
-                                    // Show customization dialog if it hasn't been shown yet
+                                    // Show customization dialog if it hasn't been shown yet for this new look
                                     if (!_hasShownCustomizationDialog && !_hasShownCustomizationDialogForProduct) {
                                       _hasShownCustomizationDialogForProduct = true;
                                       await showCustomizationDialog();
+                                      return;
                                     }
                                     
                                     setState(() {
@@ -1976,6 +2482,7 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 ),
               ),
             
+            // MODIFIED: Removed Re-Glam button, only showing Reset and Save buttons
             Positioned(
               bottom: 20,
               left: 20,
@@ -2000,39 +2507,9 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (context) => MakeupHubPage(
-                                  skinTone: widget.skinTone,
-                                  capturedImage: widget.capturedImage,
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            elevation: 4,
-                          ),
-                          child: const Text(
-                            "Re-Glam",
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // REMOVED: Re-Glam button
+                    
+                    // Reset Button
                     Expanded(
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -2066,6 +2543,8 @@ Widget _buildShadeItem(Color color, int index, String productName) {
                         ),
                       ),
                     ),
+                    
+                    // Save Button
                     Expanded(
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
