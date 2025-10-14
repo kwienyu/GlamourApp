@@ -85,38 +85,56 @@ class MakeupHubPageState extends State<MakeupHubPage> {
   }
 
   Future<void> _fetchUserSkinTone() async {
-    setState(() {
-      isLoadingSkinTone = true;
-    });
+  setState(() {
+    isLoadingSkinTone = true;
+  });
 
-    try {
-      final userId = await getUserId();
-      if (userId != null) {
-        final response = await http.get(
-          Uri.parse('https://glamouraika.com/api/user/$userId/skin-tone'),
-          headers: {'Content-Type': 'application/json'},
-        );
-
-        if (response.statusCode == 200) {
-          final responseData = json.decode(response.body);
-          setState(() {
-            userSkinTone = responseData['skin_tone'];
-            if (userSkinTone != null && undertones.contains(userSkinTone)) {
-              selectedUndertone = userSkinTone;
-            }
-          });
-        } else {
-          print("Failed to fetch skin tone: ${response.statusCode}");
-        }
-      }
-    } catch (e) {
-      print("Error fetching skin tone: $e");
-    } finally {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    
+    final userId = prefs.getString('user_id');
+    final userSkinToneFromPrefs = prefs.getString('user_skin_tone');
+    final userUndertoneFromPrefs = prefs.getString('user_undertone');
+    
+    if (userSkinToneFromPrefs != null && userSkinToneFromPrefs.isNotEmpty) {
       setState(() {
-        isLoadingSkinTone = false;
+        userSkinTone = userSkinToneFromPrefs;
+        if (userUndertoneFromPrefs != null && undertones.contains(userUndertoneFromPrefs)) {
+          selectedUndertone = userUndertoneFromPrefs;
+        }
       });
+    } else if (userId != null) {
+      // Fallback to API only if we have userId but no local data
+      final response = await http.get(
+        Uri.parse('https://glamouraika.com/api/user/$userId/skin-tone'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        setState(() {
+          userSkinTone = responseData['skin_tone'];
+          if (userSkinTone != null && undertones.contains(userSkinTone)) {
+            selectedUndertone = userSkinTone;
+          }
+        });
+        
+        // Save to SharedPreferences for future use
+        if (userSkinTone != null) {
+          await prefs.setString('user_skin_tone', userSkinTone!);
+        }
+      } else {
+        print("Failed to fetch skin tone: ${response.statusCode}");
+      }
     }
+  } catch (e) {
+    print("Error fetching skin tone: $e");
+  } finally {
+    setState(() {
+      isLoadingSkinTone = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -412,8 +430,6 @@ class MakeupHubPageState extends State<MakeupHubPage> {
                 'makeup_type': selectedMakeupType,
                 'makeup_look': look,
               };
-
-              // Navigate directly to customization with the captured image
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -464,8 +480,20 @@ class MakeupHubPageState extends State<MakeupHubPage> {
     );
   }
 
-  Future<String?> getUserId() async {
+ Future<String?> getUserId() async {
+  try {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_id');  
+    final userId = prefs.getString('user_id');
+    
+    // If userId is not found in prefs, use the one from widget
+    if (userId == null || userId.isEmpty) {
+      return widget.userId;
+    }
+    
+    return userId;
+  } catch (e) {
+    print("Error getting user ID: $e");
+    return widget.userId;
   }
+}
 }

@@ -1794,47 +1794,45 @@ Widget _buildRecommendationContent() {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Personalized Recommendations',
+          'Personalized Analysis',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Color(0xFF7E4A71),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12), 
         _buildBeautyProfileBox(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18), 
         FutureBuilder<List<MakeupLook>>(
           future: _fetchMostSavedLooksFromGlammery(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return _buildShimmerLoading();
             }
-            
+
             if (snapshot.hasError) {
               return _buildErrorState();
             }
-            
+
             final mostSavedLooks = snapshot.data ?? [];
             final groupedLooks = _getGroupedMakeupLooks(mostSavedLooks);
-            
+
             if (groupedLooks.isNotEmpty) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Most Saved Looks ',
+                    'Most Saved Looks in Glammery',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF7E4A71),
-                    ), 
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  ...groupedLooks
-                      .take(3)
-                      .map((look) => _buildLookCard(look)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10), // reduced from 12
+                  ...groupedLooks.take(3).map((look) => _buildLookCard(look)),
+                  const SizedBox(height: 10), // reduced from 16
                 ],
               );
             } else {
@@ -1843,20 +1841,32 @@ Widget _buildRecommendationContent() {
           },
         ),
 
-        const SizedBox(height: 13),
+        const SizedBox(height: 10), // reduced from 13
         if (_recommendation!.overallMostPopularLook != null) ...[
-          const Text(
-            '🌟 Most Popular Look',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF7E4A71),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 2.0), // reduced bottom padding
+            child: Text(
+              'Your personalized trending look! Curated based on your unique facial features',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF9E8296),
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          _buildFeaturedLookCard(_recommendation!.overallMostPopularLook!),
-          const SizedBox(height: 16),
-        ],
+          const SizedBox(height: 6), 
+                const Text(
+                '🌟 Most Popular Look',
+                style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7E4A71),
+              ),
+            ),
+              const SizedBox(height: 10), 
+              _buildFeaturedLookCard(_recommendation!.overallMostPopularLook!),
+              const SizedBox(height: 18), 
+          ],
 
         if (hasValidAnalysis) ...[
           if (_recommendation!.topMakeupLooksByType.isNotEmpty) ...[
@@ -1868,11 +1878,11 @@ Widget _buildRecommendationContent() {
                 color: Color(0xFF7E4A71),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6), 
             _buildTopLooksByTypeSection(),
-            const SizedBox(height: 24), 
+            const SizedBox(height: 18), 
           ],
-          
+
           if (_hasSavedShades()) ...[
             const Text(
               'Most Used Makeup Shades',
@@ -1882,7 +1892,7 @@ Widget _buildRecommendationContent() {
                 color: Color(0xFF7E4A71),
               ),
             ),
-            const SizedBox(height: 10), 
+            const SizedBox(height: 6), 
             _buildMostUsedShadesSection(),
           ],
         ] else if (hasValidAnalysis) ...[
