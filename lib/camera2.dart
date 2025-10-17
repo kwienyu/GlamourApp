@@ -84,8 +84,6 @@ class CameraPageState extends State<CameraPage> {
   bool _showNotification = false;
   int _repeatedCountdownCancellations = 0;
   DateTime? _lastCountdownCancelTime;
-  
-  // FIXED: Made these fields final since they're never reassigned
   final double _lowLightThreshold = 0.2;
   final double _poorLightThreshold = 0.3;
 
@@ -121,7 +119,7 @@ class CameraPageState extends State<CameraPage> {
     });
   }
 
-  // Show notification method with simple elegant design
+  // Show notification method 
   void _showUserNotification(String message, {Duration duration = const Duration(seconds: 4)}) {
     if (!mounted) return;
     
@@ -145,7 +143,6 @@ class CameraPageState extends State<CameraPage> {
   void _analyzeCountdownIssues() {
     final now = DateTime.now();
     
-    // Check for repeated countdown cancellations
     if (_lastCountdownCancelTime != null && 
         now.difference(_lastCountdownCancelTime!).inSeconds < 5) {
       _repeatedCountdownCancellations++;
@@ -163,8 +160,6 @@ class CameraPageState extends State<CameraPage> {
       _countdownResetCount = 1;
     }
     _lastCountdownResetTime = now;
-
-    // Show countdown reset message if it happens multiple times
     if (_countdownResetCount >= 2 && !_showCountdownResetMessage) {
       _showCountdownResetMessage = true;
       _showUserNotification(
@@ -1542,81 +1537,80 @@ class CameraPageState extends State<CameraPage> {
                       ),
                   ],
                 ),
-if (_showNotification && _currentNotification != null)
-  Positioned(
-    top: MediaQuery.of(context).padding.top + screenHeight * 0.15, 
-    left: 20,
-    right: 20,
-    child: AnimatedContainer(
-      duration: Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: Colors.white,
-            size: 18,
-          ),
-          SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getNotificationTitle(_currentNotification!),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  _getNotificationMessage(_currentNotification!),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.close_rounded, color: Colors.white, size: 16),
-            onPressed: () {
-              setState(() {
-                _showNotification = false;
-                _currentNotification = null;
-              });
-              _notificationTimer?.cancel();
-            },
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(minWidth: 30),
-          ),
-        ],
-      ),
-    ),
-  ),
-
+                if (_showNotification && _currentNotification != null)
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + screenHeight * 0.15, 
+                      left: 20,
+                      right: 20,
+                      child: AnimatedContainer(
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                                boxShadow: [
+                                    BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.3),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                      children: [
+                                          Icon(
+                                            Icons.info_outline_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                    Text(
+                                                      _getNotificationTitle(_currentNotification!),
+                                                      style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 2),
+                                                      Text(
+                                                        _getNotificationMessage(_currentNotification!),
+                                                        style: TextStyle(
+                                                        color: Colors.white.withValues(alpha: 0.9),
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                    IconButton(
+                                      icon: Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                                      onPressed: () {
+                                        setState(() {
+                                        _showNotification = false;
+                                        _currentNotification = null;
+                                    });
+                                  _notificationTimer?.cancel();
+                                },
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(minWidth: 30),
+                           ),
+                        ],
+                     ),
+                 ),
+              ),  
               if (_showWarningMessage && _capturedImage == null)
                 Positioned.fill(
                   child: Container(

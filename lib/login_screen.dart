@@ -682,13 +682,10 @@ class LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // for logging out (you can call it from your profile page)
   static Future<void> logout() async {
     final storage = FlutterSecureStorage();
     final prefs = await SharedPreferences.getInstance();
-    
-    // Clear all stored data
+
     await storage.delete(key: 'auth_token');
     await prefs.remove('user_id');
     await prefs.remove('user_email');
